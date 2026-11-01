@@ -128,10 +128,14 @@
       if(current?.id===submittingId) {
         current=null;
         selected=[];
+        inFlight=false;
         view.style.display='none';
+      } else if(!current) {
+        inFlight=false;
       }
-      inFlight=false;
-      if(current)paint();
+      // If choice-2 is already awaiting its own answer, choice-1 must not
+      // release choice-2's in-flight lock either.
+      if(current && !inFlight)paint();
       // Recover after Android briefly backgrounds the WebView while Forge
       // waits on a subsequent human decision. engine.status replays pending.
       setTimeout(()=>{
