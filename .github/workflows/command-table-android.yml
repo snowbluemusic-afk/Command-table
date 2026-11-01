@@ -1,7 +1,7 @@
 name: Command Table Android integration build
 on:
   push:
-    branches: [main]
+    branches: [main, command-table-native-ui-only]
     paths:
       - 'android/**'
       - 'forge-integration/**'
