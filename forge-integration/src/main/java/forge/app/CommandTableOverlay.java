@@ -72,7 +72,7 @@ public final class CommandTableOverlay {
             }
             host = activity;
             if (web != null) {
-                web.bringToFront();
+                show();
                 return;
             }
             WebView view = new WebView(activity);
