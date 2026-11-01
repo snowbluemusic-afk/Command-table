@@ -1,6 +1,7 @@
 package forge.commandtable;
 
 import forge.deck.Deck;
+import forge.game.GameRules;
 import forge.game.GameType;
 import forge.game.player.RegisteredPlayer;
 import forge.gamemodes.match.HostedMatch;
@@ -46,7 +47,13 @@ public final class CommandTableMatchLauncher {
         }
         HostedMatch match = new HostedMatch();
         onCreated.accept(match);
-        match.startMatch(GameType.Commander, Collections.emptySet(), players, human, ui);
+        // The upstream AI-compatibility list is advisory (not a deck error).
+        // On Android it opens an interrupting full-screen reveal dialog before
+        // Command Table receives its first GameView, leaving the WebView on
+        // its launch page. Keep real Commander rules and AI intact.
+        GameRules rules = new GameRules(GameType.Commander);
+        rules.setWarnAboutAICards(false);
+        match.startMatch(rules, Collections.emptySet(), players, human, ui);
         return match;
     }
 
