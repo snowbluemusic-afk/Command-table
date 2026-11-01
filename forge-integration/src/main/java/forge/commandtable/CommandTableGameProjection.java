@@ -91,7 +91,12 @@ public final class CommandTableGameProjection {
             seat.put("libraryCount", p.getLibrary().size());
             seat.put("graveyard", visibleCards(p.getGraveyard()));
             seat.put("exile", visibleCards(p.getExile()));
-            seat.put("battlefield", visibleCards(p.getBattlefield()));
+            List<Map<String,Object>> visibleBoard = visibleCards(p.getBattlefield());
+            seat.put("battlefield", visibleBoard);
+            // Debugging bridge vs engine: if this rises on Krenko activation,
+            // Forge created the tokens and the client is failing to show them.
+            seat.put("tokenCount", visibleBoard.stream()
+                .filter(card -> Boolean.TRUE.equals(card.get("token"))).count());
             seat.put("commandZone", visibleCards(p.getCommand()));
             if (p.getId() == local.getId()) seat.put("hand", visibleCards(p.getHand()));
             players.add(seat);
@@ -132,7 +137,11 @@ public final class CommandTableGameProjection {
         for (CardView c : cards) {
             Map<String,Object> m = new LinkedHashMap<>();
             m.put("id", c.getId());
-            m.put("name", c.isFaceDown() ? "Face-down card" : c.getOracleName());
+            String displayName = c.getOracleName();
+            if (displayName == null || displayName.trim().isEmpty()) {
+                displayName = c.getName();
+            }
+            m.put("name", c.isFaceDown() ? "Face-down card" : displayName);
             m.put("tapped", c.isTapped());
             m.put("attacking", c.isAttacking());
             m.put("blocking", c.isBlocking());
