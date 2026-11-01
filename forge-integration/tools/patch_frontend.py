@@ -54,7 +54,7 @@ function ctHydrateForgeState(raw) {
   const phase=phaseValue.includes('MAIN1')?'main1':phaseValue.includes('MAIN2')?'main2':
     phaseValue.includes('COMBAT')?'combat':phaseValue.includes('END')?'end':phaseValue.toLowerCase();
   return {
-    native:true, players:ps, active, turn:raw.turn||1, phase,
+    native:true, players:ps, active, turn:raw.turn||1, phase, phaseDetail:String(raw.phase||''),
     stack:(Array.isArray(raw.stack)?raw.stack:[]).map((item,i)=>
       typeof item==='string'?{id:i,name:item}:item),
     combat:Array.isArray(raw.combat)?raw.combat:[],
