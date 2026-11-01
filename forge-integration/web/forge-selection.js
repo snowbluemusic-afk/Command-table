@@ -169,7 +169,11 @@
   decisionText.style.cssText='font-size:12px;line-height:1.2;max-height:42px;overflow:auto;margin-bottom:5px;white-space:pre-wrap';
   const buttons=document.createElement('div');
   buttons.style.cssText='display:flex;gap:7px';
-  decision.append(decisionText,buttons);
+  const phaseRail=document.createElement('div');
+  phaseRail.className='ct-forge-phase-rail';
+  phaseRail.setAttribute('aria-label','Turn phase progression');
+  phaseRail.style.cssText='display:flex;justify-content:space-between;gap:3px;padding:5px 0;margin-bottom:4px;border-bottom:1px solid #ad94645b';
+  decision.append(phaseRail,decisionText,buttons);
   // Keep the dock reachable on both turns; Forge enables the actual actions.
   document.body.append(decision);
   let buttonState={label1:'OK',label2:'Cancel',enable1:false,enable2:false};
@@ -205,6 +209,28 @@
       window.app?.view!=='game';
     decision.classList.toggle('ct-forge-pregame',pregame);
     const game=window.app?.game;
+    const steps=[
+      ['untap','↻','Untap'],['upkeep','✧','Upkeep'],['draw','▤','Draw'],
+      ['main1','◆','Main'],['combat','⚔','Combat'],
+      ['main2','◆','Main 2'],['end','◉','End']
+    ];
+    phaseRail.replaceChildren();
+    for(const [id,glyph,label] of steps){
+      const pip=document.createElement('span');
+      pip.textContent=glyph;
+      pip.setAttribute('title',label);
+      pip.setAttribute('aria-label',label);
+      const phase=String(game?.phase||'').toLowerCase();
+      const raw=String(game?.phaseDetail||'').toLowerCase();
+      const active=(id==='combat'?phase==='combat':id==='end'?phase==='end':
+        id==='main1'?phase==='main1':id==='main2'?phase==='main2':
+        raw.includes(id));
+      pip.style.cssText='flex:1;min-width:0;text-align:center;border-radius:5px;'+
+        (active?'background:#e7b773;color:#10252a;box-shadow:0 0 8px #c79a5777;':
+          'color:#99aeb2;opacity:.65;')+'font-size:13px;font-weight:900';
+      phaseRail.append(pip);
+    }
+    phaseRail.style.display=pregame?'none':'flex';
     const phases={main1:'First main',main2:'Second main',combat:'Combat',end:'End step',mulligan:'Opening hand'};
     const detail=String(game?.phaseDetail||'').toLowerCase();
     const phaseText=detail.includes('blocker')?'Declare blockers':
@@ -222,7 +248,14 @@
     ]){
       const b=document.createElement('button');
       b.type='button';
-      b.textContent=label|| (ok?'OK':'Cancel');
+      const original=String(label|| (ok?'OK':'Cancel'));
+      const ordinary=/^(ok|done|continue)$/i.test(original.trim());
+      const phase=window.app?.game?.phase;
+      const stack=window.app?.game?.stack||[];
+      b.textContent=ok && !pregame && ordinary
+        ? (stack.length?'Resolve':window.app?.game?.active===0?'Next':'Pass')
+        :original;
+      b.setAttribute('aria-label',original+' — '+b.textContent);
       b.disabled=!enabled||busy;
       b.style.cssText=[
         'flex:1','min-height:36px','padding:6px 8px','border-radius:9px',
@@ -266,6 +299,8 @@
   window.ctForgeSelection={
     reset:()=>{selection={cards:[],targets:[],chosen:[]};expanded=false;promptMessage='';update();},
     refresh:()=>{update();},
+    isLegalCard:(id)=>Number.isInteger(Number(id))&&
+      candidates().some(c=>c.kind==='card'&&Number(c.id)===Number(id)),
     get active(){return candidates().length>0;}
   };
 })();
