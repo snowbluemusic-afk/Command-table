@@ -115,13 +115,25 @@ public final class CommandTableGuiProxy {
                     prompt.put("message", String.valueOf(args[1]));
                     onPrompt.accept(prompt);
                 }
-                if ("updateButtons".equals(name) && args != null && args.length >= 6) {
+                if ("updateButtons".equals(name) && args != null) {
+                    // Forge has BOTH a four-argument default overload and a
+                    // six-argument labelled overload. The default calls the
+                    // delegate's own method, bypassing this proxy otherwise.
+                    // Missing this is fatal during starting-player/mulligan:
+                    // native buttons are hidden behind our WebView.
                     Map<String, Object> prompt = new LinkedHashMap<>();
-                    prompt.put("label1", String.valueOf(args[1]));
-                    prompt.put("label2", String.valueOf(args[2]));
-                    prompt.put("enable1", args[3]);
-                    prompt.put("enable2", args[4]);
-                    onPrompt.accept(prompt);
+                    if (args.length >= 6) {
+                        prompt.put("label1", String.valueOf(args[1]));
+                        prompt.put("label2", String.valueOf(args[2]));
+                        prompt.put("enable1", Boolean.TRUE.equals(args[3]));
+                        prompt.put("enable2", Boolean.TRUE.equals(args[4]));
+                    } else if (args.length == 4) {
+                        prompt.put("label1", "OK");
+                        prompt.put("label2", "Cancel");
+                        prompt.put("enable1", Boolean.TRUE.equals(args[1]));
+                        prompt.put("enable2", Boolean.TRUE.equals(args[2]));
+                    }
+                    if (!prompt.isEmpty()) onPrompt.accept(prompt);
                 }
                 if ("setGameView".equals(name) || "openView".equals(name)
                         || "handleGameEvent".equals(name)
