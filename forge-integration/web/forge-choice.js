@@ -110,11 +110,12 @@
         return;
       }
     }
+    const submittingId=current.id;
     inFlight=true;
     paint();
     try {
       const response = await window.CommandTableNative.request('choice.answer', {
-        choiceId:current.id,
+        choiceId:submittingId,
         indices:selected.slice(),
         text:value,
         allocation:current.allocation||{},
@@ -122,11 +123,24 @@
         remember:false
       });
       if (!response || response.accepted !== true) throw new Error('Choice was no longer active');
-      current=null;
-      selected=[];
-      view.style.display='none';
+      // The Forge match thread may issue its NEXT discard/target prompt before
+      // this HTTP-style bridge request completes. Never clear a newer choice.
+      if(current?.id===submittingId) {
+        current=null;
+        selected=[];
+        view.style.display='none';
+      }
+      inFlight=false;
+      if(current)paint();
+      // Recover after Android briefly backgrounds the WebView while Forge
+      // waits on a subsequent human decision. engine.status replays pending.
+      setTimeout(()=>{
+        if(!current && window.app?.nativeMatch)
+          void window.CommandTableNative.request('engine.status').catch(()=>{});
+      },350);
     } catch (e) {
       inFlight=false;
+      if(current?.id!==submittingId)return; // A newer valid choice owns UI.
       showError('Forge could not accept this choice: '+(e?.message||String(e)));
       paint();
     }
