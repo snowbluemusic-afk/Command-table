@@ -142,6 +142,7 @@
     '#ct-forge-priority-buttons{top:auto!important;bottom:calc(env(safe-area-inset-bottom) + 10px)!important;left:auto!important;right:9px!important;margin:0!important;width:min(24vw,300px)!important;padding:6px!important;max-height:118px!important}',
     '#ct-forge-priority-buttons button{min-height:32px!important;font-size:12px!important}',
     '#ct-forge-priority-buttons .ct-forge-decision-caption{max-height:32px!important;font-size:11px!important;line-height:1.2!important}',
+    '#ct-forge-priority-buttons.ct-forge-pregame{top:calc(env(safe-area-inset-top) + 70px)!important;bottom:auto!important;right:9px!important}',
     '}'
   ].join('');
   document.head.append(decisionCss);
@@ -184,11 +185,17 @@
     if(!active)return;
     const pregame=window.app?.game?.phase==='mulligan' ||
       window.app?.view!=='game';
+    decision.classList.toggle('ct-forge-pregame',pregame);
     const game=window.app?.game;
     const phases={main1:'First main',main2:'Second main',combat:'Combat',end:'End step',mulligan:'Opening hand'};
+    const detail=String(game?.phaseDetail||'').toLowerCase();
+    const phaseText=detail.includes('blocker')?'Declare blockers':
+      detail.includes('attacker')?'Declare attackers':
+      detail.includes('damage')?'Combat damage':
+      phases[game?.phase]||game?.phase||'Priority';
     decisionText.textContent=pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
-      : 'Turn '+(game?.turn||1)+' · '+(phases[game?.phase]||game?.phase||'Priority')+
+      : 'Turn '+(game?.turn||1)+' · '+phaseText+
         ' · '+(game?.players?.[0]?.priority?'Your priority':'Respond / advance');
     buttons.replaceChildren();
     for(const [label,enabled,ok] of [
