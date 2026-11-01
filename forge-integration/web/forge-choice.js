@@ -14,19 +14,30 @@
   view.setAttribute('aria-modal', 'true');
   view.style.cssText = [
     'display:none','position:fixed','inset:0','z-index:2147483000',
-    'background:rgba(4,12,18,.88)','backdrop-filter:blur(7px)',
-    'justify-content:center','align-items:flex-end','padding:12px',
+    'background:transparent','pointer-events:none',
+    'justify-content:flex-end','align-items:center','padding:9px 16px',
     'box-sizing:border-box','font-family:system-ui,-apple-system,sans-serif'
   ].join(';');
   const sheet = document.createElement('div');
   sheet.style.cssText = [
-    'background:#17252c','color:#f2e8d8','width:100%',
-    'max-width:650px','max-height:88dvh','overflow:auto','border:1px solid #bda17d',
-    'border-radius:20px','box-shadow:0 12px 50px #000c','padding:16px',
+    'background:#17252cf9','color:#f2e8d8','width:min(37vw,460px)',
+    'max-width:460px','max-height:74dvh','overflow:auto','border:1px solid #bda17d',
+    'border-radius:15px','box-shadow:0 12px 30px #000b','padding:12px',
+    'pointer-events:auto',
     'box-sizing:border-box'
   ].join(';');
   view.append(sheet);
   document.body.append(view);
+  // A Forge selection is part of the battlefield, not a navigation event.
+  // Keep the table and hand visible; only the choice tray intercepts touches.
+  const responsive = document.createElement('style');
+  responsive.id='ct-forge-choice-layout';
+  responsive.textContent=[
+    '@media(orientation:portrait){#ct-forge-decision-sheet{align-items:flex-end!important;justify-content:center!important;padding:6px!important}',
+    '#ct-forge-decision-sheet>div{width:100%!important;max-width:640px!important;max-height:64dvh!important}}',
+    '@media(orientation:landscape) and (max-height:520px){#ct-forge-decision-sheet>div{max-height:79dvh!important;width:min(34vw,420px)!important}}'
+  ].join('');
+  document.head.append(responsive);
 
   function el(tag, text, css) {
     const x = document.createElement(tag);
@@ -58,6 +69,10 @@
         : selected.length < current.max ? [...selected,index] : selected;
     }
     paint();
+    // One legal pick: the card/option tap IS confirmation. No second
+    // full-screen confirm step unless Forge actually requested more picks.
+    if (current && selected.length===1 && current.min===1 && current.max===1 &&
+        (current.mode==='single'||current.mode==='multiple')) void answer(false);
   }
   function move(index, delta) {
     if (inFlight || !isOrder()) return;
@@ -125,11 +140,14 @@
   function paint() {
     sheet.replaceChildren();
     if (!current) return;
-    const subtitle=el('p','FORGE RULES ENGINE',
-      'color:#c6ab83;font-size:10px;font-weight:800;letter-spacing:.19em;margin:0 0 8px');
+    const subtitle=el('p','YOUR DECISION · FORGE RULES',
+      'color:#c6ab83;font-size:10px;font-weight:800;letter-spacing:.15em;margin:0 0 6px');
     sheet.append(subtitle);
-    const heading=el('h3',current.title || 'Choose an option',
-      'font-size:19px;line-height:1.3;font-weight:750;margin:0 0 12px;white-space:pre-wrap');
+    const plainTitle=String(current.title||'Choose an option')
+      .replace(/\b1 card\(s\)/gi,'one card')
+      .replace(/\bDiscarded\s*$/i,'').trim();
+    const heading=el('h3',plainTitle,
+      'font-size:17px;line-height:1.3;font-weight:750;margin:0 0 7px;white-space:pre-wrap');
     sheet.append(heading);
     const desc = current.mode==='order'
       ? 'Arrange these cards in the required order.'
@@ -139,7 +157,7 @@
           ? 'Select the legal option you want.'
           : 'Enter your decision.';
     sheet.append(el('p',desc,'font-size:12px;color:#acb8bc;margin:0 0 12px'));
-    const list=el('div',null,'display:grid;gap:7px;max-height:46dvh;overflow:auto');
+    const list=el('div',null,'display:grid;gap:7px;max-height:42dvh;overflow:auto');
     const opts=Array.isArray(current.options)?current.options:[];
     if (current.mode==='allocation') {
       const total=Number(current.amount||0);
@@ -197,6 +215,26 @@
         b.style.textAlign='left';
         b.style.whiteSpace='normal';
         b.style.wordBreak='break-word';
+        // Show genuine card art in discard, hand and zone decisions. Artwork
+        // is optional; legal choice identity still comes only from Forge.
+        const cardPrompt=/discard|card|hand|graveyard|exile|library|permanent/i.test(plainTitle);
+        const simpleName=String(label).trim().replace(/^\d+\s*[xX]?\s+/,'');
+        if(cardPrompt && simpleName.length>2 && simpleName.length<85 &&
+           !/target|player|damage|select|option/i.test(simpleName)) {
+          const image=el('img');
+          let local='';
+          try{local=window.AndroidBridge?.artworkUrl?.(simpleName)||'';}catch(_){}
+          image.src=local||('https://api.scryfall.com/cards/named?exact='+
+            encodeURIComponent(simpleName)+'&format=image&version=art_crop');
+          image.alt='';
+          image.loading='lazy';
+          image.style.cssText='width:54px;height:51px;object-fit:cover;border-radius:7px;flex:0 0 54px;background:#1d3438';
+          image.onerror=()=>{image.style.display='none';};
+          const title=el('span',(chosen&&!isOrder()?'✓ ':'')+label,
+            'min-width:0;flex:1;overflow-wrap:anywhere');
+          b.replaceChildren(image,title);
+          b.style.display='flex';b.style.alignItems='center';b.style.gap='9px';
+        }
         if (isOrder()) b.disabled=true;
         line.append(b);
         if (isOrder()) {
