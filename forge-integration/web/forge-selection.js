@@ -127,9 +127,9 @@
     'position:fixed','left:10px','right:10px',
     'top:calc(env(safe-area-inset-top) + 65px)',
     'bottom:auto','z-index:210000','display:none',
-    'margin:0 auto','max-width:460px',
+    'margin:0 auto','max-width:420px',
     'border:1px solid #c59c61','background:#15272ef5',
-    'color:#fff2db','padding:10px','border-radius:13px',
+    'color:#fff2db','padding:8px','border-radius:12px',
     'box-shadow:0 8px 22px #0009',
     'font-family:system-ui','box-sizing:border-box',
     'pointer-events:auto'
@@ -139,15 +139,15 @@
   const decisionCss=document.createElement('style');
   decisionCss.textContent=[
     '@media(orientation:landscape) and (max-height:600px){',
-    '#ct-forge-priority-buttons{top:calc(env(safe-area-inset-top) + 42px)!important;right:8px!important;left:auto!important;width:min(41vw,410px)!important;padding:7px!important}',
-    '#ct-forge-priority-buttons button{min-height:34px!important;font-size:12px!important}',
-    '#ct-forge-priority-buttons .ct-forge-decision-caption{max-height:38px!important;font-size:11px!important}',
+    '#ct-forge-priority-buttons{top:calc(env(safe-area-inset-top) + 66px)!important;left:8px!important;right:auto!important;margin:0!important;width:min(32vw,360px)!important;padding:6px!important;max-height:116px!important}',
+    '#ct-forge-priority-buttons button{min-height:32px!important;font-size:12px!important}',
+    '#ct-forge-priority-buttons .ct-forge-decision-caption{max-height:32px!important;font-size:11px!important;line-height:1.2!important}',
     '}'
   ].join('');
   document.head.append(decisionCss);
   const decisionText=document.createElement('div');
   decisionText.className='ct-forge-decision-caption';
-  decisionText.style.cssText='font-size:12px;line-height:1.25;max-height:45px;overflow:auto;margin-bottom:7px;white-space:pre-wrap';
+  decisionText.style.cssText='font-size:11px;line-height:1.2;max-height:36px;overflow:auto;margin-bottom:5px;white-space:pre-wrap';
   const buttons=document.createElement('div');
   buttons.style.cssText='display:flex;gap:7px';
   decision.append(decisionText,buttons);
@@ -175,6 +175,9 @@
     const active=!!window.app?.nativeMatch &&
       window.app?.view==='game' && !window.app?.modal &&
       !otherChoiceOpen && (!!buttonState.enable1||!!buttonState.enable2);
+    // A single small dock owns Forge buttons. Never mount a full-width
+    // secondary prompt or cover the enlarged card browser.
+    decision.style.pointerEvents=active?'auto':'none';
     decision.style.display=active?'block':'none';
     if(!active)return;
     const pregame=window.app?.game?.phase==='mulligan' ||
@@ -191,7 +194,7 @@
       b.textContent=label|| (ok?'OK':'Cancel');
       b.disabled=!enabled||busy;
       b.style.cssText=[
-        'flex:1','min-height:41px','padding:7px 9px','border-radius:9px',
+        'flex:1','min-height:36px','padding:6px 8px','border-radius:9px',
         'border:1px solid #bda17d',
         ok?'background:#e6b46c;color:#14252a':'background:#2a4049;color:#f4e3c9',
         'font-size:13px','font-weight:700',
