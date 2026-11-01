@@ -75,7 +75,7 @@ assert(projection.includes('m.put("token", c.isToken())'),
 const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
 assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
   'Installed Forge app must have a distinct launcher label from old Command Table');
-assert(frontend.includes('FORGE BUILT-IN · v0.14.9'),
+assert(frontend.includes('FORGE BUILT-IN · v0.15.0'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
   'An embedded Forge build must never advertise an external Forge app');
@@ -269,4 +269,31 @@ assert(frontend.includes('function ctNativeAffordable(c,me,g)') &&
        frontend.includes('ctNativeAffordable(c,me,g)') &&
        frontend.includes("!ctNativeTiming(c).allowed"),
   'Provide conservative mana-affordability hints without bypassing Forge');
+assert(overlay.includes('case "castCommander":') &&
+       overlay.includes('case "castById":') &&
+       overlay.includes('human.getCommand().get(0).getId()') &&
+       overlay.includes('c.getId()==wanted'),
+  'Commander casting and inspected hand casts must use stable Forge zone IDs');
+assert(frontend.includes("case 'castCommander'")===false &&
+       frontend.includes("'cardId','castCommander','castById'") &&
+       frontend.includes("?'castById':act"),
+  'Commander actions and cast-by-ID dispatch must use native Forge, not simulator');
+assert(frontend.includes('data-drag-commander="true"') &&
+       frontend.includes("data-action=\"castCommander\"") &&
+       frontend.includes('Commander is not in the command zone')===false,
+  'Command-zone drawer must expose cast and drag interaction');
+assert(frontend.includes('function ctNativeCombatGuide(g)') &&
+       frontend.includes('ctNativeCombatGuide(g)') &&
+       frontend.includes('ct-native-combat-guide') &&
+       frontend.includes('ct-native-attacker') &&
+       frontend.includes('ct-native-blocker'),
+  'Native combat must expose attacker-to-defender/blocker mapping and clear steps');
+assert(selectionUi.includes("data-action=\"inspectBoardPermanent\"") &&
+       selectionUi.includes("raw.split(':').at(-1)") &&
+       selectionUi.includes("isSelectedCard:(id)"),
+  'Selection highlighting must match stable Forge card IDs instead of seat-prefixed UI IDs');
+assert(frontend.includes("if(key==='sol ring')mana.push('C','C')") &&
+       frontend.includes('arcane signet') &&
+       frontend.includes("mana.indexOf('*')"),
+  'Advisory casting highlights must account for known untapped mana rocks');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
