@@ -343,7 +343,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "FORGE BUILT-IN · v0.14.6")
+                      "FORGE BUILT-IN · v0.14.7")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -397,7 +397,7 @@ assert source.count(menu_btn)>=1
 source=source.replace(menu_btn,
     '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-    "FORGE BUILT-IN · v0.14.6")
+    "FORGE BUILT-IN · v0.14.7")
 pod_css = """
 <style id="ct-forge-game-ux">
 .ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
