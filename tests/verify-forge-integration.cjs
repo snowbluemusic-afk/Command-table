@@ -75,7 +75,7 @@ assert(projection.includes('m.put("token", c.isToken())'),
 const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
 assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
   'Installed Forge app must have a distinct launcher label from old Command Table');
-assert(frontend.includes('FORGE BUILT-IN · v0.14.3'),
+assert(frontend.includes('FORGE BUILT-IN · v0.14.4'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
   'An embedded Forge build must never advertise an external Forge app');
@@ -154,4 +154,23 @@ assert(selectionUi.includes("window.app?.nativeMatch") &&
        selectionUi.includes("decision.style.display=active?'block':'none'"),
   'Opening decisions must remain accessible before the first battlefield');
 
+assert(frontend.includes("function turnControls(g,active,self){if(app.nativeMatch)return ''"),
+  'Simulator turn controls must not duplicate authoritative Forge buttons');
+assert(frontend.includes("'dismiss','rotateMatch','togglePod'"),
+  'Native UI-only actions must stay usable when Forge handles rules');
+assert(frontend.includes("app.modal='';render();"),
+  'Native cast should close hand browser so card controls are usable');
+assert(frontend.includes("overview?'▣':'▦'") &&
+       frontend.includes('data-action="rotateMatch"'),
+  'Pod toggle and orientation toggle must be compact icon buttons');
+assert(frontend.includes('.ct10-overview .ct-pod-grid') &&
+       frontend.includes('@media(orientation:landscape)'),
+  'Compact Pod overview must support both phone orientations');
+assert(selectionUi.includes("top:calc(env(safe-area-inset-top) + 65px)") &&
+       selectionUi.includes("!window.app?.modal") &&
+       selectionUi.includes("paintDecision(); // Close behind full-screen"),
+  'Priority and mulligan controls must not cover cards or hand inspector');
+assert(overlay.includes('activity.setRequestedOrientation(orientation)') &&
+       overlay.includes('SCREEN_ORIENTATION_SENSOR_LANDSCAPE'),
+  'Native Android orientation switch must not be a no-op');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
