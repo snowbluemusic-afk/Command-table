@@ -56,13 +56,21 @@ public final class CommandTableStarterDeckRepair {
         };
     }
 
-    private static Set<String> invalidColorNames(String problem) {
-        Set<String> result = new HashSet<>();
-        if (problem == null || !problem.startsWith(COLOR_ERROR)) return result;
-        for (String line : problem.substring(COLOR_ERROR.length()).split("\\R")) {
-            if (!line.isBlank()) result.add(line.strip().toLowerCase(Locale.ROOT));
-        }
-        return result;
+    /** Plain Commander allows repeats only for basic lands. */
+    private static boolean basic(String name) {
+        return Set.of("Plains", "Island", "Swamp", "Mountain", "Forest",
+                "Wastes", "Snow-Covered Plains", "Snow-Covered Island",
+                "Snow-Covered Swamp", "Snow-Covered Mountain",
+                "Snow-Covered Forest").contains(name);
+    }
+
+    private static boolean legal(String name, PaperCard commander) {
+        PaperCard card = StaticData.instance().getCommonCards().getCard(name);
+        if (card == null || card.getRules() == null) return false;
+        byte identity = commander.getRules().getColorIdentity().getColor();
+        return card.getRules().getColorIdentity().hasNoColorsExcept(identity)
+            && DeckFormat.Commander.isLegalCardForCommanderPredicate(
+                List.of(commander)).test(card);
     }
 
     private static String replacement(String name, PaperCard commander, Set<String> existing) {
@@ -96,34 +104,48 @@ public final class CommandTableStarterDeckRepair {
         if (commander == null)
             throw new IllegalArgumentException("Unknown commander: " + commanderName);
 
-        List<String> cards = new ArrayList<>(main);
+        // Normalize all legacy punctuation FIRST. The stored sample decks
+        // predate Forge and contain “Krenko’s Command” / “Pilgrim’s Eye”.
+        List<String> cards = new ArrayList<>(main.size());
         List<Map<String, String>> changes = new ArrayList<>();
+        for (String original : main) {
+            String canonical = CommandTableForgeDecks.canonicalName(original);
+            cards.add(canonical);
+            if (!canonical.equals(original)) {
+                Map<String, String> fix = new LinkedHashMap<>();
+                fix.put("from", original);
+                fix.put("to", canonical);
+                changes.add(fix);
+            }
+        }
+        // Per-card legality is authoritative and does not rely on parsing
+        // Forge's human-readable errors (which may list names on one line).
+        Set<String> existing = new HashSet<>();
+        for (String n : cards) existing.add(n.toLowerCase(Locale.ROOT));
+        Set<String> seen = new HashSet<>();
+        for (int i = 0; i < cards.size(); i++) {
+            String nameHere = cards.get(i);
+            String key = nameHere.toLowerCase(Locale.ROOT);
+            boolean duplicate = !basic(nameHere) && seen.contains(key);
+            if (legal(nameHere, commander) && !duplicate) {
+                seen.add(key);
+                continue;
+            }
+            String next = replacement(commanderName, commander, existing);
+            if (!legal(next, commander))
+                throw new IllegalStateException(
+                    "Forge cannot find a legal replacement for " + nameHere);
+            cards.set(i, next);
+            String nextKey = next.toLowerCase(Locale.ROOT);
+            existing.add(nextKey);
+            seen.add(nextKey);
+            Map<String, String> fix = new LinkedHashMap<>();
+            fix.put("from", nameHere);
+            fix.put("to", next);
+            changes.add(fix);
+        }
         String problem = CommandTableForgeDecks.validationError(
             CommandTableForgeDecks.fromImport(name, commanderName, cards));
-
-        for (int pass = 0; problem != null && pass < 3; pass++) {
-            Set<String> illegal = invalidColorNames(problem);
-            if (illegal.isEmpty()) break;
-            Set<String> names = new HashSet<>();
-            for (String n : cards) names.add(n.toLowerCase(Locale.ROOT));
-            int repaired = 0;
-            for (int i = 0; i < cards.size(); i++) {
-                String old = cards.get(i);
-                if (!illegal.contains(old.toLowerCase(Locale.ROOT))) continue;
-                names.remove(old.toLowerCase(Locale.ROOT));
-                String replacement = replacement(commanderName, commander, names);
-                cards.set(i, replacement);
-                names.add(replacement.toLowerCase(Locale.ROOT));
-                Map<String, String> fix = new LinkedHashMap<>();
-                fix.put("from", old);
-                fix.put("to", replacement);
-                changes.add(fix);
-                repaired++;
-            }
-            if (repaired == 0) break;
-            problem = CommandTableForgeDecks.validationError(
-                CommandTableForgeDecks.fromImport(name, commanderName, cards));
-        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("valid", problem == null);
