@@ -343,7 +343,7 @@ public final class CommandTableOverlay {
         Object value=p.opt("value");
         try {
             switch(action) {
-                case "playInspected":case "castSelected":case "selectHand":
+                case "playInspected":case "castSelected":case "selectHand": {
                     if (value == null || JSONObject.NULL.equals(value)) {
                         throw new IllegalArgumentException("Select a card to play");
                     }
@@ -359,6 +359,7 @@ public final class CommandTableOverlay {
                         throw new IllegalArgumentException("Card selection outside hand/command zone");
                     }
                     break;
+                }
                 case "castCommander": {
                     GameView view=match.getGameView();
                     if(view==null)throw new IllegalStateException("Game not ready");
