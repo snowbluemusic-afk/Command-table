@@ -856,7 +856,8 @@ assert source.count("'toggleHandZoom','inspectBoardPermanent','toggleZones'")==1
 source=source.replace("'toggleHandZoom','inspectBoardPermanent','toggleZones'",
                       "'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame'")
 result_css = """<style id="ct-game-complete-v0149">
-.ct-native-game-end{position:absolute;inset:0;z-index:120;display:flex;justify-content:center;align-items:center;background:#07131cd8;backdrop-filter:blur(7px);pointer-events:auto}
+.ct10-scene>.ct-native-game-end{z-index:999!important}
+.ct-native-game-end{position:absolute;inset:0;z-index:999!important;display:flex;justify-content:center;align-items:center;background:#07131cd8;backdrop-filter:blur(7px);pointer-events:auto}
 .ct-native-result-card{border:1px solid #e7b974;background:radial-gradient(circle at 50% -35%,#466c6880,#14282cef 62%);box-shadow:0 24px 80px #000e;border-radius:19px;padding:clamp(17px,3vw,38px);color:#f6ead4;text-align:center;width:min(90%,430px)}
 .ct-native-end-crest{display:block;color:#eebd79;font-size:46px;text-shadow:0 0 20px #dbac8b}
 .ct-native-end-label{font-size:10px;letter-spacing:2px;font-weight:800;color:#ddbe87}
