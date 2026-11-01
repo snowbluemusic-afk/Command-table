@@ -44,7 +44,7 @@
     });
     const all=candidates().filter(c=>c.kind==='card');
     const ids=new Set(all.map(x=>String(x.id)));
-    for(const element of document.querySelectorAll('[data-action="permanent"][data-value]')) {
+    for(const element of document.querySelectorAll('[data-action="permanent"][data-value],[data-action="cardId"][data-value]')) {
       if(ids.has(element.getAttribute('data-value'))) {
         element.classList.add('ct-forge-legal-target');
         element.style.outline='3px solid #e8be6c';
@@ -122,8 +122,12 @@
         // Keep the hand and battlefield visible rather than stacking panels.
         if(candidates().length && window.app?.sideInspect) {
           window.app.sideInspect=null;
-          if(window.app.view==='game') window.render?.();
+          window.app.inspectForgeId=null;
         }
+        // Native selections can change between consecutive GameView updates.
+        // Re-render to give each legal target its authoritative numeric ID.
+        if(window.app?.nativeMatch && window.app?.view==='game')
+          window.render?.();
       }
       update();
       return;
