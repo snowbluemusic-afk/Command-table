@@ -90,7 +90,7 @@ source=source.replace(
 # Safety check: never allow a native match to fall through to the JS simulator.
 source=source.replace(" const g=app.game,p=g?.players[0],active=g&&turnPlayer();switch(act){",
                       """  if(app.nativeMatch && app.view==='game' &&
-      !new Set(['focusPlayer','togglePod','menuGame','inspect','inspectFull','inspectCommander','inspectPlayer','showHandCard','openHand','previousHand','nextHand','selectHand','closeModal','cycleOpponent','viewStack','viewHistory','helpCurrent','back','nativePrompts','quitGame','clearSideInspect']).has(act)) {
+      !new Set(['focusPlayer','togglePod','menuGame','inspect','inspectFull','inspectCommander','inspectPlayer','showHandCard','openHand','previousHand','nextHand','selectHand','closeModal','cycleOpponent','viewStack','viewHistory','helpCurrent','back','nativePrompts','quitGame','clearSideInspect','dismiss','rotateMatch','togglePod']).has(act)) {
     announce('This action must be handled by Forge: '+act); return;
   }
  const g=app.game,p=g?.players[0],active=g&&turnPlayer();switch(act){""")
@@ -457,6 +457,45 @@ source=source.replace("case 'nativePrompts': window.AndroidBridge?.showNativePro
 # Never expose a button which silently changes rendering engines.
 source=source.replace("  advanced.onclick=()=>window.AndroidBridge?.showNativePrompts?.();",
     "  advanced.style.display='none';")
+
+# The training UI shows its own turn buttons; Forge is the sole gameplay
+# controller in real matches. Removing duplicates also frees the hand area.
+assert source.count("function turnControls(g,active,self){")==1
+source=source.replace("function turnControls(g,active,self){",
+    "function turnControls(g,active,self){if(app.nativeMatch)return '';")
+native_entry="if(app.nativeMatch && NATIVE_GAME_COMMANDS.has(act)) {"
+assert source.count(native_entry)==1
+source=source.replace(native_entry,
+    native_entry+"\n   if(['castSelected','playInspected','quitGame'].includes(act)){app.modal='';app.sideInspect=null;render();}")
+assert source.count("⊞ Pod")==1
+source=source.replace("⊞ Pod","▦")
+assert source.count("overview?'Focus':'▦'")==1
+source=source.replace("overview?'Focus':'▦'","overview?'▣':'▦'")
+source=source.replace('aria-label="Pod overview"','aria-label="Toggle pod overview" title="Show all players"')
+menu_btn='<button data-action="menuGame" aria-label="Options">⚙</button>'
+assert source.count(menu_btn)>=1
+source=source.replace(menu_btn,
+    '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
+source=source.replace("TABLETOP ALPHA · 0.11.0",
+    "FORGE BUILT-IN · v0.14.4")
+pod_css = """
+<style id="ct-forge-game-ux">
+.ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
+.ct10-top-tools .ct10-phase-badge{max-width:calc(100% - 180px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ct10-top-tools button{flex:0 0 34px!important;min-width:34px!important;width:34px!important;height:34px!important;font-size:19px!important;line-height:1!important;white-space:nowrap!important}
+.ct10-overview{inset:11% 3% 16% 3%!important;width:auto!important;height:auto!important;overflow-y:auto!important;padding:10px!important;background:#0d2026f3!important}
+.ct10-overview .ct-pod-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:minmax(132px,1fr)!important;gap:9px!important;min-height:0!important}
+.ct10-overview .ct-pod-seat{min-width:0;min-height:125px}
+@media(max-width:370px){.ct10-top-tools .ct10-phase-badge{font-size:9px!important;letter-spacing:0!important;padding:6px!important}}
+@media(orientation:landscape) and (max-height:650px){
+ .ct10-top-tools .ct10-phase-badge{max-width:calc(100% - 190px)}
+ .ct10-overview{inset:12% 3% 12% 3%!important}
+ .ct10-overview .ct-pod-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-auto-rows:minmax(105px,1fr)!important}
+}
+</style>
+"""
+assert source.count("</head>")==1
+source=source.replace("</head>",pod_css+"</head>")
 
 # All add-on scripts must use the SAME native match session and state.
 # The recovered core is wrapped in an IIFE, so expose a controlled bridge.
