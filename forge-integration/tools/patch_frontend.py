@@ -621,9 +621,9 @@ function ctNativeToast(message){
 assert source.count("function applyAuthoritativeGame(state) {")==1
 source=source.replace("function applyAuthoritativeGame(state) {",
                       smooth_runtime+"\nfunction applyAuthoritativeGame(state) {")
-old_listener="""      applyAuthoritativeGame(message);
-      app.view='game';app.modal='';app.notice='';
-      render();"""
+old_listener="""     applyAuthoritativeGame(message);
+     app.view='game';app.modal='';app.notice='';
+     render();"""
 assert source.count(old_listener)==1, 'Native game.state listener changed'
 source=source.replace(old_listener, "      ctReceiveForgeState(message);")
 old_command="if(latest?.game){applyAuthoritativeGame(latest.game);if(app.view==='game')render();}"
