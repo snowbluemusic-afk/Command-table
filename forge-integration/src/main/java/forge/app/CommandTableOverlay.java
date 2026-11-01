@@ -109,6 +109,8 @@ public final class CommandTableOverlay {
             view.addJavascriptInterface(new DeviceBridge(activity), "AndroidBridge");
             web = view;
             activity.addContentView(view, new FrameLayout.LayoutParams(-1, -1));
+            view.setElevation(32f);
+            view.bringToFront();
             view.loadUrl("https://appassets.androidplatform.net/assets/index.html");
         });
     }
@@ -141,10 +143,18 @@ public final class CommandTableOverlay {
     }
 
     public static void hideForNativePrompt() {
-        UI.post(() -> { if (web != null) web.setVisibility(android.view.View.GONE); });
+        // Never switch to Forge's native gameplay surface. Choices must be
+        // handled by our WebView; unsupported choices are reported there.
+        show();
     }
     public static void show() {
-        UI.post(() -> { if (web != null) {web.setVisibility(android.view.View.VISIBLE);web.bringToFront();} });
+        UI.post(() -> {
+            if (web == null) return;
+            web.setVisibility(android.view.View.VISIBLE);
+            web.setElevation(32f);
+            web.bringToFront();
+            web.requestLayout();
+        });
     }
 
     private static boolean initialized() {
@@ -188,6 +198,18 @@ public final class CommandTableOverlay {
         }
     }
 
+    private static void publishNotice(String message) {
+        try {
+            String safe=message == null ? "" : message;
+            if (safe.isBlank()) return;
+            send(new JSONObject().put("v",1).put("type","game.notice")
+                .put("payload",new JSONObject().put("message",safe)));
+            show();
+        } catch (Exception error) {
+            android.util.Log.e("CommandTable", "Unable to deliver Forge message", error);
+        }
+    }
+
     private static void publishPrompt(Map<String, Object> prompt) {
         try {
             send(new JSONObject().put("v", 1).put("type", "game.prompt")
@@ -197,6 +219,9 @@ public final class CommandTableOverlay {
 
     private static void publish(GameView game) {
         if (game == null || game.getPlayers().isEmpty()) return;
+        // Forge's libGDX match surface can be recreated on every match;
+        // reassert the Command Table window's presentation after updates.
+        show();
         try {
             PlayerView human=game.getPlayers().get(0);
             Map<String,Object> snapshot = CommandTableGameProjection.snapshot(game,human);
@@ -282,6 +307,7 @@ public final class CommandTableOverlay {
                         CommandTableOverlay::publish,
                         CommandTableOverlay::publishPrompt,
                         CommandTableOverlay::publishSelection,
+                        CommandTableOverlay::publishNotice,
                         choices,
                         CommandTableOverlay::hideForNativePrompt,
                         CommandTableOverlay::show);
@@ -476,7 +502,10 @@ public final class CommandTableOverlay {
         @JavascriptInterface public void setOrientation(String mode) {
             // Forge's libGDX rendering thread owns orientation.
         }
-        @JavascriptInterface public void showNativePrompts() {hideForNativePrompt();}
+        @JavascriptInterface public void showNativePrompts() {
+            publishNotice("Use Command Table's on-screen choices to interact with Forge.");
+            show();
+        }
         @JavascriptInterface public void returnToCommandTable() {show();}
     }
 }
