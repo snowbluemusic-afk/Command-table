@@ -256,88 +256,8 @@ token_css='<style>.ct-token-permanent{position:relative}.ct-token-permanent:afte
 assert source.count("</head>")==1
 source=source.replace("</head>",token_css+"</head>")
 
-# Render Forge's live priority prompt over the existing Command Table board.
-# Buttons call Forge IGameController methods; they do not advance the JS simulator.
-prompt_script = r"""
-<script>
-(function() {
-  let prompt = {};
-  const oldReceive = window.CommandTableNativeReply;
-  const panel = document.createElement('section');
-  panel.id = 'command-table-forge-choice';
-  panel.setAttribute('aria-live', 'polite');
-  Object.assign(panel.style, {
-    position:'fixed', bottom:'calc(env(safe-area-inset-bottom) + 46px)',
-    left:'8px', right:'8px', maxWidth:'700px', margin:'auto', zIndex:'9999',
-    background:'#14252dee', border:'1px solid #c8a77a', borderRadius:'14px',
-    padding:'12px', boxShadow:'0 10px 40px #000c', display:'none',
-    fontFamily:'system-ui', color:'#f5e8cf'
-  });
-  const message=document.createElement('div');
-  Object.assign(message.style,{fontSize:'13px',lineHeight:'1.4',marginBottom:'8px',maxHeight:'66px',overflow:'auto'});
-  panel.append(message);
-  const row=document.createElement('div');
-  Object.assign(row.style,{display:'flex',gap:'8px'});
-  panel.append(row);
-  const playersRow=document.createElement('div');
-  Object.assign(playersRow.style,{display:'none',gap:'6px',marginTop:'8px',flexWrap:'wrap'});
-  panel.append(playersRow);
-  const confirm=document.createElement('button'), cancel=document.createElement('button');
-  const advanced=document.createElement('button');
-  for(const b of [confirm,cancel,advanced]) {
-    Object.assign(b.style,{borderRadius:'9px',minHeight:'42px',padding:'8px 12px',
-      border:'1px solid #99836c',background:'#263d42',color:'#f8e5c4',fontWeight:'700',flex:'1'});
-    row.append(b);
-  }
-  confirm.textContent='Continue';cancel.textContent='Cancel';advanced.textContent='More choices';
-  advanced.onclick=()=>window.AndroidBridge?.showNativePrompts?.();
-  async function act(name,value) {
-    try { await CommandTableNative.request('game.command',{action:name,value}); }
-    catch(e){ if(typeof announce==='function') announce('Forge: '+e.message); }
-  }
-  confirm.onclick=()=>act('resolve');
-  cancel.onclick=()=>act('cancelCastTarget');
-  function update() {
-    let playing=false;
-    try{playing=!!app.nativeMatch && app.view==='game';}catch(e){}
-    const visible=playing && (prompt.message || prompt.label1 || prompt.label2);
-    panel.style.display=visible?'block':'none';
-    message.textContent=prompt.message || 'Choose how to respond';
-    confirm.textContent=prompt.label1||'Continue';
-    cancel.textContent=prompt.label2||'Cancel';
-    confirm.disabled=prompt.enable1===false;
-    cancel.disabled=prompt.enable2===false;
-    confirm.style.opacity=confirm.disabled?'.4':'1';
-    cancel.style.opacity=cancel.disabled?'.4':'1';
-    const asksForPlayer=/choose.*(player|opponent)|target.*(player|opponent)|attack.*(player|opponent)|defending player/i.test(prompt.message||'');
-    playersRow.style.display=visible&&asksForPlayer?'flex':'none';
-    playersRow.replaceChildren();
-    if(asksForPlayer) for(const p of window.ctForgePlayers||[]) {
-      const b=document.createElement('button');
-      b.textContent='Target '+p.name;
-      Object.assign(b.style,{padding:'8px',border:'1px solid #b9a077',borderRadius:'8px',
-        background:'#34454b',color:'#fff',flex:'1',fontSize:'12px'});
-      b.onclick=()=>act('targetPlayer',p.id);
-      playersRow.append(b);
-    }
-  }
-  document.body.append(panel);
-  window.CommandTableNativeReply=function(value) {
-    let event;
-    try {event=typeof value==='string'?JSON.parse(value):value;}catch(e){}
-    if(event && event.type==='game.prompt') {
-      Object.assign(prompt,event.payload||{});
-      update();return;
-    }
-    return oldReceive(value);
-  };
-  setInterval(update,500);
-})();
-</script>
-"""
-assert source.endswith("</body></html>"), "Expected complete Command Table document"
-source=source.replace("</body></html>",prompt_script+"</body></html>")
-
+# Forge's priority buttons have ONE owner: forge-selection.js.
+# Do not inject a second fixed overlay for the same game.prompt events.
 
 # Native taps on any battlefield permanent must go to Forge for legal
 # targeting/blocker choices. The training simulator keeps its original actions.
@@ -423,7 +343,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "FORGE BUILT-IN · v0.14.4")
+                      "FORGE BUILT-IN · v0.14.5")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -477,7 +397,7 @@ assert source.count(menu_btn)>=1
 source=source.replace(menu_btn,
     '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-    "FORGE BUILT-IN · v0.14.4")
+    "FORGE BUILT-IN · v0.14.5")
 pod_css = """
 <style id="ct-forge-game-ux">
 .ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
