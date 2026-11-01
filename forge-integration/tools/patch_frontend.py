@@ -465,6 +465,50 @@ deck_css="""<style id="ct-forge-decks-polish">
 assert source.count('</head>')==1
 source=source.replace('</head>',deck_css+'</head>')
 
+
+# Expand the opening hand automatically, and allow two-state hand size from
+# the ribbon or empty area of the fan. Card tap remains native card inspection.
+hand_polish = """
+assert source.count('<div class="ct-stage ct10-stage ')==1
+source=source.replace('<div class="ct-stage ct10-stage ',
+ '<div class="ct-stage ct10-stage '+chr(36)+'{app.handZoom?"ct10-hand-zoom":""} '+chr(36)+'{g.phase==="mulligan"?"ct10-hand-mulligan":""} ')
+assert source.count('data-action="openHand">YOUR HAND')==1
+source=source.replace('data-action="openHand">YOUR HAND',
+ 'data-action="toggleHandZoom" aria-label="Expand or collapse hand" aria-pressed="'+chr(36)+'{!!app.handZoom}">YOUR HAND')
+assert source.count('YOUR HAND <b>'+chr(36)+'{me.hand.length}</b> ⤢')==1
+source=source.replace('YOUR HAND <b>'+chr(36)+'{me.hand.length}</b> ⤢',
+ 'YOUR HAND <b>'+chr(36)+'{me.hand.length}</b> '+chr(36)+'{app.handZoom?"−":"⤢"}')
+assert source.count('<div class="ct10-hand-fan">'+chr(36)+'{hand||')==1
+source=source.replace('<div class="ct10-hand-fan">'+chr(36)+'{hand||',
+ '<div class="ct10-hand-fan" data-action="toggleHandZoom">'+chr(36)+'{hand||')
+assert source.count(" case 'openHand':")==1
+source=source.replace(" case 'openHand':",
+ " case 'toggleHandZoom':app.handZoom=!app.handZoom;render();break;\n case 'openHand':")
+hand_css="""<style id="ct-forge-hand-polish">
+.ct10-hand-mulligan .ct10-hand-wrap,.ct10-hand-zoom .ct10-hand-wrap{
+ left:5%!important;width:90%!important;bottom:3%!important;
+ height:clamp(185px,44dvh,355px)!important;z-index:10!important}
+.ct10-hand-mulligan .ct10-hand-ribbon,.ct10-hand-zoom .ct10-hand-ribbon{height:29px!important;font-size:13px!important}
+.ct10-hand-mulligan .ct10-hand-ribbon button,.ct10-hand-zoom .ct10-hand-ribbon button{font-size:13px!important;min-height:29px}
+.ct10-hand-mulligan .ct10-hand-fan,.ct10-hand-zoom .ct10-hand-fan{height:calc(100% - 29px)!important;align-items:flex-end!important}
+.ct10-hand-mulligan .ct10-hand-slot,.ct10-hand-zoom .ct10-hand-slot{margin-right:clamp(-32px,-1.3vw,-10px)!important;transform:rotate(var(--tilt))!important}
+.ct10-hand-mulligan .ct10-hand-slot:hover,.ct10-hand-zoom .ct10-hand-slot:hover,
+.ct10-hand-mulligan .ct10-hand-slot:has(.chosen),.ct10-hand-zoom .ct10-hand-slot:has(.chosen){
+ transform:translateY(-14px) scale(1.06) rotate(0deg)!important}
+.ct10-hand-mulligan .ct10-hand-slot .game-card,.ct10-hand-zoom .ct10-hand-slot .game-card{
+ height:clamp(165px,39dvh,320px)!important;width:clamp(115px,26dvh,225px)!important;
+ max-width:25vw;box-shadow:0 12px 28px #000b}
+.ct10-hand-mulligan .ct10-hand-slot .gc-nameplate strong,.ct10-hand-zoom .ct10-hand-slot .gc-nameplate strong{font-size:clamp(10px,1vw,13px)!important}
+.ct10-hand-wrap .ct10-hand-ribbon button{touch-action:manipulation}
+@media(orientation:portrait){
+ .ct10-hand-mulligan .ct10-hand-wrap,.ct10-hand-zoom .ct10-hand-wrap{bottom:11%!important;height:clamp(180px,30dvh,265px)!important}
+ .ct10-hand-mulligan .ct10-hand-slot .game-card,.ct10-hand-zoom .ct10-hand-slot .game-card{height:clamp(145px,25dvh,230px)!important;width:clamp(85px,17.5vw,145px)!important;max-width:none}
+ .ct10-hand-mulligan .ct10-hand-slot,.ct10-hand-zoom .ct10-hand-slot{margin-right:-23px!important}
+}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',hand_css+'</head>')
+
 # All add-on scripts must use the SAME native match session and state.
 # The recovered core is wrapped in an IIFE, so expose a controlled bridge.
 runtime_export = """window.CommandTableNative = CommandTableNative;
