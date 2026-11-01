@@ -468,7 +468,6 @@ source=source.replace('</head>',deck_css+'</head>')
 
 # Expand the opening hand automatically, and allow two-state hand size from
 # the ribbon or empty area of the fan. Card tap remains native card inspection.
-hand_polish = """
 assert source.count('<div class="ct-stage ct10-stage ')==1
 source=source.replace('<div class="ct-stage ct10-stage ',
  '<div class="ct-stage ct10-stage '+chr(36)+'{app.handZoom?"ct10-hand-zoom":""} '+chr(36)+'{g.phase==="mulligan"?"ct10-hand-mulligan":""} ')
