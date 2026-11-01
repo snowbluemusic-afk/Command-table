@@ -230,4 +230,9 @@ assert(frontend.includes('ctForgeLastSignature') &&
 assert(frontend.includes("if (data.type === 'game.notice') {ctNativeToast") &&
        frontend.includes('ct-native-toast'),
   'Transient notices must not replace the battlefield or persist as blocking banners');
+assert(frontend.includes('function ctNativeTiming(c)') &&
+       frontend.includes('Wait for your main phase to cast this card') &&
+       frontend.includes("ctNativeTiming(c).allowed") &&
+       frontend.includes('timing.reason'),
+  'Do not offer non-flash sorcery-speed casting during opponent turns');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
