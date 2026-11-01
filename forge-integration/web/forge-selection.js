@@ -44,8 +44,12 @@
     });
     const all=candidates().filter(c=>c.kind==='card');
     const ids=new Set(all.map(x=>String(x.id)));
-    for(const element of document.querySelectorAll('[data-action="permanent"][data-value],[data-action="cardId"][data-value]')) {
-      if(ids.has(element.getAttribute('data-value'))) {
+    for(const element of document.querySelectorAll('[data-action="permanent"][data-value],[data-action="cardId"][data-value],[data-action="inspectBoardPermanent"][data-value]')) {
+      // The inspector action uses seat:forgeCardId; the target action
+      // uses the numeric ID directly. Do not compare full UI action values.
+      const raw=String(element.getAttribute('data-value')||'');
+      const cardId=raw.includes(':')?raw.split(':').at(-1):raw;
+      if(ids.has(cardId)) {
         element.classList.add('ct-forge-legal-target');
         element.style.outline='3px solid #e8be6c';
         element.style.outlineOffset='2px';
@@ -73,8 +77,8 @@
       try {
         const next=await CommandTableNative.request('game.snapshot');
         if(next?.game && app.nativeMatch) {
-          applyAuthoritativeGame(next.game);
-          if(app.view==='game') render();
+          if(typeof ctReceiveForgeState==='function')ctReceiveForgeState(next.game);
+          else {applyAuthoritativeGame(next.game);if(app.view==='game')render();}
         }
       }catch(_){}
     }catch(err) {
@@ -117,7 +121,8 @@
         JSON.stringify([next.cards,next.targets]);
       selection=next;
       if(changed) {
-        expanded=candidates().length>0 && candidates().length<=4;
+        const combat=String(window.app?.game?.phaseDetail||'').toUpperCase().includes('COMBAT');
+        expanded=candidates().length>0 && (combat || candidates().length<=4);
         // A legal-target selection supersedes an unrelated card preview.
         // Keep the hand and battlefield visible rather than stacking panels.
         if(candidates().length && window.app?.sideInspect) {
@@ -305,6 +310,10 @@
     refresh:()=>{update();},
     isLegalCard:(id)=>Number.isInteger(Number(id))&&
       candidates().some(c=>c.kind==='card'&&Number(c.id)===Number(id)),
+    isSelectedCard:(id)=>Number.isInteger(Number(id))&&
+      (selection.chosen||[]).some(c=>Number(c)===Number(id)),
+    get legalCards(){return candidates().filter(c=>c.kind==='card');},
+    get prompt(){return promptMessage;},
     get active(){return candidates().length>0;}
   };
 })();
