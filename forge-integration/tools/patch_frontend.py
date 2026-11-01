@@ -417,6 +417,54 @@ pod_css = """
 assert source.count("</head>")==1
 source=source.replace("</head>",pod_css+"</head>")
 
+
+# Deck presentation is a view preference, not a change to saved data.
+deck_polish = r"""
+function ctShowStarterDecks(){return storage.getItem('ct_show_starter_decks_v1')!=='false';}
+function ctIsStarter(d){return !!d.prebuilt||String(d.id||'').startsWith('prebuilt-');}
+function ctSortedDecks(showStarters=true){
+ const indexed=app.decks.map((d,i)=>({d,i}));
+ return indexed.filter(x=>showStarters||!ctIsStarter(x.d))
+ .sort((a,b)=>Number(ctIsStarter(a.d))-Number(ctIsStarter(b.d))||a.i-b.i)
+ .map(x=>x.d);
+}
+function ctHomeDeckCards(){return ctSortedDecks(ctShowStarterDecks()).slice(0,12).map(deckCard).join('');}
+"""
+assert source.count("function home(){")==1
+source=source.replace("function home(){",deck_polish+"\nfunction home(){")
+assert source.count("const deckChoices=app.decks.map(d=>")==1
+source=source.replace("const deckChoices=app.decks.map(d=>","const deckChoices=ctSortedDecks().map(d=>")
+old_grid='<div class="deck-grid ct-featured-grid">'+chr(36)+'{FEATURED.map(f=>app.decks.find(d=>d.id===`prebuilt-'+chr(36)+'{f.key}`)).filter(Boolean).map(deckCard).join(\'\')}</div>'
+assert source.count(old_grid)==1, "Featured deck section changed"
+source=source.replace(old_grid,'<div class="deck-grid ct-featured-grid ct-home-decks">'+chr(36)+'{ctHomeDeckCards()}</div>')
+old_title='<button class="text-btn" data-action="decks">All decks →</button></div>'
+assert source.count(old_title)==1
+source=source.replace(old_title,
+ '<div class="ct-deck-heading-actions"><button class="text-btn" data-action="toggleStarterDecks">'+chr(36)+'{ctShowStarterDecks()?"Hide starter decks":"Show starter decks"}</button><button class="text-btn" data-action="decks">All decks →</button></div></div>')
+old_library='<div class="deck-grid">'+chr(36)+'{app.decks.map(deckCard).join(\'\')}</div>'
+assert source.count(old_library)==1
+source=source.replace(old_library,
+ '<div class="ct-deck-filter"><strong>Imported & custom decks first</strong><button class="secondary" data-action="toggleStarterDecks">'+chr(36)+'{ctShowStarterDecks()?"Hide starter decks":"Show starter decks"}</button></div><div class="deck-grid ct-deck-library-grid">'+chr(36)+'{ctSortedDecks(ctShowStarterDecks()).map(deckCard).join(\'\')}</div>')
+assert source.count(" case 'newDeck':")==1
+source=source.replace(" case 'newDeck':",
+ " case 'toggleStarterDecks':storage.setItem('ct_show_starter_decks_v1',String(!ctShowStarterDecks()));render();break;\n case 'newDeck':")
+deck_css="""<style id="ct-forge-decks-polish">
+.ct-home-decks{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))!important;gap:9px!important}
+.ct-home-decks .deck-tile{height:148px!important;min-height:148px!important;border-radius:12px!important}
+.ct-home-decks .ct-deck-type{top:7px;left:7px;padding:3px 5px;font-size:8px}
+.ct-home-decks .ct-deck-info{padding:9px!important}
+.ct-home-decks .ct-deck-info strong{font-size:13px!important}
+.ct-home-decks .ct-deck-info small{font-size:10px!important;margin-top:3px}
+.ct-home-decks .ct-deck-foot{margin-top:5px;padding-top:4px;font-size:8px}
+.ct-deck-heading-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.ct-deck-heading-actions button{min-height:32px}
+.ct-deck-filter{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:7px 0 16px;flex-wrap:wrap}
+.ct-deck-library-grid .deck-tile{height:175px!important;min-height:175px!important}
+@media(max-width:430px){.ct-home-decks{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',deck_css+'</head>')
+
 # All add-on scripts must use the SAME native match session and state.
 # The recovered core is wrapped in an IIFE, so expose a controlled bridge.
 runtime_export = """window.CommandTableNative = CommandTableNative;
