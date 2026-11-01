@@ -931,7 +931,7 @@ zone_line="   <div>♛ Commander <span>@@D@@{esc(me.commander.split(',')[0])}</s
 assert source.count(zone_line)==1
 cast_line="""   <div class="ct-commander-zone-card"><span>♛ @@D@@{esc(me.commander.split(',')[0])}</span>
      <button data-action="inspectCommander" aria-label="View commander">View</button>
-     @@D@@{app.nativeMatch&&me.commandZone?.length?@@BT@@<button class="ct-cast-commander" data-action="castCommander" aria-label="Cast commander from command zone">Cast commander ↗</button>@@BT@@:''}</div>""".replace('@@D@@',chr(36)).replace('@@BT@@',chr(96))
+     @@D@@{app.nativeMatch&&me.commandZone?.length?@@BT@@<button class="ct-cast-commander" data-action="castCommander" data-drag-commander="true" aria-label="Cast commander or drag onto battlefield from command zone">Cast commander ↗</button>@@BT@@:''}</div>""".replace('@@D@@',chr(36)).replace('@@BT@@',chr(96))
 source=source.replace(zone_line,cast_line)
 # A tap on the commander portrait should surface the command-zone preview,
 # not a training-only card popup with no way to actually cast the card.
