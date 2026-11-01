@@ -343,7 +343,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "FORGE BUILT-IN · v0.14.5")
+                      "FORGE BUILT-IN · v0.14.6")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -397,7 +397,7 @@ assert source.count(menu_btn)>=1
 source=source.replace(menu_btn,
     '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-    "FORGE BUILT-IN · v0.14.5")
+    "FORGE BUILT-IN · v0.14.6")
 pod_css = """
 <style id="ct-forge-game-ux">
 .ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
@@ -508,6 +508,28 @@ hand_css="""<style id="ct-forge-hand-polish">
 </style>"""
 assert source.count('</head>')==1
 source=source.replace('</head>',hand_css+'</head>')
+
+
+# Forge owns spell resolution; the browser only renders the authoritative stack.
+stack_old='<button class="ct10-stack" data-action="viewStack">⚡ '+chr(36)+'{esc(g.stack.at(-1).name)} · '+chr(36)+'{g.stack.length} on stack</button>'
+assert source.count(stack_old)==1, "Stack markup changed"
+stack_new='<aside class="ct-native-stack" aria-label="Forge spell stack"><strong>⚡ Stack · '+chr(36)+'{g.stack.length}</strong><ol>'+chr(36)+'{g.stack.slice().reverse().map((spell,i)=>`<li><b>'+chr(36)+'{i===0?"NEXT":i+1}</b><span>'+chr(36)+'{esc(spell.name||"Ability")}</span></li>`).join("")}</ol></aside>'
+source=source.replace(stack_old,stack_new)
+assert source.count("commandZone:cardZone(p.commandZone), priority:!!p.priority")==1
+source=source.replace("commandZone:cardZone(p.commandZone), priority:!!p.priority",
+ "commandZone:cardZone(p.commandZone), tokenCount:Number(p.tokenCount||0), priority:!!p.priority")
+stack_css="""<style id="ct-forge-stack-polish">
+.ct-native-stack{position:absolute;right:2%;top:18%;width:clamp(170px,20vw,270px);max-height:42dvh;overflow:auto;z-index:7;background:#112631ec;border:1px solid #9ed5e9;border-radius:12px;padding:9px;color:#fff4dc;box-shadow:0 7px 25px #000a}
+.ct-native-stack>strong{display:block;font-size:12px;letter-spacing:.7px}
+.ct-native-stack ol{margin:7px 0 0;padding:0;list-style:none;display:grid;gap:5px}
+.ct-native-stack li{display:flex;gap:7px;align-items:flex-start;background:#203d48;border-left:3px solid #a0d8f4;border-radius:6px;padding:7px;font-size:11px;line-height:1.3;overflow-wrap:anywhere}
+.ct-native-stack li b{font-size:9px;color:#e8bd73;flex:none}
+.ct10-scene:has(.ct10-inspect) .ct-native-stack{display:none}
+.ct-forge-legal-target{outline:3px solid #58ddfc!important;outline-offset:2px;box-shadow:0 0 18px #36bafaa8!important}
+@media(orientation:portrait){.ct-native-stack{max-height:30dvh;width:44vw;top:18%}}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',stack_css+'</head>')
 
 # All add-on scripts must use the SAME native match session and state.
 # The recovered core is wrapped in an IIFE, so expose a controlled bridge.
