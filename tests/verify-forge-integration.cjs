@@ -75,7 +75,7 @@ assert(projection.includes('m.put("token", c.isToken())'),
 const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
 assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
   'Installed Forge app must have a distinct launcher label from old Command Table');
-assert(frontend.includes('FORGE BUILT-IN · v0.14.7'),
+assert(frontend.includes('FORGE BUILT-IN · v0.14.8'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
   'An embedded Forge build must never advertise an external Forge app');
@@ -235,4 +235,20 @@ assert(frontend.includes('function ctNativeTiming(c)') &&
        frontend.includes("ctNativeTiming(c).allowed") &&
        frontend.includes('timing.reason'),
   'Do not offer non-flash sorcery-speed casting during opponent turns');
+assert(frontend.includes("case 'inspectBoardPermanent'") &&
+       frontend.includes('ctNativeToast(\'This card is no longer') &&
+       frontend.includes("action:'selectHand',value:index") &&
+       frontend.includes('else beginCastFromDrag(d.commander,d.index)'),
+  'Native drag must use Forge card selection, and permanent taps must open preview');
+assert(frontend.includes("'toggleHandZoom','inspectBoardPermanent','toggleZones'") &&
+       frontend.includes('case \'toggleZones\':app.zonesOpen='),
+  'Hand zoom and zone drawer must bypass native rules-action guard');
+assert(frontend.includes('ct10-opp-lands') &&
+       frontend.includes('ct10-own-lands') &&
+       frontend.includes('ct10-zone-drawer'),
+  'Cards must be grouped by lands, creatures and other permanents');
+assert(selectionUi.includes('ct-forge-phase-rail') &&
+       selectionUi.includes("stack.length?'Resolve'") &&
+       selectionUi.includes('isLegalCard:(id)'),
+  'Forge priority controls must show phase progression and authoritative card availability');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
