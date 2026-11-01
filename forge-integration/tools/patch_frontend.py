@@ -700,7 +700,7 @@ inspect_case = r""" case 'inspectBoardPermanent':{
   case 'permanent':"""
 assert source.count(" case 'permanent':")==1
 source=source.replace(" case 'permanent':",inspect_case)
-old_target="action:app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect'),value:app.pendingCast&&targetable?target:mine?x.uid:c.name"
+old_target="action:app.nativeMatch?'permanent':(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?x.uid:(app.pendingCast&&targetable?target:mine?x.uid:c.name)"
 assert source.count(old_target)==1, 'Battlefield card mapping changed'
 new_target="""action:app.nativeMatch?(window.ctForgeSelection?.isLegalCard?.(x.forgeId)?'cardId':'inspectBoardPermanent'):(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?(window.ctForgeSelection?.isLegalCard?.(x.forgeId)?String(x.forgeId):idx+':'+x.uid):(app.pendingCast&&targetable?target:mine?x.uid:c.name)"""
 source=source.replace(old_target,new_target)
