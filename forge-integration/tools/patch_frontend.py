@@ -90,7 +90,7 @@ source=source.replace(
 # Safety check: never allow a native match to fall through to the JS simulator.
 source=source.replace(" const g=app.game,p=g?.players[0],active=g&&turnPlayer();switch(act){",
                       """  if(app.nativeMatch && app.view==='game' &&
-      !new Set(['focusPlayer','togglePod','menuGame','inspect','inspectFull','inspectCommander','inspectPlayer','showHandCard','openHand','previousHand','nextHand','selectHand','closeModal','cycleOpponent','viewStack','viewHistory','helpCurrent','back','nativePrompts','quitGame','clearSideInspect']).has(act)) {
+      !new Set(['focusPlayer','togglePod','menuGame','inspect','inspectFull','inspectCommander','inspectPlayer','showHandCard','openHand','previousHand','nextHand','selectHand','closeModal','cycleOpponent','viewStack','viewHistory','helpCurrent','back','nativePrompts','quitGame','clearSideInspect','dismiss','rotateMatch','togglePod']).has(act)) {
     announce('This action must be handled by Forge: '+act); return;
   }
  const g=app.game,p=g?.players[0],active=g&&turnPlayer();switch(act){""")
@@ -147,88 +147,117 @@ assert source.count(".catch(error=>announce(`Forge could not start this game: ${
 source=source.replace(".catch(error=>announce(`Forge could not start this game: ${error.message}`));",
                       ".catch(error=>{app.nativeMatch=false;announce(`Forge could not start this game: ${error.message}`);});")
 
-# Render Forge's live priority prompt over the existing Command Table board.
-# Buttons call Forge IGameController methods; they do not advance the JS simulator.
-prompt_script = r"""
-<script>
-(function() {
-  let prompt = {};
-  const oldReceive = window.CommandTableNativeReply;
-  const panel = document.createElement('section');
-  panel.id = 'command-table-forge-choice';
-  panel.setAttribute('aria-live', 'polite');
-  Object.assign(panel.style, {
-    position:'fixed', bottom:'calc(env(safe-area-inset-bottom) + 46px)',
-    left:'8px', right:'8px', maxWidth:'700px', margin:'auto', zIndex:'9999',
-    background:'#14252dee', border:'1px solid #c8a77a', borderRadius:'14px',
-    padding:'12px', boxShadow:'0 10px 40px #000c', display:'none',
-    fontFamily:'system-ui', color:'#f5e8cf'
-  });
-  const message=document.createElement('div');
-  Object.assign(message.style,{fontSize:'13px',lineHeight:'1.4',marginBottom:'8px',maxHeight:'66px',overflow:'auto'});
-  panel.append(message);
-  const row=document.createElement('div');
-  Object.assign(row.style,{display:'flex',gap:'8px'});
-  panel.append(row);
-  const playersRow=document.createElement('div');
-  Object.assign(playersRow.style,{display:'none',gap:'6px',marginTop:'8px',flexWrap:'wrap'});
-  panel.append(playersRow);
-  const confirm=document.createElement('button'), cancel=document.createElement('button');
-  const advanced=document.createElement('button');
-  for(const b of [confirm,cancel,advanced]) {
-    Object.assign(b.style,{borderRadius:'9px',minHeight:'42px',padding:'8px 12px',
-      border:'1px solid #99836c',background:'#263d42',color:'#f8e5c4',fontWeight:'700',flex:'1'});
-    row.append(b);
-  }
-  confirm.textContent='Continue';cancel.textContent='Cancel';advanced.textContent='More choices';
-  advanced.onclick=()=>window.AndroidBridge?.showNativePrompts?.();
-  async function act(name,value) {
-    try { await CommandTableNative.request('game.command',{action:name,value}); }
-    catch(e){ if(typeof announce==='function') announce('Forge: '+e.message); }
-  }
-  confirm.onclick=()=>act('resolve');
-  cancel.onclick=()=>act('cancelCastTarget');
-  function update() {
-    let playing=false;
-    try{playing=!!app.nativeMatch && app.view==='game';}catch(e){}
-    const visible=playing && (prompt.message || prompt.label1 || prompt.label2);
-    panel.style.display=visible?'block':'none';
-    message.textContent=prompt.message || 'Choose how to respond';
-    confirm.textContent=prompt.label1||'Continue';
-    cancel.textContent=prompt.label2||'Cancel';
-    confirm.disabled=prompt.enable1===false;
-    cancel.disabled=prompt.enable2===false;
-    confirm.style.opacity=confirm.disabled?'.4':'1';
-    cancel.style.opacity=cancel.disabled?'.4':'1';
-    const asksForPlayer=/choose.*(player|opponent)|target.*(player|opponent)|attack.*(player|opponent)|defending player/i.test(prompt.message||'');
-    playersRow.style.display=visible&&asksForPlayer?'flex':'none';
-    playersRow.replaceChildren();
-    if(asksForPlayer) for(const p of window.ctForgePlayers||[]) {
-      const b=document.createElement('button');
-      b.textContent='Target '+p.name;
-      Object.assign(b.style,{padding:'8px',border:'1px solid #b9a077',borderRadius:'8px',
-        background:'#34454b',color:'#fff',flex:'1',fontSize:'12px'});
-      b.onclick=()=>act('targetPlayer',p.id);
-      playersRow.append(b);
+# Repair ONLY bundled starter lists before any Forge match begins.
+# Forge evaluates oracle-text mana symbols and Commander deck legality.
+# Imported/user-edited decks are never automatically repaired.
+repair_script = r"""
+async function ctRepairStarterDecks() {
+  const starters=app.decks.filter(d=>d.prebuilt===true && d.cards?.length===99);
+  let fixes=0;
+  const failed=new Map();
+  for(const d of starters) {
+    try {
+      const result=await CommandTableNative.request('deck.repairPrebuilt',{
+        deck:{name:d.name,commander:d.commander,main:d.cards}
+      });
+      if(result?.valid!==true || !Array.isArray(result.main)||result.main.length!==99) {
+        failed.set(d.id,result?.reason||'Forge could not validate the starter');
+        continue;
+      }
+      if(Array.isArray(result.replacements)&&result.replacements.length) {
+        d.cards=result.main;
+        fixes+=result.replacements.length;
+        persist();
+      }
+    } catch(error) {
+      failed.set(d.id,error?.message||String(error));
     }
   }
-  document.body.append(panel);
-  window.CommandTableNativeReply=function(value) {
-    let event;
-    try {event=typeof value==='string'?JSON.parse(value):value;}catch(e){}
-    if(event && event.type==='game.prompt') {
-      Object.assign(prompt,event.payload||{});
-      update();return;
-    }
-    return oldReceive(value);
-  };
-  setInterval(update,500);
-})();
-</script>
+  const selected=app.decks.find(d=>d.id===(app.matchDeck||app.decks[0]?.id));
+  if(selected?.prebuilt && failed.has(selected.id)) {
+    throw new Error(selected.name+' is not legal: '+failed.get(selected.id));
+  }
+  if(fixes) {
+    app.notice='Forge repaired '+fixes+' off-colour cards in the included starter decks.';
+    persist();
+    render();
+  }
+  return app.decks.filter(d=>!failed.has(d.id)).map(deck=>({
+    name:deck.name,commander:deck.commander,main:deck.cards
+  }));
+}
 """
-assert source.endswith("</body></html>"), "Expected complete Command Table document"
-source=source.replace("</body></html>",prompt_script+"</body></html>")
+assert source.count("function startGame(){")==1, "Match start location changed"
+source=source.replace("function startGame(){",repair_script+"\nfunction startGame(){")
+assert source.count("   const allDecks = app.decks.map(deck=>({name:deck.name,commander:deck.commander,main:deck.cards}));")==1
+source=source.replace("   const allDecks = app.decks.map(deck=>({name:deck.name,commander:deck.commander,main:deck.cards}));",
+                      "   // Repair starter decks using Forge before creating opponent deck payloads.")
+assert source.count("   void CommandTableNative.request('match.start',{")==1
+source=source.replace("   void CommandTableNative.request('match.start',{",
+                      "   void ctRepairStarterDecks().then(allDecks => CommandTableNative.request('match.start',{")
+assert source.count("   }).then(payload=>{")==1
+source=source.replace("   }).then(payload=>{","   })).then(payload=>{")
+# Enter the actual Command Table board as soon as an authoritative state
+# arrives. Forge can deliver a game.state before it acknowledges match.start.
+state_listener = "try {applyAuthoritativeGame(message); if(app.view==='game') render();}"
+assert source.count(state_listener)==1, "Native match state listener changed"
+source=source.replace(state_listener,
+    """try {
+     applyAuthoritativeGame(message);
+     app.view='game';app.modal='';app.notice='';
+     render();
+   }""")
 
+# Forge's first GameView callback can also be lost while native dialogs or
+# initial asset activities are transitioning. Poll the authoritative snapshot
+# for a bounded period instead of remaining forever on the home screen.
+watch_script = r"""
+async function ctWatchNativeMatchStart() {
+  for(let attempt=0;attempt<40;attempt++) {
+    await new Promise(done=>setTimeout(done,1000));
+    if(!app.nativeMatch || app.view==='game')return;
+    try {
+      const result=await CommandTableNative.request('game.snapshot');
+      if(result?.game?.players?.length>=2) {
+        applyAuthoritativeGame(result.game);
+        app.view='game';app.modal='';app.notice='';render();
+        return;
+      }
+    }catch(error){ /* Forge may still be preparing game state */ }
+  }
+  if(app.nativeMatch && app.view!=='game') {
+    app.nativeMatch=false;
+    announce('Forge match start timed out before a playable board was created. No deck data was changed.');
+  }
+}
+"""
+assert source.count("function startGame(){")==1
+source=source.replace("function startGame(){",watch_script+"\nfunction startGame(){")
+start_request = "void ctRepairStarterDecks().then(allDecks => CommandTableNative.request('match.start',{"
+assert source.count(start_request)==1,"Starter match request changed"
+source=source.replace(start_request,
+    "void ctRepairStarterDecks().then(allDecks => {void ctWatchNativeMatchStart(); return CommandTableNative.request('match.start',{")
+end_request = "   })).then(payload=>{"
+assert source.count(end_request)==1, "Starter match acknowledgment changed"
+source=source.replace(end_request,"   });}).then(payload=>{")
+
+# Forge already includes tokens in the GameView. Keep those distinct permanents
+# in Command Table instead of treating them as missing deck cards.
+assert source.count("uid:String(c.id), forgeId:c.id, name:c.name, tapped:!!c.tapped,")==1
+source=source.replace("uid:String(c.id), forgeId:c.id, name:c.name, tapped:!!c.tapped,",
+                      "uid:String(c.id), forgeId:c.id, name:c.name, token:!!c.token, tapped:!!c.tapped,")
+assert source.count("return smallCard(c,{tapped:x.tapped,counters:x.counters,bonus,selected:")==1
+source=source.replace("return smallCard(c,{tapped:x.tapped,counters:x.counters,bonus,selected:",
+                      "return smallCard(c,{tapped:x.tapped,token:!!x.token,counters:x.counters,bonus,selected:")
+assert source.count("const classes=['game-card',kind,opts.tapped?'tapped':'',")==1
+source=source.replace("const classes=['game-card',kind,opts.tapped?'tapped':'',",
+                      "const classes=['game-card',kind,opts.tapped?'tapped':'',opts.token?'ct-token-permanent':'',")
+token_css='<style>.ct-token-permanent{position:relative}.ct-token-permanent:after{content:"TOKEN";position:absolute;top:3px;right:3px;background:#18382d;color:#a8edcf;border:1px solid #589b7a;border-radius:5px;padding:1px 4px;font:700 9px system-ui;pointer-events:none}</style>'
+assert source.count("</head>")==1
+source=source.replace("</head>",token_css+"</head>")
+
+# Forge's priority buttons have ONE owner: forge-selection.js.
+# Do not inject a second fixed overlay for the same game.prompt events.
 
 # Native taps on any battlefield permanent must go to Forge for legal
 # targeting/blocker choices. The training simulator keeps its original actions.
@@ -314,7 +343,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "COMMANDER · FORGE RULES")
+                      "FORGE BUILT-IN · v0.14.5")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -334,6 +363,59 @@ source=source.replace('data-action="setPlayMode" data-value="watch"',
   'data-action="setPlayMode" data-value="watch" ${CommandTableNative.ready?\'disabled title="Requires a separate AI human controller"\':\'\'}')
 source=source.replace(" if (CommandTableNative.ready) {\\n   // Forge must validate",
   " if (CommandTableNative.ready) {\\n   app.autoPilot=false;\\n   // Forge must validate")
+
+# Native Forge informational messages must appear in Command Table, never
+# trigger Forge's modal message box or replace the board.
+notice_receive = "    if (data.type === 'game.state') {for (const fn of onState) fn(data.payload);return;}"
+assert source.count(notice_receive) == 1, "Native reply protocol changed"
+source=source.replace(notice_receive,
+    notice_receive + "\n    if (data.type === 'game.notice') {app.notice=String(data.payload?.message||'').slice(0,1500);render();return;}")
+# The old escape hatch showed Forge's native screens; keep every action in the
+# Command Table rules UI and direct users to the in-app legal choice panel.
+source=source.replace("case 'nativePrompts': window.AndroidBridge?.showNativePrompts?.();break;",
+    "case 'nativePrompts': announce('Select a legal Forge card or target from the Command Table choice panel.');break;")
+# Never expose a button which silently changes rendering engines.
+source=source.replace("  advanced.onclick=()=>window.AndroidBridge?.showNativePrompts?.();",
+    "  advanced.style.display='none';")
+
+# The training UI shows its own turn buttons; Forge is the sole gameplay
+# controller in real matches. Removing duplicates also frees the hand area.
+assert source.count("function turnControls(g,active,self){")==1
+source=source.replace("function turnControls(g,active,self){",
+    "function turnControls(g,active,self){if(app.nativeMatch)return '';")
+native_entry="if(app.nativeMatch && NATIVE_GAME_COMMANDS.has(act)) {"
+assert source.count(native_entry)==1
+source=source.replace(native_entry,
+    native_entry+"\n   if(['castSelected','playInspected','quitGame'].includes(act)){app.modal='';render();}")
+assert source.count("⊞ Pod")==1
+source=source.replace("⊞ Pod","▦")
+assert source.count("overview?'Focus':'▦'")==1
+source=source.replace("overview?'Focus':'▦'","overview?'▣':'▦'")
+source=source.replace('aria-label="Pod overview"','aria-label="Toggle pod overview" title="Show all players"')
+menu_btn='<button data-action="menuGame" aria-label="Options">⚙</button>'
+assert source.count(menu_btn)>=1
+source=source.replace(menu_btn,
+    '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
+source=source.replace("TABLETOP ALPHA · 0.11.0",
+    "FORGE BUILT-IN · v0.14.5")
+pod_css = """
+<style id="ct-forge-game-ux">
+.ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
+.ct10-top-tools .ct10-phase-badge{max-width:calc(100% - 180px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ct10-top-tools button{flex:0 0 34px!important;min-width:34px!important;width:34px!important;height:34px!important;font-size:19px!important;line-height:1!important;white-space:nowrap!important}
+.ct10-overview{inset:11% 3% 16% 3%!important;width:auto!important;height:auto!important;overflow-y:auto!important;padding:10px!important;background:#0d2026f3!important}
+.ct10-overview .ct-pod-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:minmax(132px,1fr)!important;gap:9px!important;min-height:0!important}
+.ct10-overview .ct-pod-seat{min-width:0;min-height:125px}
+@media(max-width:370px){.ct10-top-tools .ct10-phase-badge{font-size:9px!important;letter-spacing:0!important;padding:6px!important}}
+@media(orientation:landscape) and (max-height:650px){
+ .ct10-top-tools .ct10-phase-badge{max-width:calc(100% - 190px)}
+ .ct10-overview{inset:12% 3% 12% 3%!important}
+ .ct10-overview .ct-pod-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-auto-rows:minmax(105px,1fr)!important}
+}
+</style>
+"""
+assert source.count("</head>")==1
+source=source.replace("</head>",pod_css+"</head>")
 
 # All add-on scripts must use the SAME native match session and state.
 # The recovered core is wrapped in an IIFE, so expose a controlled bridge.
