@@ -75,7 +75,7 @@ assert(projection.includes('m.put("token", c.isToken())'),
 const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
 assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
   'Installed Forge app must have a distinct launcher label from old Command Table');
-assert(frontend.includes('FORGE BUILT-IN · v0.14.8'),
+assert(frontend.includes('FORGE BUILT-IN · v0.14.9'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
   'An embedded Forge build must never advertise an external Forge app');
@@ -251,4 +251,22 @@ assert(selectionUi.includes('ct-forge-phase-rail') &&
        selectionUi.includes("stack.length?'Resolve'") &&
        selectionUi.includes('isLegalCard:(id)'),
   'Forge priority controls must show phase progression and authoritative card availability');
+assert(choiceUi.includes("const submittingId=current.id") &&
+       choiceUi.includes("if(current?.id===submittingId)") &&
+       choiceUi.includes("request('engine.status')"),
+  'Accepting a discard must not dismiss a newer Forge choice, and pending decisions must recover');
+assert(frontend.includes("['castSelected','playInspected','cardId','quitGame']") &&
+       frontend.includes('app.inspectForgeId=null;render();'),
+  'Activating a permanent must close its inspector so Resolve is accessible');
+assert(frontend.includes("source.replace('<span>✦</span>','')"),
+  'Remove decorative star that overlaps battlefield cards');
+assert(frontend.includes('function ctNativeEndOverlay(g)') &&
+       frontend.includes('ctNativeEndOverlay(g)') &&
+       frontend.includes('case \'leaveFinishedGame\'') &&
+       selectionUi.includes('window.app?.game?.winner===null'),
+  'Only Forge game completion may show Victory/Defeat and hide priority controls');
+assert(frontend.includes('function ctNativeAffordable(c,me,g)') &&
+       frontend.includes('ctNativeAffordable(c,me,g)') &&
+       frontend.includes("!ctNativeTiming(c).allowed"),
+  'Provide conservative mana-affordability hints without bypassing Forge');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
