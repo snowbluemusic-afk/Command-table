@@ -816,6 +816,58 @@ source=source.replace('</head>',board_css+'</head>')
 assert source.count('<span>✦</span>')==1, 'Centreboard ornament changed'
 source=source.replace('<span>✦</span>','')
 
+
+# Authoritative end-of-game feedback: the GameView signals completion; no
+# player-side algorithm may decide when someone won or lost.
+result_helper = r"""
+function ctNativeEndOverlay(g) {
+  if(!app.nativeMatch || !g?.native || g.winner===null)return '';
+  const me=g.players?.[0],winner=String(g.winner||'').trim();
+  const ownName=String(me?.forgeName||me?.name||'').trim();
+  const won=!me?.dead && (winner.toLowerCase()===ownName.toLowerCase() ||
+      g.players.slice(1).every(p=>p.dead));
+  const lost=!!me?.dead || (winner && winner!=='Game ended' && !won);
+  const title=won?'Victory!':lost?'Defeat':'Match finished';
+  const subtitle=won?'Your Commander claimed the table.':
+      lost?'The opposing Commander claimed the table.':'The Forge match has ended.';
+  return @@BT@@<div class="ct-native-game-end" role="dialog" aria-modal="true" aria-label="@@D@@{title}">
+     <div class="ct-native-result-card">
+       <span class="ct-native-end-crest">@@D@@{won?'✦':lost?'◇':'✧'}</span>
+       <span class="ct-native-end-label">COMMAND TABLE · MATCH COMPLETE</span>
+       <h2>@@D@@{title}</h2><p>@@D@@{subtitle}</p>
+       <div class="ct-native-final-life">You @@D@@{me?.life??0} ♥ <span>·</span> Turn @@D@@{g.turn}</div>
+       <button class="primary" data-action="leaveFinishedGame">Back to decks / Play again</button>
+     </div>
+   </div>@@BT@@;
+}
+""".replace('@@BT@@',chr(96)).replace('@@D@@',chr(36))
+assert source.count('function gameView(){')==1
+source=source.replace('function gameView(){',result_helper+'\nfunction gameView(){')
+assert source.count("  "+chr(36)+"{immersiveInspect()}")==1
+source=source.replace("  "+chr(36)+"{immersiveInspect()}",
+  "  "+chr(36)+"{immersiveInspect()}\n  "+chr(36)+"{ctNativeEndOverlay(g)}")
+assert source.count("id:'P'+(i+1), forgeId:p.id, name:i===0?'You':p.name,")==1
+source=source.replace("id:'P'+(i+1), forgeId:p.id, name:i===0?'You':p.name,",
+  "id:'P'+(i+1), forgeId:p.id, forgeName:p.name, name:i===0?'You':p.name,")
+assert source.count("case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;")==1
+source=source.replace("case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;",
+  "case 'leaveFinishedGame':{window.ctForgeChoice?.close?.();window.ctForgePriority?.reset?.();window.ctForgeSelection?.reset?.();app.nativeMatch=false;app.game=null;app.savedGame=null;setView('home');break;}\n  case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;")
+assert source.count("'toggleHandZoom','inspectBoardPermanent','toggleZones'")==1
+source=source.replace("'toggleHandZoom','inspectBoardPermanent','toggleZones'",
+                      "'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame'")
+result_css = """<style id="ct-game-complete-v0149">
+.ct-native-game-end{position:absolute;inset:0;z-index:120;display:flex;justify-content:center;align-items:center;background:#07131cd8;backdrop-filter:blur(7px);pointer-events:auto}
+.ct-native-result-card{border:1px solid #e7b974;background:radial-gradient(circle at 50% -35%,#466c6880,#14282cef 62%);box-shadow:0 24px 80px #000e;border-radius:19px;padding:clamp(17px,3vw,38px);color:#f6ead4;text-align:center;width:min(90%,430px)}
+.ct-native-end-crest{display:block;color:#eebd79;font-size:46px;text-shadow:0 0 20px #dbac8b}
+.ct-native-end-label{font-size:10px;letter-spacing:2px;font-weight:800;color:#ddbe87}
+.ct-native-result-card h2{margin:9px 0;font-family:Georgia,serif;font-size:clamp(35px,5vw,58px);color:#fff1d6}
+.ct-native-result-card p{margin:9px 0 16px;font-size:15px}
+.ct-native-final-life{display:flex;justify-content:center;gap:10px;font-size:14px;color:#e5cb9a;margin-bottom:20px}
+.ct-native-result-card button{width:100%;padding:14px 12px;min-height:48px}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',result_css+'</head>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
