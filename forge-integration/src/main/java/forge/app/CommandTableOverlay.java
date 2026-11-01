@@ -513,7 +513,21 @@ public final class CommandTableOverlay {
             });
         }
         @JavascriptInterface public void setOrientation(String mode) {
-            // Forge's libGDX rendering thread owns orientation.
+            // Command Table is an Android WebView hosted by Forge. The original
+            // prototype called this method but it was a no-op, so landscape
+            // never worked even when the player selected it in settings.
+            // Keep the existing activity/Forge match alive across rotations.
+            if (!(context instanceof android.app.Activity)) return;
+            final android.app.Activity activity=(android.app.Activity)context;
+            final int orientation="landscape".equals(mode)
+                ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
+            UI.post(() -> {
+                if (activity.isFinishing() || activity.isDestroyed()) return;
+                if (activity.getRequestedOrientation()!=orientation)
+                    activity.setRequestedOrientation(orientation);
+                show();
+            });
         }
         @JavascriptInterface public void showNativePrompts() {
             publishNotice("Use Command Table's on-screen choices to interact with Forge.");
