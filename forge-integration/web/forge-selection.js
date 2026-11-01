@@ -83,7 +83,7 @@
   }
   function update() {
     const all=candidates();
-    const playing=(()=>{try{return !!app.nativeMatch && app.view==='game';}catch(_){return false;}})();
+    const playing=(()=>{try{return !!app.nativeMatch && app.view==='game' && app.game?.winner===null;}catch(_){return false;}})();
     const choiceSheet=document.getElementById('ct-forge-decision-sheet');
     const choiceActive=choiceSheet?.style.display==='flex';
     panel.style.display=playing&&all.length&&!choiceActive?'block':'none';
@@ -201,7 +201,7 @@
     const forgeChoice=document.getElementById('ct-forge-decision-sheet');
     const otherChoiceOpen=!!forgeChoice && forgeChoice.style.display!=='none';
     const active=!!window.app?.nativeMatch &&
-      window.app?.view==='game' && !window.app?.modal &&
+      window.app?.view==='game' && window.app?.game?.winner===null && !window.app?.modal &&
       !window.app?.sideInspect && !otherChoiceOpen &&
       (!!buttonState.enable1||!!buttonState.enable2);
     // A single small dock owns Forge buttons. Never mount a full-width
