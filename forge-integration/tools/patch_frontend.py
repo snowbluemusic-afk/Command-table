@@ -81,7 +81,7 @@ source=source.replace("app.game={...state,native:true};app.savedGame=null;",
                       "app.game=ctHydrateForgeState(state);app.savedGame=null;")
 # Native matches MUST NOT run their own rules; route card taps and phase actions to Forge.
 source=source.replace(" 'toggleAutoPilot','pauseAutoPilot'\n]);",
-                      " 'permanent','cardId','cancelCastTarget','concede','quitGame','targetPlayer','selectStack'\n]);")
+                      " 'permanent','cardId','castCommander','castById','cancelCastTarget','concede','quitGame','targetPlayer','selectStack'\n]);")
 # Leave a native match by conceding in Forge before discarding its UI state.
 source=source.replace(
  ".then(result=>{if(result?.game){applyAuthoritativeGame(result.game);render();}})",
@@ -107,10 +107,14 @@ function ctNativeActionValue(act, v) {
     const name=act==='playInspected'?app.sideInspect:app.inspect;
     const me=app.game?.players?.[0];
     if(!name||!me)return -2;
-    const idx=me.hand.findIndex(n=>n.toLowerCase()===String(name).toLowerCase());
-    if(idx>=0)return idx;
-    if(String(name).toLowerCase()===String(me.commander).toLowerCase())return -1;
-    return -2;
+    // Forge's stable zone IDs survive hand reordering and never confuse
+    // command-zone cards with out-of-range hand indices.
+    const handIndex=me.hand.findIndex(n=>n.toLowerCase()===String(name).toLowerCase());
+    if(handIndex>=0)return me.handForgeIds?.[handIndex]??null;
+    const commandCard=me.commandZone?.find(c=>c.commander||
+      String(c.name).toLowerCase()===String(name).toLowerCase());
+    if(commandCard)return commandCard.id;
+    return null;
   }
   if(act==='chooseCastTarget' && typeof v==='string') {
     const parts=v.split(':');
@@ -125,7 +129,7 @@ assert source.count("function action(act,v){")==1
 source=source.replace("function action(act,v){",action_value+"\nfunction action(act,v){")
 assert source.count("CommandTableNative.request('game.command',{action:act,value:v??null})")==1
 source=source.replace("CommandTableNative.request('game.command',{action:act,value:v??null})",
-                      "CommandTableNative.request('game.command',{action:act,value:ctNativeActionValue(act,v)})")
+                      "CommandTableNative.request('game.command',{action:(act==='castSelected'||act==='playInspected')?'castById':act,value:ctNativeActionValue(act,v)})")
 
 assert 'if(app.nativeMatch && app.view' in source, 'Simulator fallback guard missing'
 assert 'ctNativeActionValue(act,v)' in source, 'Native action payload translation missing'
@@ -343,7 +347,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "FORGE BUILT-IN · v0.14.9")
+                      "FORGE BUILT-IN · v0.15.0")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -397,7 +401,7 @@ assert source.count(menu_btn)>=1
 source=source.replace(menu_btn,
     '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-    "FORGE BUILT-IN · v0.14.9")
+    "FORGE BUILT-IN · v0.15.0")
 pod_css = """
 <style id="ct-forge-game-ux">
 .ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
@@ -916,6 +920,42 @@ source=source.replace(old_available,
   "available:app.nativeMatch?(!!window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])||ctNativeAffordable(c,me,g)):!g.autoPilot&&canCast(me,c)")
 # Correctness: neither highlights nor preview heuristics ever call Forge's
 # controller or move a card. The existing native command remains sole writer.
+
+
+# Expose the actual command zone and a dedicated Forge casting action.
+# Never guess which hand index contains a commander.
+commander_case="case 'castCommander':"
+assert source.count("case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;")==1
+# Native actions are already intercepted by NATIVE_GAME_COMMANDS.
+zone_line="   <div>♛ Commander <span>@@D@@{esc(me.commander.split(',')[0])}</span></div>".replace('@@D@@',chr(36))
+assert source.count(zone_line)==1
+cast_line="""   <div class="ct-commander-zone-card"><span>♛ @@D@@{esc(me.commander.split(',')[0])}</span>
+     <button data-action="inspectCommander" aria-label="View commander">View</button>
+     @@D@@{app.nativeMatch&&me.commandZone?.length?@@BT@@<button class="ct-cast-commander" data-action="castCommander" aria-label="Cast commander from command zone">Cast commander ↗</button>@@BT@@:''}</div>""".replace('@@D@@',chr(36)).replace('@@BT@@',chr(96))
+source=source.replace(zone_line,cast_line)
+# A tap on the commander portrait should surface the command-zone preview,
+# not a training-only card popup with no way to actually cast the card.
+portrait="data-action=\"inspectCommander\"><img"
+assert source.count(portrait)==1
+source=source.replace(portrait,"data-action=\"inspectCommander\" title=\"Tap for commander actions\"><img")
+# A commander may be in command zone but absent from hand; do not show a
+# misleading cast affordance if Forge does not list that actual card.
+inspector_old="const castable=!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||cmd)&&(app.nativeMatch?ctNativeTiming(c).allowed:canCast(p,c,cmd));"
+assert source.count(inspector_old)==1
+inspector_new="""const castable=!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||
+      (app.nativeMatch?p.commandZone?.some(z=>equalName(z.name,name)):cmd))&&
+      (app.nativeMatch?ctNativeTiming(c).allowed:canCast(p,c,cmd));"""
+source=source.replace(inspector_old,inspector_new)
+# In the modal inspector the castSelected button also resolves via stable
+# card IDs in ctNativeActionValue.
+commander_css="""<style id="ct-command-zone-v0150">
+.ct-commander-zone-card{display:flex!important;align-items:center!important;flex-wrap:wrap;gap:6px!important}
+.ct-commander-zone-card span{flex:1 1 100%;min-width:0;font-weight:700}
+.ct-commander-zone-card button{flex:1;background:#203a41;color:#f7d9a3;border:1px solid #af976f;border-radius:8px;padding:8px 6px;font-size:11px;min-height:33px}
+.ct-commander-zone-card .ct-cast-commander{background:#e2b36c;color:#172a2e;font-weight:800}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',commander_css+'</head>')
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
