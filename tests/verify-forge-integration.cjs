@@ -100,4 +100,24 @@ assert(host.includes('protected void onResume()') &&
        host.includes('CommandTableOverlay.show();'),
   'Android resume must restore the Command Table game surface');
 
+const deckAdapter = read('forge-integration/src/main/java/forge/commandtable/CommandTableForgeDecks.java');
+const matchLauncher = read('forge-integration/src/main/java/forge/commandtable/CommandTableMatchLauncher.java');
+assert(deckAdapter.includes("canonicalName(commander)") &&
+       deckAdapter.includes("pool.add(canonicalName(card), 1)"),
+  'All decks, including saved decks, must use Forge canonical card names');
+assert(deckAdapter.includes("replace('\\u2019'"),
+  'Typographic apostrophes in the existing seven starter decks must be normalized');
+assert(repair.includes('for (int i = 0; i < cards.size(); i++)') &&
+       repair.includes('!basic(nameHere)') && repair.includes('legal(nameHere, commander)'),
+  'Repair must inspect all 99 card names individually, not parse the first validator error');
+assert(repair.includes('CommandTableForgeDecks.canonicalName(original)'),
+  'Starter decks must be normalized before repair');
+assert(matchLauncher.includes('rules.setWarnAboutAICards(false)'),
+  'Advisory AI-compatibility dialogs must not block the match launch');
+assert(frontend.includes('async function ctWatchNativeMatchStart()') &&
+       frontend.includes("CommandTableNative.request('game.snapshot')"),
+  'Command Table must recover the first playable Forge snapshot');
+assert(frontend.includes("app.view='game';app.modal='';app.notice=''"),
+  'A Forge game state must switch to the real Command Table battlefield');
+
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
