@@ -218,7 +218,10 @@ public final class CommandTableOverlay {
     }
 
     private static void publish(GameView game) {
-        if (game == null || game.getPlayers().isEmpty()) return;
+        // Forge announces a GameView before loading PlayerView commander data
+        // and before selecting the starting player. This is normal and NOT a
+        // failed game; keep pendingStart intact until a usable snapshot exists.
+        if (!CommandTableGameProjection.ready(game)) return;
         // Forge's libGDX match surface can be recreated on every match;
         // reassert the Command Table window's presentation after updates.
         show();
@@ -235,8 +238,14 @@ public final class CommandTableOverlay {
                 send(new JSONObject().put("v",1).put("type","game.state").put("payload",gameJson));
             }
         } catch(Exception ex) {
+            android.util.Log.e("CommandTable", "GameView projection failed", ex);
             String id=pendingStart;
-            if(id!=null){pendingStart=null;respond(id,false,null,ex.getMessage());}
+            if(id!=null){
+                pendingStart=null;
+                respond(id,false,null,
+                    "Forge game-state projection failed: "+
+                    ex.getClass().getSimpleName()+": "+ex.getMessage());
+            }
         }
     }
 
@@ -318,8 +327,10 @@ public final class CommandTableOverlay {
                     });
                     if(match.getGameView()!=null)publish(match.getGameView());
                 } catch(Throwable err) {
+                    android.util.Log.e("CommandTable", "Forge match start failed", err);
                     pendingStart=null;
-                    respond(id,false,null,"Forge match start failed: "+err.getMessage());
+                    respond(id,false,null,"Forge match start failed: "+
+                        err.getClass().getSimpleName()+": "+err.getMessage());
                 }
             });
         } catch(Exception ex){respond(id,false,null,ex.getMessage());}
@@ -474,6 +485,8 @@ public final class CommandTableOverlay {
                             HostedMatch current=match;
                             if(current==null || current.getGameView()==null)
                                 respond(id,false,null,"No active Commander game");
+                            else if(!CommandTableGameProjection.ready(current.getGameView()))
+                                respond(id,false,null,"Forge is preparing the Commander game");
                             else {
                                 Map<String,Object> state=CommandTableGameProjection.snapshot(
                                     current.getGameView(),current.getGameView().getPlayers().get(0));
