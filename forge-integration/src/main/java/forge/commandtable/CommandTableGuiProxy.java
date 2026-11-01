@@ -31,6 +31,7 @@ public final class CommandTableGuiProxy {
     public static IGuiGame wrap(IGuiGame delegate, Supplier<GameView> game,
                                 Consumer<GameView> onState, Consumer<Map<String, Object>> onPrompt,
                                 Consumer<Map<String, Object>> onSelection,
+                                Consumer<String> onNotice,
                                 CommandTableChoiceDispatcher choices,
                                 Runnable onNativeChoice, Runnable afterNativeChoice) {
         Objects.requireNonNull(delegate, "delegate");
@@ -38,12 +39,38 @@ public final class CommandTableGuiProxy {
         Objects.requireNonNull(onState, "onState");
         Objects.requireNonNull(onPrompt, "onPrompt");
         Objects.requireNonNull(onSelection, "onSelection");
+        Objects.requireNonNull(onNotice, "onNotice");
         Objects.requireNonNull(choices, "choices");
         return (IGuiGame) Proxy.newProxyInstance(
             IGuiGame.class.getClassLoader(),
             new Class<?>[] { IGuiGame.class },
             (object, method, args) -> {
                 String name = method.getName();
+                // Native Forge may remain initialized for controller bookkeeping,
+                // but it must never own Command Table's visible game or popups.
+                if ("message".equals(name) || "showErrorDialog".equals(name)) {
+                    if (args != null && args.length > 0 && args[0] != null)
+                        onNotice.accept(String.valueOf(args[0]));
+                    return null;
+                }
+                if ("reveal".equals(name) || "showRevealedCards".equals(name)) {
+                    String title = args != null && args.length > 0 ? String.valueOf(args[0]) : "Cards revealed";
+                    Object list = args != null && args.length > 1 ? args[1] :
+                                  args != null && args.length > 0 ? args[0] : null;
+                    StringBuilder info = new StringBuilder(title).append(": ");
+                    if (list instanceof Iterable<?> iterable) {
+                        int count=0;
+                        for (Object card : iterable) {
+                            if (count++ > 0) info.append(", ");
+                            info.append(String.valueOf(card));
+                            if (count >= 15) {info.append(" …");break;}
+                        }
+                    }
+                    onNotice.accept(info.toString());
+                    return null;
+                }
+                if ("flashIncorrectAction".equals(name) || "alertUser".equals(name))
+                    return null;
                 Object handled = choices.invoke(method, args);
                 if (handled != CommandTableChoiceDispatcher.NOT_HANDLED) {
                     GameView latest = game.get();
@@ -61,16 +88,23 @@ public final class CommandTableGuiProxy {
                     || "many".equals(name) || "order".equals(name)
                     || "insertInList".equals(name)
                     || "chooseSingleEntityForEffect".equals(name)
-                    || "reveal".equals(name)
                     || "sideboard".equals(name);
-                if (blockingChoice && onNativeChoice != null) onNativeChoice.run();
+                if (blockingChoice) {
+                    onNotice.accept("Forge needs a choice Command Table cannot yet display: " + name);
+                    throw new UnsupportedOperationException(
+                        "Missing Command Table Forge choice handler: " + name);
+                }
                 Object result;
                 try {
                     result = method.invoke(delegate, args);
                 } catch (InvocationTargetException ex) {
                     throw ex.getCause();
                 } finally {
-                    if (blockingChoice && afterNativeChoice != null) afterNativeChoice.run();
+                    if ("openView".equals(name) && afterNativeChoice != null) {
+                        // Forge builds controller state here. Keep the WebView on
+                        // top *after* the native match surface has been created.
+                        afterNativeChoice.run();
+                    }
                 }
                 if ("setSelection".equals(name) && args != null && args.length > 0
                         && args[0] instanceof Selection selection) {
@@ -81,13 +115,25 @@ public final class CommandTableGuiProxy {
                     prompt.put("message", String.valueOf(args[1]));
                     onPrompt.accept(prompt);
                 }
-                if ("updateButtons".equals(name) && args != null && args.length >= 6) {
+                if ("updateButtons".equals(name) && args != null) {
+                    // Forge has BOTH a four-argument default overload and a
+                    // six-argument labelled overload. The default calls the
+                    // delegate's own method, bypassing this proxy otherwise.
+                    // Missing this is fatal during starting-player/mulligan:
+                    // native buttons are hidden behind our WebView.
                     Map<String, Object> prompt = new LinkedHashMap<>();
-                    prompt.put("label1", String.valueOf(args[1]));
-                    prompt.put("label2", String.valueOf(args[2]));
-                    prompt.put("enable1", args[3]);
-                    prompt.put("enable2", args[4]);
-                    onPrompt.accept(prompt);
+                    if (args.length >= 6) {
+                        prompt.put("label1", String.valueOf(args[1]));
+                        prompt.put("label2", String.valueOf(args[2]));
+                        prompt.put("enable1", Boolean.TRUE.equals(args[3]));
+                        prompt.put("enable2", Boolean.TRUE.equals(args[4]));
+                    } else if (args.length == 4) {
+                        prompt.put("label1", "OK");
+                        prompt.put("label2", "Cancel");
+                        prompt.put("enable1", Boolean.TRUE.equals(args[1]));
+                        prompt.put("enable2", Boolean.TRUE.equals(args[2]));
+                    }
+                    if (!prompt.isEmpty()) onPrompt.accept(prompt);
                 }
                 if ("setGameView".equals(name) || "openView".equals(name)
                         || "handleGameEvent".equals(name)
