@@ -75,7 +75,7 @@ assert(projection.includes('m.put("token", c.isToken())'),
 const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
 assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
   'Installed Forge app must have a distinct launcher label from old Command Table');
-assert(frontend.includes('FORGE BUILT-IN · v0.14.5'),
+assert(frontend.includes('FORGE BUILT-IN · v0.14.6'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
   'An embedded Forge build must never advertise an external Forge app');
@@ -166,7 +166,7 @@ assert(frontend.includes("overview?'▣':'▦'") &&
 assert(frontend.includes('.ct10-overview .ct-pod-grid') &&
        frontend.includes('@media(orientation:landscape)'),
   'Compact Pod overview must support both phone orientations');
-assert(selectionUi.includes("top:calc(env(safe-area-inset-top) + 65px)") &&
+assert(selectionUi.includes("bottom:calc(env(safe-area-inset-bottom) + 25dvh)") &&
        selectionUi.includes("!window.app?.modal") &&
        selectionUi.includes("paintDecision(); // Close behind full-screen"),
   'Priority and mulligan controls must not cover cards or hand inspector');
@@ -182,10 +182,29 @@ assert(!frontend.includes("command-table-forge-choice") &&
 assert(selectionUi.includes("decision.id='ct-forge-priority-buttons'") &&
        selectionUi.split("decision.id='ct-forge-priority-buttons'").length===2,
   'Exactly one Forge priority dock should exist');
-assert(selectionUi.includes("left:8px!important;right:auto!important") &&
-       selectionUi.includes("width:min(32vw,360px)"),
-  'Landscape controls must sit in compact left dock, not over right card inspector');
+assert(selectionUi.includes("bottom:calc(env(safe-area-inset-bottom) + 10px)") &&
+       selectionUi.includes("width:min(24vw,300px)"),
+  'Landscape priority buttons must be compact at the bottom right');
 assert(selectionUi.includes("!window.app?.modal") &&
        selectionUi.includes("!otherChoiceOpen"),
   'Do not overlay the hand browser or Forge detailed choice dialogs');
+assert(frontend.includes('ctShowStarterDecks()') &&
+       frontend.includes('ctOrderedDecks')===false &&
+       frontend.includes('ctSortedDecks') &&
+       frontend.includes('ctHomeDeckCards') &&
+       frontend.includes('ct_show_starter_decks_v1'),
+  'Custom decks must display first, with reversible hiding of starter decks');
+assert(frontend.includes('ct10-hand-mulligan') &&
+       frontend.includes('toggleHandZoom') &&
+       frontend.includes('ct10-hand-zoom'),
+  'Opening hands must expand and tapping hand must toggle zoom');
+assert(frontend.includes('ct-native-stack') &&
+       frontend.includes('g.stack.slice().reverse()'),
+  'Show a visible, Forge-owned spell stack');
+assert(projectionSource.includes('seat.put("tokenCount"') &&
+       projectionSource.includes('c.getName()'),
+  'Token provenance and fallback names must survive native projection');
+assert(selectionUi.includes("phases={main1:'First main'") &&
+       selectionUi.includes("!window.app?.sideInspect"),
+  'Show current phase without covering inspected cards');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
