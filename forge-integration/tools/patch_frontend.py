@@ -400,6 +400,20 @@ source=source.replace('data-action="setPlayMode" data-value="watch"',
 source=source.replace(" if (CommandTableNative.ready) {\\n   // Forge must validate",
   " if (CommandTableNative.ready) {\\n   app.autoPilot=false;\\n   // Forge must validate")
 
+# Native Forge informational messages must appear in Command Table, never
+# trigger Forge's modal message box or replace the board.
+notice_receive = "    if (data.type === 'game.state') {for (const fn of onState) fn(data.payload);return;}"
+assert source.count(notice_receive) == 1, "Native reply protocol changed"
+source=source.replace(notice_receive,
+    notice_receive + "\\n    if (data.type === 'game.notice') {app.notice=String(data.payload?.message||'').slice(0,1500);render();return;}")
+# The old escape hatch showed Forge's native screens; keep every action in the
+# Command Table rules UI and direct users to the in-app legal choice panel.
+source=source.replace("case 'nativePrompts': window.AndroidBridge?.showNativePrompts?.();break;",
+    "case 'nativePrompts': announce('Select a legal Forge card or target from the Command Table choice panel.');break;")
+# Never expose a button which silently changes rendering engines.
+source=source.replace("  advanced.onclick=()=>window.AndroidBridge?.showNativePrompts?.();",
+    "  advanced.style.display='none';")
+
 # All add-on scripts must use the SAME native match session and state.
 # The recovered core is wrapped in an IIFE, so expose a controlled bridge.
 runtime_export = """window.CommandTableNative = CommandTableNative;
