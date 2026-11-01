@@ -75,7 +75,7 @@ assert(projection.includes('m.put("token", c.isToken())'),
 const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
 assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
   'Installed Forge app must have a distinct launcher label from old Command Table');
-assert(frontend.includes('FORGE BUILT-IN · v0.14.0'),
+assert(frontend.includes('FORGE BUILT-IN · v0.14.2'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
   'An embedded Forge build must never advertise an external Forge app');
@@ -119,5 +119,20 @@ assert(frontend.includes('async function ctWatchNativeMatchStart()') &&
   'Command Table must recover the first playable Forge snapshot');
 assert(frontend.includes("app.view='game';app.modal='';app.notice=''"),
   'A Forge game state must switch to the real Command Table battlefield');
+
+const projectionSource = read('forge-integration/src/main/java/forge/commandtable/CommandTableGameProjection.java');
+assert(projectionSource.includes('public static boolean ready(GameView game)') &&
+  projectionSource.includes('player.getCommanders() == null') &&
+  projectionSource.includes('game.getPlayerTurn() == null'),
+  'Do not publish partially initialized Forge Commander state');
+assert(projectionSource.includes('ownCommanders != null && !ownCommanders.isEmpty()') &&
+  projectionSource.includes('if (commanders == null) continue'),
+  'Forge PlayerView.getCommanders() is nullable before first turn');
+assert(overlay.includes('if (!CommandTableGameProjection.ready(game)) return;') &&
+  overlay.includes('Forge is preparing the Commander game'),
+  'Match-start acknowledgment and snapshots must wait for populated GameView');
+assert(overlay.includes('android.util.Log.e("CommandTable", "GameView projection failed", ex)') &&
+  overlay.includes('android.util.Log.e("CommandTable", "Forge match start failed", err)'),
+  'Capture complete Android stack traces for genuine startup failures');
 
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
