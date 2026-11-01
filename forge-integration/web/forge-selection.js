@@ -124,17 +124,32 @@
   decision.setAttribute('role','group');
   decision.setAttribute('aria-label','Forge opening and priority decisions');
   decision.style.cssText=[
-    'position:fixed','left:12px','right:12px',
-    'bottom:calc(env(safe-area-inset-bottom) + 86px)',
-    'z-index:210000','display:none','margin:auto','max-width:680px',
-    'border:1px solid #c59c61','background:#15272e','color:#fff2db',
-    'padding:13px','border-radius:16px','box-shadow:0 12px 38px #000b',
-    'font-family:system-ui'
+    'position:fixed','left:10px','right:10px',
+    'top:calc(env(safe-area-inset-top) + 65px)',
+    'bottom:auto','z-index:210000','display:none',
+    'margin:0 auto','max-width:460px',
+    'border:1px solid #c59c61','background:#15272ef5',
+    'color:#fff2db','padding:10px','border-radius:13px',
+    'box-shadow:0 8px 22px #0009',
+    'font-family:system-ui','box-sizing:border-box',
+    'pointer-events:auto'
   ].join(';');
+  // This is a small action dock, not an opaque game-blocking modal. Its
+  // footprint is kept above the hand and is hidden when viewing any card.
+  const decisionCss=document.createElement('style');
+  decisionCss.textContent=[
+    '@media(orientation:landscape) and (max-height:600px){',
+    '#ct-forge-priority-buttons{top:calc(env(safe-area-inset-top) + 42px)!important;right:8px!important;left:auto!important;width:min(41vw,410px)!important;padding:7px!important}',
+    '#ct-forge-priority-buttons button{min-height:34px!important;font-size:12px!important}',
+    '#ct-forge-priority-buttons .ct-forge-decision-caption{max-height:38px!important;font-size:11px!important}',
+    '}'
+  ].join('');
+  document.head.append(decisionCss);
   const decisionText=document.createElement('div');
-  decisionText.style.cssText='font-size:13px;line-height:1.45;margin-bottom:10px;white-space:pre-wrap';
+  decisionText.className='ct-forge-decision-caption';
+  decisionText.style.cssText='font-size:12px;line-height:1.25;max-height:45px;overflow:auto;margin-bottom:7px;white-space:pre-wrap';
   const buttons=document.createElement('div');
-  buttons.style.cssText='display:flex;gap:9px';
+  buttons.style.cssText='display:flex;gap:7px';
   decision.append(decisionText,buttons);
   document.body.append(decision);
   let buttonState={label1:'OK',label2:'Cancel',enable1:false,enable2:false};
@@ -155,14 +170,17 @@
     }finally{busy=false;paintDecision();}
   }
   function paintDecision(){
+    const forgeChoice=document.getElementById('ct-forge-decision-sheet');
+    const otherChoiceOpen=!!forgeChoice && forgeChoice.style.display!=='none';
     const active=!!window.app?.nativeMatch &&
-      (!!buttonState.enable1||!!buttonState.enable2);
+      window.app?.view==='game' && !window.app?.modal &&
+      !otherChoiceOpen && (!!buttonState.enable1||!!buttonState.enable2);
     decision.style.display=active?'block':'none';
     if(!active)return;
     const pregame=window.app?.game?.phase==='mulligan' ||
       window.app?.view!=='game';
     decisionText.textContent=openingMessage ||
-      (pregame?'Forge is preparing your starting hand.':'Choose how to continue.');
+      (pregame?'Keep your opening hand or take a mulligan.':'Priority: choose an action.');
     buttons.replaceChildren();
     for(const [label,enabled,ok] of [
       [buttonState.label1,buttonState.enable1,true],
@@ -173,10 +191,10 @@
       b.textContent=label|| (ok?'OK':'Cancel');
       b.disabled=!enabled||busy;
       b.style.cssText=[
-        'flex:1','min-height:48px','padding:10px','border-radius:10px',
+        'flex:1','min-height:41px','padding:7px 9px','border-radius:9px',
         'border:1px solid #bda17d',
         ok?'background:#e6b46c;color:#14252a':'background:#2a4049;color:#f4e3c9',
-        'font-size:15px','font-weight:700',
+        'font-size:13px','font-weight:700',
         b.disabled?'opacity:.5':'opacity:1'
       ].join(';');
       b.onclick=()=>decide(ok);
@@ -205,7 +223,10 @@
 
   const appRoot=document.getElementById('app');
   if(appRoot) {
-    new MutationObserver(()=>{if(selection.cards?.length||selection.targets?.length)highlight();})
+    new MutationObserver(()=>{
+      if(selection.cards?.length||selection.targets?.length)highlight();
+      paintDecision(); // Close behind full-screen card inspector / hand browser.
+    })
       .observe(appRoot,{childList:true,subtree:false});
   }
   window.ctForgeSelection={
