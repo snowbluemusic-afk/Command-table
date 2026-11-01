@@ -93,7 +93,11 @@
     panel.style.display=playing&&all.length&&!choiceActive?'block':'none';
     if(!playing||!all.length)return;
     const chosen=(selection.chosen||[]).length;
-    title.textContent=(promptMessage||'Forge legal choices').slice(0,95)+
+    const phaseDetail=String(window.app?.game?.phaseDetail||'').toUpperCase();
+    const combatLabel=/ATTACKERS/.test(phaseDetail)?'⚔ Choose attacking creatures':
+      /BLOCKERS/.test(phaseDetail)?'🛡 Choose blocking creatures / attacker':
+      /COMBAT/.test(phaseDetail)?'⚔ Combat choices':null;
+    title.textContent=(combatLabel||promptMessage||'Forge legal choices').slice(0,95)+
       ' · '+all.length+' option'+(all.length===1?'':'s')+
       (chosen?' · '+chosen+' selected':'');
     expander.textContent=expanded?'Hide options':'Show options';
@@ -102,7 +106,9 @@
     if(expanded) for (const item of all) {
       const b=document.createElement('button');
       b.type='button';
-      b.textContent=(selection.chosen||[]).includes(item.id)?'✓ '+item.label:item.label;
+      const prefix=/ATTACKERS/.test(phaseDetail)?'⚔ ':
+        /BLOCKERS/.test(phaseDetail)?'🛡 ':'';
+      b.textContent=(selection.chosen||[]).includes(item.id)?'✓ '+item.label:prefix+item.label;
       b.style.cssText='padding:8px 10px;font-size:12px;background:#2b434c;border:1px solid #a68c66;border-radius:8px;color:#f1e8da;max-width:100%;white-space:normal;text-align:left';
       b.disabled=working;
       b.onclick=()=>select(item);
@@ -261,7 +267,11 @@
       const ordinary=/^(ok|done|continue)$/i.test(original.trim());
       const phase=window.app?.game?.phase;
       const stack=window.app?.game?.stack||[];
-      b.textContent=ok && !pregame && ordinary
+      const inAttack=/ATTACKERS/.test(String(game?.phaseDetail||'').toUpperCase());
+      const inBlock=/BLOCKERS/.test(String(game?.phaseDetail||'').toUpperCase());
+      b.textContent=!ok && /^undo$/i.test(original.trim()) && inAttack?'Undo attacker':
+        !ok && /^undo$/i.test(original.trim()) && inBlock?'Undo block':
+        ok && !pregame && ordinary
         ? (stack.length?'Resolve':window.app?.game?.active===0?'Next':'Pass')
         :original;
       b.setAttribute('aria-label',original+' — '+b.textContent);
