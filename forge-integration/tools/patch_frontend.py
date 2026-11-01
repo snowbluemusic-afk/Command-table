@@ -147,6 +147,71 @@ assert source.count(".catch(error=>announce(`Forge could not start this game: ${
 source=source.replace(".catch(error=>announce(`Forge could not start this game: ${error.message}`));",
                       ".catch(error=>{app.nativeMatch=false;announce(`Forge could not start this game: ${error.message}`);});")
 
+# Repair ONLY bundled starter lists before any Forge match begins.
+# Forge evaluates oracle-text mana symbols and Commander deck legality.
+# Imported/user-edited decks are never automatically repaired.
+repair_script = r"""
+async function ctRepairStarterDecks() {
+  const starters=app.decks.filter(d=>d.prebuilt===true && d.cards?.length===99);
+  let fixes=0;
+  const failed=new Map();
+  for(const d of starters) {
+    try {
+      const result=await CommandTableNative.request('deck.repairPrebuilt',{
+        deck:{name:d.name,commander:d.commander,main:d.cards}
+      });
+      if(result?.valid!==true || !Array.isArray(result.main)||result.main.length!==99) {
+        failed.set(d.id,result?.reason||'Forge could not validate the starter');
+        continue;
+      }
+      if(Array.isArray(result.replacements)&&result.replacements.length) {
+        d.cards=result.main;
+        fixes+=result.replacements.length;
+        persist();
+      }
+    } catch(error) {
+      failed.set(d.id,error?.message||String(error));
+    }
+  }
+  const selected=app.decks.find(d=>d.id===(app.matchDeck||app.decks[0]?.id));
+  if(selected?.prebuilt && failed.has(selected.id)) {
+    throw new Error(selected.name+' is not legal: '+failed.get(selected.id));
+  }
+  if(fixes) {
+    app.notice='Forge repaired '+fixes+' off-colour cards in the included starter decks.';
+    persist();
+    render();
+  }
+  return app.decks.filter(d=>!failed.has(d.id)).map(deck=>({
+    name:deck.name,commander:deck.commander,main:deck.cards
+  }));
+}
+"""
+assert source.count("function startGame(){")==1, "Match start location changed"
+source=source.replace("function startGame(){",repair_script+"\nfunction startGame(){")
+assert source.count("   const allDecks = app.decks.map(deck=>({name:deck.name,commander:deck.commander,main:deck.cards}));")==1
+source=source.replace("   const allDecks = app.decks.map(deck=>({name:deck.name,commander:deck.commander,main:deck.cards}));",
+                      "   // Repair starter decks using Forge before creating opponent deck payloads.")
+assert source.count("   void CommandTableNative.request('match.start',{")==1
+source=source.replace("   void CommandTableNative.request('match.start',{",
+                      "   void ctRepairStarterDecks().then(allDecks => CommandTableNative.request('match.start',{")
+assert source.count("   }).then(payload=>{")==1
+source=source.replace("   }).then(payload=>{","   })).then(payload=>{")
+# Forge already includes tokens in the GameView. Keep those distinct permanents
+# in Command Table instead of treating them as missing deck cards.
+assert source.count("uid:String(c.id), forgeId:c.id, name:c.name, tapped:!!c.tapped,")==1
+source=source.replace("uid:String(c.id), forgeId:c.id, name:c.name, tapped:!!c.tapped,",
+                      "uid:String(c.id), forgeId:c.id, name:c.name, token:!!c.token, tapped:!!c.tapped,")
+assert source.count("return smallCard(c,{tapped:x.tapped,counters:x.counters,bonus,selected:")==1
+source=source.replace("return smallCard(c,{tapped:x.tapped,counters:x.counters,bonus,selected:",
+                      "return smallCard(c,{tapped:x.tapped,token:!!x.token,counters:x.counters,bonus,selected:")
+assert source.count("const classes=['game-card',kind,opts.tapped?'tapped':'',")==1
+source=source.replace("const classes=['game-card',kind,opts.tapped?'tapped':'',",
+                      "const classes=['game-card',kind,opts.tapped?'tapped':'',opts.token?'ct-token-permanent':'',")
+token_css='<style>.ct-token-permanent{position:relative}.ct-token-permanent:after{content:"TOKEN";position:absolute;top:3px;right:3px;background:#18382d;color:#a8edcf;border:1px solid #589b7a;border-radius:5px;padding:1px 4px;font:700 9px system-ui;pointer-events:none}</style>'
+assert source.count("</head>")==1
+source=source.replace("</head>",token_css+"</head>")
+
 # Render Forge's live priority prompt over the existing Command Table board.
 # Buttons call Forge IGameController methods; they do not advance the JS simulator.
 prompt_script = r"""
@@ -314,7 +379,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "COMMANDER · FORGE RULES")
+                      "FORGE BUILT-IN · v0.13.1")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,

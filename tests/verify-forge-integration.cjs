@@ -49,4 +49,34 @@ assert(workflow.includes('needs: embedded-forge-android'),
 assert(workflow.includes('bash ci/android-smoke.sh'),
   'Real Android installation/launch check is required');
 
+const repair = read('forge-integration/src/main/java/forge/commandtable/CommandTableStarterDeckRepair.java');
+const projection = read('forge-integration/src/main/java/forge/commandtable/CommandTableGameProjection.java');
+assert(overlay.includes('case "deck.repairPrebuilt"'),
+  'Native bridge must expose Forge-powered starter deck repair');
+assert(repair.includes('CommandTableForgeDecks.validationError('),
+  'Starter repairs must use Forge deck validation, not JavaScript heuristics');
+assert(repair.includes('getColorIdentity().hasNoColorsExcept(identity)'),
+  'Replacement candidates must respect mana symbols in rules text');
+assert(repair.includes('main.size() != 99'),
+  'Every repair must preserve the 99 + 1 Commander deck size');
+assert(repair.includes('result.put("replacements"'),
+  'Return the original and replacement names for auditability');
+assert(frontend.includes('d.prebuilt===true'),
+  'Only stock starter decks may be auto-repaired');
+assert(frontend.includes("ctRepairStarterDecks().then(allDecks"),
+  'Matches must await starter repair before creating AI opponent decks');
+assert(frontend.includes("token:!!c.token"),
+  'Forge tokens must survive the state projection');
+assert(frontend.includes("ct-token-permanent"),
+  'Show tokens as distinct native battlefield permanents');
+assert(projection.includes('m.put("token", c.isToken())'),
+  'Forge must include token flag in authoritative state');
+
+const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
+assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
+  'Installed Forge app must have a distinct launcher label from old Command Table');
+assert(frontend.includes('FORGE BUILT-IN · v0.13.1'),
+  'New in-app header must identify bundled Forge build');
+assert(!frontend.includes('Play full rules in Forge'),
+  'An embedded Forge build must never advertise an external Forge app');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
