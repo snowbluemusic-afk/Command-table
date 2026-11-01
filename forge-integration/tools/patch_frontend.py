@@ -868,6 +868,54 @@ result_css = """<style id="ct-game-complete-v0149">
 assert source.count('</head>')==1
 source=source.replace('</head>',result_css+'</head>')
 
+
+# Use Forge's explicit selection first. If no selection is published, display
+# an advisory mana glow ONLY for costs payable by visible untapped basic lands
+# and simple fixed mana costs. Forge still decides legal casting.
+affordability_helper = r"""
+function ctNativeAffordable(c,me,g){
+ if(!app.nativeMatch||!c||!me||!g||!ctNativeTiming(c).allowed)return false;
+ const type=String(c.type||'');
+ if(/\bLand\b/i.test(type))return true;
+ const raw=String(c.cost||'').toUpperCase().trim();
+ if(!raw||raw.includes('X')||raw.includes('/')||raw.includes('P')||raw.includes('Y'))return false;
+ const braceSymbols=[...raw.matchAll(/\{([^}]+)\}/g)].map(m=>m[1]);
+ const symbols=braceSymbols.length?braceSymbols:(raw.match(/\d+|[WUBRGCS]/g)||[]);
+ if(!symbols.length||symbols.some(x=>!/^(\d+|[WUBRGCS])$/.test(x)))return false;
+ const mana=[];
+ const basic={PLAINS:'W',ISLAND:'U',SWAMP:'B',MOUNTAIN:'R',FOREST:'G',WASTES:'C'};
+ for(const perm of me.battlefield||[]){
+   if(perm.tapped||!perm.land)continue;
+   const name=String(perm.name||'').toUpperCase();
+   const land=Object.entries(basic).find(([k])=>
+     new RegExp('(^|[^A-Z])'+k+'($|[^A-Z])').test(name));
+   if(land)mana.push(land[1]);
+ }
+ let generic=0;const colors=[];
+ for(const symbol of symbols){
+   if(/^\d+$/.test(symbol))generic+=Number(symbol);
+   else if(symbol==='S')return false;
+   else colors.push(symbol);
+ }
+ // Spend colored sources first, then check the generic remaining.
+ for(const color of colors){
+   const index=mana.indexOf(color);
+   if(index<0)return false;
+   mana.splice(index,1);
+ }
+ return mana.length>=generic;
+}
+"""
+assert source.count('function gameView(){')==1
+source=source.replace('function gameView(){',
+  affordability_helper+'\nfunction gameView(){')
+old_available="available:app.nativeMatch?!!window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i]):!g.autoPilot&&canCast(me,c)"
+assert source.count(old_available)==1,'Native hand affordance changed'
+source=source.replace(old_available,
+  "available:app.nativeMatch?(!!window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])||ctNativeAffordable(c,me,g)):!g.autoPilot&&canCast(me,c)")
+# Correctness: neither highlights nor preview heuristics ever call Forge's
+# controller or move a card. The existing native command remains sole writer.
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
