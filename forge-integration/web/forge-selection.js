@@ -124,9 +124,9 @@
   decision.setAttribute('role','group');
   decision.setAttribute('aria-label','Forge opening and priority decisions');
   decision.style.cssText=[
-    'position:fixed','left:10px','right:10px',
-    'top:calc(env(safe-area-inset-top) + 65px)',
-    'bottom:auto','z-index:210000','display:none',
+    'position:fixed','left:auto','right:10px',
+    'top:auto','bottom:calc(env(safe-area-inset-bottom) + 25dvh)',
+    'z-index:210000','display:none',
     'margin:0 auto','max-width:420px',
     'border:1px solid #c59c61','background:#15272ef5',
     'color:#fff2db','padding:8px','border-radius:12px',
@@ -139,7 +139,7 @@
   const decisionCss=document.createElement('style');
   decisionCss.textContent=[
     '@media(orientation:landscape) and (max-height:600px){',
-    '#ct-forge-priority-buttons{top:calc(env(safe-area-inset-top) + 66px)!important;left:8px!important;right:auto!important;margin:0!important;width:min(32vw,360px)!important;padding:6px!important;max-height:116px!important}',
+    '#ct-forge-priority-buttons{top:auto!important;bottom:calc(env(safe-area-inset-bottom) + 10px)!important;left:auto!important;right:9px!important;margin:0!important;width:min(24vw,300px)!important;padding:6px!important;max-height:118px!important}',
     '#ct-forge-priority-buttons button{min-height:32px!important;font-size:12px!important}',
     '#ct-forge-priority-buttons .ct-forge-decision-caption{max-height:32px!important;font-size:11px!important;line-height:1.2!important}',
     '}'
@@ -147,10 +147,11 @@
   document.head.append(decisionCss);
   const decisionText=document.createElement('div');
   decisionText.className='ct-forge-decision-caption';
-  decisionText.style.cssText='font-size:11px;line-height:1.2;max-height:36px;overflow:auto;margin-bottom:5px;white-space:pre-wrap';
+  decisionText.style.cssText='font-size:12px;line-height:1.2;max-height:42px;overflow:auto;margin-bottom:5px;white-space:pre-wrap';
   const buttons=document.createElement('div');
   buttons.style.cssText='display:flex;gap:7px';
   decision.append(decisionText,buttons);
+  // Keep the dock reachable on both turns; Forge enables the actual actions.
   document.body.append(decision);
   let buttonState={label1:'OK',label2:'Cancel',enable1:false,enable2:false};
   let openingMessage='';
@@ -174,7 +175,8 @@
     const otherChoiceOpen=!!forgeChoice && forgeChoice.style.display!=='none';
     const active=!!window.app?.nativeMatch &&
       window.app?.view==='game' && !window.app?.modal &&
-      !otherChoiceOpen && (!!buttonState.enable1||!!buttonState.enable2);
+      !window.app?.sideInspect && !otherChoiceOpen &&
+      (!!buttonState.enable1||!!buttonState.enable2);
     // A single small dock owns Forge buttons. Never mount a full-width
     // secondary prompt or cover the enlarged card browser.
     decision.style.pointerEvents=active?'auto':'none';
@@ -182,8 +184,12 @@
     if(!active)return;
     const pregame=window.app?.game?.phase==='mulligan' ||
       window.app?.view!=='game';
-    decisionText.textContent=openingMessage ||
-      (pregame?'Keep your opening hand or take a mulligan.':'Priority: choose an action.');
+    const game=window.app?.game;
+    const phases={main1:'First main',main2:'Second main',combat:'Combat',end:'End step',mulligan:'Opening hand'};
+    decisionText.textContent=pregame
+      ? (openingMessage||'Keep your opening hand or take a mulligan.')
+      : 'Turn '+(game?.turn||1)+' · '+(phases[game?.phase]||game?.phase||'Priority')+
+        ' · '+(game?.players?.[0]?.priority?'Your priority':'Respond / advance');
     buttons.replaceChildren();
     for(const [label,enabled,ok] of [
       [buttonState.label1,buttonState.enable1,true],
