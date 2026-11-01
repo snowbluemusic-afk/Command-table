@@ -1042,6 +1042,37 @@ combat_css="""<style id="ct-forge-combat-guidance-v0150">
 assert source.count('</head>')==1
 source=source.replace('</head>',combat_css+'</head>')
 
+
+# Fix the on-device affordance mismatch: untapped mana rocks are absent from
+# the visual mana estimate even when Forge can tap them during a cast.
+# This preview is conservative and *not* a replacement for Forge legality.
+rocks_old="""  if(land)mana.push(land[1]);
+ }
+ let generic=0;const colors=[];"""
+assert source.count(rocks_old)==1
+source=source.replace(rocks_old,"""  if(land) {mana.push(land[1]);continue;}
+   const key=String(perm.name||'').trim().toLowerCase();
+   // Artifacts are only counted untapped and when the card itself is not a
+   // creature. Colored-rock legality remains in Forge.
+   if(perm.creature)continue;
+   if(key==='sol ring')mana.push('C','C');
+   else if(['arcane signet','commanders sphere',"commander's sphere",
+       'chromatic lantern'].includes(key))mana.push('*');
+   else if(['mind stone','thought vessel','prismatic lens',
+       'everflowing chalice','war room'].includes(key))mana.push('C');
+ }
+ let generic=0;const colors=[];""")
+rock_colored="""   const index=mana.indexOf(color);
+   if(index<0)return false;
+   mana.splice(index,1);"""
+assert source.count(rock_colored)==1
+source=source.replace(rock_colored,"""   let index=mana.indexOf(color);
+   if(index<0)index=mana.indexOf('*');
+   if(index<0)return false;
+   mana.splice(index,1);""")
+# Avoid false confidence on unconventional sources; the only green glow is
+# affordable-as-shown, with actual game choices still Forge-authoritative.
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
