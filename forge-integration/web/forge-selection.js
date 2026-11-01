@@ -5,7 +5,11 @@
   'use strict';
   const panel = document.createElement('section');
   panel.id='ct-forge-legal-actions';
-  panel.style.cssText='position:fixed;z-index:99999;top:calc(env(safe-area-inset-top) + 56px);left:8px;right:8px;max-width:720px;margin:auto;background:rgba(18,36,43,.95);border:1px solid #b89a74;border-radius:13px;color:#f7ead4;padding:9px;display:none;box-shadow:0 12px 36px #000a;font-family:system-ui;max-height:45dvh;overflow:auto';
+  panel.style.cssText='position:fixed;z-index:99999;top:calc(env(safe-area-inset-top) + 62px);right:10px;left:auto;width:min(34vw,410px);max-width:410px;background:rgba(18,36,43,.96);border:1px solid #b89a74;border-radius:12px;color:#f7ead4;padding:9px;display:none;box-shadow:0 12px 30px #000a;font-family:system-ui;max-height:55dvh;overflow:auto;box-sizing:border-box';
+  const panelCss=document.createElement('style');
+  panelCss.id='ct-forge-selection-layout';
+  panelCss.textContent='@media(orientation:portrait){#ct-forge-legal-actions{left:8px!important;right:8px!important;width:auto!important;max-width:none!important;top:calc(env(safe-area-inset-top) + 62px)!important;max-height:28dvh!important}}';
+  document.head.append(panelCss);
   const header=document.createElement('div');
   header.style.cssText='font-weight:750;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:7px';
   const title=document.createElement('span');
@@ -80,7 +84,9 @@
   function update() {
     const all=candidates();
     const playing=(()=>{try{return !!app.nativeMatch && app.view==='game';}catch(_){return false;}})();
-    panel.style.display=playing&&all.length?'block':'none';
+    const choiceSheet=document.getElementById('ct-forge-decision-sheet');
+    const choiceActive=choiceSheet?.style.display==='flex';
+    panel.style.display=playing&&all.length&&!choiceActive?'block':'none';
     if(!playing||!all.length)return;
     const chosen=(selection.chosen||[]).length;
     title.textContent=(promptMessage||'Forge legal choices').slice(0,95)+
@@ -106,7 +112,19 @@
     let message;
     try{message=typeof value==='string'?JSON.parse(value):value;}catch(_){}
     if(message?.type==='game.selection'){
-      selection=message.payload||{cards:[],targets:[],chosen:[]};
+      const next=message.payload||{cards:[],targets:[],chosen:[]};
+      const changed=JSON.stringify([selection.cards,selection.targets])!==
+        JSON.stringify([next.cards,next.targets]);
+      selection=next;
+      if(changed) {
+        expanded=candidates().length>0 && candidates().length<=4;
+        // A legal-target selection supersedes an unrelated card preview.
+        // Keep the hand and battlefield visible rather than stacking panels.
+        if(candidates().length && window.app?.sideInspect) {
+          window.app.sideInspect=null;
+          if(window.app.view==='game') window.render?.();
+        }
+      }
       update();
       return;
     }
@@ -247,6 +265,7 @@
   }
   window.ctForgeSelection={
     reset:()=>{selection={cards:[],targets:[],chosen:[]};expanded=false;promptMessage='';update();},
+    refresh:()=>{update();},
     get active(){return candidates().length>0;}
   };
 })();
