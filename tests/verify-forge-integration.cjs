@@ -75,7 +75,7 @@ assert(projection.includes('m.put("token", c.isToken())'),
 const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
 assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
   'Installed Forge app must have a distinct launcher label from old Command Table');
-assert(frontend.includes('FORGE BUILT-IN · v0.14.6'),
+assert(frontend.includes('FORGE BUILT-IN · v0.14.7'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
   'An embedded Forge build must never advertise an external Forge app');
@@ -207,4 +207,27 @@ assert(projectionSource.includes('seat.put("tokenCount"') &&
 assert(selectionUi.includes("phases={main1:'First main'") &&
        selectionUi.includes("!window.app?.sideInspect"),
   'Show current phase without covering inspected cards');
+const choiceUi=read('forge-integration/web/forge-choice.js');
+assert(choiceUi.includes("'background:transparent','pointer-events:none'") &&
+       choiceUi.includes("'pointer-events:auto'") &&
+       choiceUi.includes("width:min(37vw,460px)") &&
+       choiceUi.includes('ct-forge-choice-layout'),
+  'Routine Forge decisions must be a non-blocking responsive side tray');
+assert(choiceUi.includes("current.min===1 && current.max===1") &&
+       choiceUi.includes("void answer(false)"),
+  'A single required Forge card choice must complete with one tap');
+assert(choiceUi.includes("window.AndroidBridge?.artworkUrl?.(simpleName)"),
+  'Forge discard and card-choice options must have optional card art');
+assert(selectionUi.includes("candidates().length<=4") &&
+       selectionUi.includes("width:min(34vw,410px)") &&
+       selectionUi.includes("ct-forge-selection-layout"),
+  'Small target selections should display inline in compact panels');
+assert(frontend.includes('ctForgeLastSignature') &&
+       frontend.includes('ctReceiveForgeState(message)') &&
+       frontend.includes('ctForgeRenderTimer=setTimeout') &&
+       frontend.includes('ctReceiveForgeState(latest.game)'),
+  'Native state updates must be deduplicated and grouped without repeated full-screen resets');
+assert(frontend.includes("if (data.type === 'game.notice') {ctNativeToast") &&
+       frontend.includes('ct-native-toast'),
+  'Transient notices must not replace the battlefield or persist as blocking banners');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
