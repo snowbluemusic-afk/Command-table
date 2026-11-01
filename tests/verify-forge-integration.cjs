@@ -72,4 +72,11 @@ assert(frontend.includes("ct-token-permanent"),
 assert(projection.includes('m.put("token", c.isToken())'),
   'Forge must include token flag in authoritative state');
 
+const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
+assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
+  'Installed Forge app must have a distinct launcher label from old Command Table');
+assert(frontend.includes('FORGE BUILT-IN · v0.13.1'),
+  'New in-app header must identify bundled Forge build');
+assert(!frontend.includes('Play full rules in Forge'),
+  'An embedded Forge build must never advertise an external Forge app');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
