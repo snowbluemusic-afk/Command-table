@@ -197,6 +197,50 @@ source=source.replace("   void CommandTableNative.request('match.start',{",
                       "   void ctRepairStarterDecks().then(allDecks => CommandTableNative.request('match.start',{")
 assert source.count("   }).then(payload=>{")==1
 source=source.replace("   }).then(payload=>{","   })).then(payload=>{")
+# Enter the actual Command Table board as soon as an authoritative state
+# arrives. Forge can deliver a game.state before it acknowledges match.start.
+state_listener = "try {applyAuthoritativeGame(message); if(app.view==='game') render();}"
+assert source.count(state_listener)==1, "Native match state listener changed"
+source=source.replace(state_listener,
+    """try {
+     applyAuthoritativeGame(message);
+     app.view='game';app.modal='';app.notice='';
+     render();
+   }""")
+
+# Forge's first GameView callback can also be lost while native dialogs or
+# initial asset activities are transitioning. Poll the authoritative snapshot
+# for a bounded period instead of remaining forever on the home screen.
+watch_script = r"""
+async function ctWatchNativeMatchStart() {
+  for(let attempt=0;attempt<40;attempt++) {
+    await new Promise(done=>setTimeout(done,1000));
+    if(!app.nativeMatch || app.view==='game')return;
+    try {
+      const result=await CommandTableNative.request('game.snapshot');
+      if(result?.game?.players?.length>=2) {
+        applyAuthoritativeGame(result.game);
+        app.view='game';app.modal='';app.notice='';render();
+        return;
+      }
+    }catch(error){ /* Forge may still be preparing game state */ }
+  }
+  if(app.nativeMatch && app.view!=='game') {
+    app.nativeMatch=false;
+    announce('Forge match start timed out before a playable board was created. No deck data was changed.');
+  }
+}
+"""
+assert source.count("function startGame(){")==1
+source=source.replace("function startGame(){",watch_script+"\nfunction startGame(){")
+start_request = "void ctRepairStarterDecks().then(allDecks => CommandTableNative.request('match.start',{"
+assert source.count(start_request)==1,"Starter match request changed"
+source=source.replace(start_request,
+    "void ctRepairStarterDecks().then(allDecks => {void ctWatchNativeMatchStart(); return CommandTableNative.request('match.start',{")
+end_request = "   })).then(payload=>{"
+assert source.count(end_request)==1, "Starter match acknowledgment changed"
+source=source.replace(end_request,"   });}).then(payload=>{")
+
 # Forge already includes tokens in the GameView. Keep those distinct permanents
 # in Command Table instead of treating them as missing deck cards.
 assert source.count("uid:String(c.id), forgeId:c.id, name:c.name, tapped:!!c.tapped,")==1
