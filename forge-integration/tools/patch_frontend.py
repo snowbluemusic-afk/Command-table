@@ -81,7 +81,7 @@ source=source.replace("app.game={...state,native:true};app.savedGame=null;",
                       "app.game=ctHydrateForgeState(state);app.savedGame=null;")
 # Native matches MUST NOT run their own rules; route card taps and phase actions to Forge.
 source=source.replace(" 'toggleAutoPilot','pauseAutoPilot'\n]);",
-                      " 'permanent','cancelCastTarget','concede','quitGame','targetPlayer','selectStack'\n]);")
+                      " 'permanent','cardId','cancelCastTarget','concede','quitGame','targetPlayer','selectStack'\n]);")
 # Leave a native match by conceding in Forge before discarding its UI state.
 source=source.replace(
  ".then(result=>{if(result?.game){applyAuthoritativeGame(result.game);render();}})",
@@ -90,7 +90,7 @@ source=source.replace(
 # Safety check: never allow a native match to fall through to the JS simulator.
 source=source.replace(" const g=app.game,p=g?.players[0],active=g&&turnPlayer();switch(act){",
                       """  if(app.nativeMatch && app.view==='game' &&
-      !new Set(['focusPlayer','togglePod','menuGame','inspect','inspectFull','inspectCommander','inspectPlayer','showHandCard','openHand','previousHand','nextHand','selectHand','closeModal','cycleOpponent','viewStack','viewHistory','helpCurrent','back','nativePrompts','quitGame','clearSideInspect','dismiss','rotateMatch','togglePod']).has(act)) {
+      !new Set(['focusPlayer','togglePod','menuGame','inspect','inspectFull','inspectCommander','inspectPlayer','showHandCard','openHand','previousHand','nextHand','selectHand','closeModal','cycleOpponent','viewStack','viewHistory','helpCurrent','back','nativePrompts','quitGame','clearSideInspect','dismiss','rotateMatch','togglePod','toggleHandZoom','inspectBoardPermanent','toggleZones']).has(act)) {
     announce('This action must be handled by Forge: '+act); return;
   }
  const g=app.game,p=g?.players[0],active=g&&turnPlayer();switch(act){""")
@@ -681,6 +681,52 @@ source=source.replace(foot_old,
 
 # Note: explicit user actions (menu/pod/modal) still render immediately;
 # only authoritative Forge updates are coalesced.
+
+
+# Native UX corrections: local inspection must never be forwarded as a
+# numeric card selection. Forge is authoritative for drag/drop.
+inspect_case = r""" case 'inspectBoardPermanent':{
+   const [seat,uid]=String(v||'').split(':',2);
+   const owner=Number(seat);
+   const perm=app.game?.players?.[owner]?.battlefield?.find(c=>String(c.uid)===uid);
+   if(!perm){ctNativeToast('This card is no longer on the battlefield');break;}
+   app.inspect=perm.name;app.sideInspect=perm.name;
+   app.inspectForgeId=Number.isInteger(Number(perm.forgeId))?Number(perm.forgeId):null;
+   app.inspectOwner=owner;app.selectedCard=perm.name;
+   if(!matchMedia('(orientation:landscape)').matches)app.modal='inspect';
+   render();break;
+  }
+  case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;
+  case 'permanent':"""
+assert source.count(" case 'permanent':")==1
+source=source.replace(" case 'permanent':",inspect_case)
+old_target="action:app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect'),value:app.pendingCast&&targetable?target:mine?x.uid:c.name"
+assert source.count(old_target)==1, 'Battlefield card mapping changed'
+new_target="""action:app.nativeMatch?(window.ctForgeSelection?.isLegalCard?.(x.forgeId)?'cardId':'inspectBoardPermanent'):(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?(window.ctForgeSelection?.isLegalCard?.(x.forgeId)?String(x.forgeId):idx+':'+x.uid):(app.pendingCast&&targetable?target:mine?x.uid:c.name)"""
+source=source.replace(old_target,new_target)
+# The player sees the card on first tap; interacting with the permanent
+# is a separate, deliberate action through its authoritative Forge ID.
+preview_anchor='<button class="secondary" data-action="inspectFull" data-value="'+chr(36)+'{esc(c.name)}">Full details</button>'
+assert source.count(preview_anchor)==1
+activate='<span class="ct-native-permanent-action">'+chr(36)+'{app.nativeMatch&&app.inspectOwner===0&&Number.isInteger(app.inspectForgeId)&&app.game?.players?.[0]?.priority?`<button class="secondary" data-action="cardId" data-value="'+chr(36)+'{app.inspectForgeId}">Activate / interact ↗</button>`:""}</span>'
+source=source.replace(preview_anchor,activate+preview_anchor)
+# Native game.command resolves the drag, never simulator beginCastFromDrag.
+old_drop="if(e.clientY < innerHeight-155&&d.y-e.clientY>42)beginCastFromDrag(d.commander,d.index);"
+assert source.count(old_drop)==1, 'Native drag handler changed'
+new_drop="""if(e.clientY < innerHeight-155&&d.y-e.clientY>42){
+  if(app.nativeMatch){
+    const index=d.commander?-1:d.index;
+    if(!Number.isInteger(index))return;
+    void CommandTableNative.request('game.command',{action:'selectHand',value:index})
+      .then(async()=>{
+        try{const snap=await CommandTableNative.request('game.snapshot');
+          if(snap?.game)ctReceiveForgeState(snap.game);}catch(_){}
+      })
+      .catch(error=>ctNativeToast('Could not play that card: '+(error?.message||String(error))));
+  }else beginCastFromDrag(d.commander,d.index);
+}"""
+source=source.replace(old_drop,new_drop)
+assert source.count("case 'toggleHandZoom':app.handZoom=!app.handZoom;render();break;")==1
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
