@@ -635,6 +635,50 @@ source=source.replace(old_watch,"ctReceiveForgeState(result.game);")
 old_notice="if (data.type === 'game.notice') {app.notice=String(data.payload?.message||'').slice(0,1500);render();return;}"
 assert source.count(old_notice)==1
 source=source.replace(old_notice,"if (data.type === 'game.notice') {ctNativeToast(data.payload?.message);return;}")
+# A common on-device false affordance: the card preview showed Cast/play
+# for a sorcery-speed artifact while the opponent was taking their turn.
+# This is a conservative TIMING hint, not an independent legality/rules
+# engine. Forge alone still checks costs, permissions, alternate casts, etc.
+timing_helper = r"""
+function ctNativeTiming(c){
+  if(!app.nativeMatch)return {allowed:true,reason:''};
+  const g=app.game,p=g?.players?.[0];
+  if(!g||!p)return {allowed:false,reason:'Game is loading'};
+  if(!p.priority)return {allowed:false,reason:'Waiting for priority'};
+  const type=String(c?.type||'');
+  const oracle=String(c?.text||'');
+  const land=/\bLand\b/i.test(type);
+  const instant=/\bInstant\b/i.test(type);
+  const special=/\bflash\b|as though (?:it|they) had flash|any time you could cast an instant/i.test(oracle);
+  const main=g.active===0&&(g.phase==='main1'||g.phase==='main2')&&
+    !g.stack?.length;
+  if(land){
+    if(!main)return {allowed:false,reason:'Play lands during your main phase'};
+    if(Number(p.landPlays||0)>=1)return {allowed:false,reason:'Land already played this turn'};
+  } else if(!instant && !special && type && !main){
+    return {allowed:false,reason:'Wait for your main phase to cast this card'};
+  }
+  return {allowed:true,reason:''};
+}
+"""
+assert source.count("function immersiveInspect(){")==1
+source=source.replace("function immersiveInspect(){",
+    timing_helper+"\nfunction immersiveInspect(){")
+timing_old="const castable=!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||cmd)&&(app.nativeMatch||canCast(p,c,cmd));"
+assert source.count(timing_old)==1, 'Inspector casting gate changed'
+source=source.replace(timing_old,
+    "const castable=!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||cmd)&&(app.nativeMatch?ctNativeTiming(c).allowed:canCast(p,c,cmd));")
+browser_old="const playable=app.nativeMatch||canCast(p,c),canPlay=app.nativeMatch?true:playable&&c.implemented&&!app.game?.autoPilot;"
+assert source.count(browser_old)==1, 'Hand browser gate changed'
+source=source.replace(browser_old,
+    "const timing=ctNativeTiming(c);const playable=app.nativeMatch?timing.allowed:canCast(p,c),canPlay=app.nativeMatch?timing.allowed:playable&&c.implemented&&!app.game?.autoPilot;")
+# Do not present a mana/phase error when the rules engine rejected a cast for
+# another reason; show the strictly local timing hint only.
+foot_old="!c.implemented?'Deck-only card':'Not enough mana or wrong phase'"
+assert source.count(foot_old)==1
+source=source.replace(foot_old,
+    "!c.implemented?'Deck-only card':app.nativeMatch?(timing.reason||'Forge checks mana and legality'):'Not enough mana or wrong phase'")
+
 # Note: explicit user actions (menu/pod/modal) still render immediately;
 # only authoritative Forge updates are coalesced.
 
