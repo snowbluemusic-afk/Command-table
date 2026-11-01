@@ -75,7 +75,7 @@ assert(projection.includes('m.put("token", c.isToken())'),
 const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
 assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
   'Installed Forge app must have a distinct launcher label from old Command Table');
-assert(frontend.includes('FORGE BUILT-IN · v0.14.2'),
+assert(frontend.includes('FORGE BUILT-IN · v0.14.3'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
   'An embedded Forge build must never advertise an external Forge app');
@@ -134,5 +134,24 @@ assert(overlay.includes('if (!CommandTableGameProjection.ready(game)) return;') 
 assert(overlay.includes('android.util.Log.e("CommandTable", "GameView projection failed", ex)') &&
   overlay.includes('android.util.Log.e("CommandTable", "Forge match start failed", err)'),
   'Capture complete Android stack traces for genuine startup failures');
+
+const selectionUi = read('forge-integration/web/forge-selection.js');
+assert(projectionSource.includes('game.getPlayers().size() >= 2;') &&
+       !projectionSource.includes('game.getPlayers().size() < 2 || game.getPlayerTurn() == null'),
+  'Forge must publish a pregame snapshot before the first turn is chosen');
+assert(projectionSource.includes('out.put("phase", pregame ? "MULLIGAN"') &&
+       projectionSource.includes('initialInt(game::getTurn, 0)'),
+  'Pre-turn snapshots must be safe and identify the mulligan stage');
+assert(guiProxy.includes('else if (args.length == 4)') &&
+       guiProxy.includes('if (args.length >= 6)') &&
+       guiProxy.includes('onPrompt.accept(prompt)'),
+  'Forge starting-player buttons must be forwarded for both overloads');
+assert(selectionUi.includes("payload?.type==='game.prompt'") &&
+       selectionUi.includes("action:ok?'resolve':'cancelCastTarget'") &&
+       selectionUi.includes("ct-forge-priority-buttons"),
+  'Command Table must present and answer real Forge opening decisions');
+assert(selectionUi.includes("window.app?.nativeMatch") &&
+       selectionUi.includes("decision.style.display=active?'block':'none'"),
+  'Opening decisions must remain accessible before the first battlefield');
 
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
