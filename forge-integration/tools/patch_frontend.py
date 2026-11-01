@@ -1073,6 +1073,14 @@ source=source.replace(rock_colored,"""   let index=mana.indexOf(color);
 # Avoid false confidence on unconventional sources; the only green glow is
 # affordable-as-shown, with actual game choices still Forge-authoritative.
 
+# A commander starts in the LEFT drawer rather than the bottom hand; the
+# old hand drag gesture only accepted upward movement, so dragging the
+# commander rightward onto the battlefield never committed.
+commander_drop="if(e.clientY < innerHeight-155&&d.y-e.clientY>42){"
+assert source.count(commander_drop)==1
+source=source.replace(commander_drop,
+  "if((e.clientY < innerHeight-155&&d.y-e.clientY>42) || (d.commander && e.clientX-d.x>80 && e.clientY<innerHeight-90)){")
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
