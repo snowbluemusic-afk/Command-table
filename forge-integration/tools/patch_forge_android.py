@@ -106,7 +106,7 @@ pom_code=pom_code.replace('<app.id.dev>forge.app.dev</app.id.dev>',
                           '<app.id.dev>com.commandtable.play</app.id.dev>')
 assert '<manifestApplicationLabel>Forge (dev)</manifestApplicationLabel>' in pom_code
 pom.write_text(pom_code.replace('<manifestApplicationLabel>Forge (dev)</manifestApplicationLabel>',
-                               '<manifestApplicationLabel>Command Table</manifestApplicationLabel>'))
+                               '<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'))
 
 asset=android/'assets/command-table.html'
 asset.parent.mkdir(parents=True,exist_ok=True)
