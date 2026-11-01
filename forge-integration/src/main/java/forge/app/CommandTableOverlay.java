@@ -17,6 +17,7 @@ import android.widget.FrameLayout;
 
 import forge.StaticData;
 import forge.commandtable.CommandTableForgeDecks;
+import forge.commandtable.CommandTableStarterDeckRepair;
 import forge.commandtable.CommandTableForgeInput;
 import forge.commandtable.CommandTableCardCatalog;
 import forge.commandtable.CommandTableChoiceDispatcher;
@@ -386,6 +387,22 @@ public final class CommandTableOverlay {
                             break;
                         case "deck.validate":
                             validateCommanderDeck(id,p.getJSONObject("deck"));break;
+                        case "deck.repairPrebuilt": {
+                            if (!initialized()) {
+                                respond(id,false,null,"Forge card library is still loading");
+                                break;
+                            }
+                            JSONObject incoming=p.getJSONObject("deck");
+                            JSONArray requested=incoming.getJSONArray("main");
+                            List<String> main=new ArrayList<>();
+                            for (int i=0; i<requested.length(); i++)
+                                main.add(requested.getString(i));
+                            Map<String,Object> repaired=CommandTableStarterDeckRepair.repair(
+                                incoming.optString("name","Starter deck"),
+                                incoming.getString("commander"),main);
+                            respond(id,true,new JSONObject(repaired),null);
+                            break;
+                        }
                         case "card.search": {
                             if(!initialized()){respond(id,false,null,"Forge card catalog is still starting");break;}
                             List<Map<String,Object>> cards=CommandTableCardCatalog.search(
