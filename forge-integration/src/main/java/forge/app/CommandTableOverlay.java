@@ -359,6 +359,34 @@ public final class CommandTableOverlay {
                         throw new IllegalArgumentException("Card selection outside hand/command zone");
                     }
                     break;
+                case "castCommander": {
+                    GameView view=match.getGameView();
+                    if(view==null)throw new IllegalStateException("Game not ready");
+                    PlayerView human=view.getPlayers().get(0);
+                    if(human.getCommand()==null || human.getCommand().isEmpty())
+                        throw new IllegalArgumentException("Commander is not in the command zone");
+                    bridge.selectCard(human.getCommand().get(0).getId());
+                    break;
+                }
+                case "castById": {
+                    if(value==null || JSONObject.NULL.equals(value))
+                        throw new IllegalArgumentException("Choose a card from your hand or command zone");
+                    int wanted=Integer.parseInt(String.valueOf(value));
+                    GameView view=match.getGameView();
+                    if(view==null)throw new IllegalStateException("Game not ready");
+                    PlayerView human=view.getPlayers().get(0);
+                    boolean found=false;
+                    for(forge.game.card.CardView c:human.getHand()) {
+                        if(c.getId()==wanted) {bridge.selectCard(wanted);found=true;break;}
+                    }
+                    if(!found && human.getCommand()!=null) {
+                        for(forge.game.card.CardView c:human.getCommand()) {
+                            if(c.getId()==wanted) {bridge.selectCard(wanted);found=true;break;}
+                        }
+                    }
+                    if(!found)throw new IllegalArgumentException("This card is no longer in your hand or command zone");
+                    break;
+                }
                 case "permanent":case "cardId":
                     bridge.selectCard(Integer.parseInt(String.valueOf(value)));break;
                 case "selectPlayer":
