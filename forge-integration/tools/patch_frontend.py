@@ -423,7 +423,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "FORGE BUILT-IN · v0.14.3")
+                      "FORGE BUILT-IN · v0.14.4")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -466,7 +466,7 @@ source=source.replace("function turnControls(g,active,self){",
 native_entry="if(app.nativeMatch && NATIVE_GAME_COMMANDS.has(act)) {"
 assert source.count(native_entry)==1
 source=source.replace(native_entry,
-    native_entry+"\n   if(['castSelected','playInspected','quitGame'].includes(act)){app.modal='';app.sideInspect=null;render();}")
+    native_entry+"\n   if(['castSelected','playInspected','quitGame'].includes(act)){app.modal='';render();}")
 assert source.count("⊞ Pod")==1
 source=source.replace("⊞ Pod","▦")
 assert source.count("overview?'Focus':'▦'")==1
