@@ -12,6 +12,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
+import java.util.function.IntSupplier;
 
 /**
  * Immutable-by-convention read-only projection from Forge's authoritative GameView.
@@ -26,14 +28,22 @@ public final class CommandTableGameProjection {
      * match-start request with that half-initialized state.
      */
     public static boolean ready(GameView game) {
-        if (game == null || game.getPlayers() == null ||
-                game.getPlayers().size() < 2 || game.getPlayerTurn() == null) {
-            return false;
-        }
-        for (PlayerView player : game.getPlayers()) {
-            if (player == null || player.getCommanders() == null) return false;
-        }
-        return true;
+        // Forge requires human starting-player and mulligan decisions BEFORE
+        // the first turn is chosen. Requiring getPlayerTurn() here deadlocks:
+        // the web UI cannot display those buttons until a snapshot exists.
+        // The player list is set by Game's constructor and is sufficient to
+        // render the pregame board. Other fields may still be uninitialized.
+        return game != null && game.getPlayers() != null &&
+            game.getPlayers().size() >= 2;
+    }
+
+    private static int initialInt(IntSupplier fn, int fallback) {
+        try { return fn.getAsInt(); }
+        catch (NullPointerException notInitialized) { return fallback; }
+    }
+    private static boolean initialBool(BooleanSupplier fn) {
+        try { return fn.getAsBoolean(); }
+        catch (NullPointerException notInitialized) { return false; }
     }
 
     public static Map<String, Object> snapshot(GameView game, PlayerView local) {
@@ -42,11 +52,13 @@ public final class CommandTableGameProjection {
         }
         Map<String,Object> out = new LinkedHashMap<>();
         out.put("engine", "forge");
-        out.put("turn", game.getTurn());
-        out.put("phase", String.valueOf(game.getPhase()));
+        boolean pregame = game.getPlayerTurn() == null;
+        out.put("turn", initialInt(game::getTurn, 0));
+        out.put("phase", pregame ? "MULLIGAN" : String.valueOf(game.getPhase()));
+        out.put("pregame", pregame);
         out.put("activePlayer", game.getPlayerTurn() == null ? null : game.getPlayerTurn().getId());
         out.put("isCommander", game.isCommander());
-        out.put("gameOver", game.isGameOver());
+        out.put("gameOver", initialBool(game::isGameOver));
         out.put("winner", game.getWinningPlayerName());
 
         List<Object> players = new ArrayList<>();
@@ -54,7 +66,7 @@ public final class CommandTableGameProjection {
             Map<String,Object> seat = new LinkedHashMap<>();
             seat.put("id", p.getId());
             seat.put("name", p.getLobbyPlayerName());
-            seat.put("life", p.getLife());
+            seat.put("life", initialInt(p::getLife, 40));
             List<CardView> ownCommanders = p.getCommanders();
             if (ownCommanders != null && !ownCommanders.isEmpty()) {
                 CardView commander = ownCommanders.get(0);
@@ -71,10 +83,10 @@ public final class CommandTableGameProjection {
                 }
             }
             seat.put("commanderDamage", commanderDamage);
-            seat.put("landPlays", p.getNumLandThisTurn());
-            seat.put("isAI", p.isAI());
-            seat.put("priority", p.getHasPriority());
-            seat.put("hasLost", p.getHasLost());
+            seat.put("landPlays", initialInt(p::getNumLandThisTurn, 0));
+            seat.put("isAI", initialBool(p::isAI));
+            seat.put("priority", initialBool(p::getHasPriority));
+            seat.put("hasLost", initialBool(p::getHasLost));
             seat.put("handCount", p.getHand().size());
             seat.put("libraryCount", p.getLibrary().size());
             seat.put("graveyard", visibleCards(p.getGraveyard()));
