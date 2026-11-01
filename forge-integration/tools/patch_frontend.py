@@ -568,6 +568,76 @@ source=source.replace('</body></html>', '<script>\n'+catalog_js+'\n</script></bo
 # The sideload app has its full Forge catalog locally; no server dependency.
 source=source.replace('Online discoveries can be saved to decks but are not playable until their rules are implemented.',
                       'Search the complete Forge card database included with Command Table. No extra download required.')
+# Native interaction continuity: Forge can emit several state messages while
+# completing one action. The legacy adapter tore down and recreated the entire
+# battlefield on *every* message, clearing in-progress inspection each time.
+# Coalesce identical/rapid states but never delay the first game screen.
+smooth_runtime = r"""
+let ctForgeLastSignature = '';
+let ctForgeRenderTimer = null;
+function ctReceiveForgeState(state) {
+  if(!state || !Array.isArray(state.players)) return;
+  const signature=JSON.stringify(state);
+  if(app.view==='game' && signature===ctForgeLastSignature) return;
+  ctForgeLastSignature=signature;
+  const alreadyPlaying=app.view==='game';
+  applyAuthoritativeGame(state);
+  if(!alreadyPlaying) {
+    app.view='game';app.modal='';app.notice='';
+    render();
+    return;
+  }
+  // Preserve open card inspector / hand browser through native state updates.
+  // Render at most once per short interaction frame, with the newest GameView.
+  if(ctForgeRenderTimer!==null) return;
+  ctForgeRenderTimer=setTimeout(()=>{
+    ctForgeRenderTimer=null;
+    if(!app.nativeMatch || app.view!=='game')return;
+    if(app.modal==='hand' && !app.game?.players?.[0]?.hand?.length)app.modal='';
+    render();
+    window.ctForgePriority?.refresh?.();
+    window.ctForgeSelection?.refresh?.();
+  },90);
+}
+let ctForgeToastTimer=null;
+function ctNativeToast(message){
+  const txt=String(message||'').trim().slice(0,350);
+  if(!txt)return;
+  if(app.view!=='game'){announce(txt);return;}
+  let notice=document.getElementById('ct-native-toast');
+  if(!notice){
+    notice=document.createElement('div');notice.id='ct-native-toast';
+    notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');
+    notice.style.cssText='position:fixed;top:calc(env(safe-area-inset-top) + 49px);left:50%;transform:translateX(-50%);max-width:min(70vw,620px);max-height:70px;overflow:auto;z-index:210010;background:#283830f5;border:1px solid #a98e65;border-radius:11px;padding:9px 15px;color:#f5e7d6;box-shadow:0 5px 20px #0009;font:600 12px system-ui;text-align:center;pointer-events:auto';
+    notice.onclick=()=>{notice.style.display='none';};
+    document.body.append(notice);
+  }
+  notice.textContent=txt;
+  notice.style.display='block';
+  if(ctForgeToastTimer!==null)clearTimeout(ctForgeToastTimer);
+  ctForgeToastTimer=setTimeout(()=>{notice.style.display='none';ctForgeToastTimer=null;},3700);
+}
+"""
+assert source.count("function applyAuthoritativeGame(state) {")==1
+source=source.replace("function applyAuthoritativeGame(state) {",
+                      smooth_runtime+"\nfunction applyAuthoritativeGame(state) {")
+old_listener="""      applyAuthoritativeGame(message);
+      app.view='game';app.modal='';app.notice='';
+      render();"""
+assert source.count(old_listener)==1, 'Native game.state listener changed'
+source=source.replace(old_listener, "      ctReceiveForgeState(message);")
+old_command="if(latest?.game){applyAuthoritativeGame(latest.game);if(app.view==='game')render();}"
+assert source.count(old_command)==1, 'Native command snapshot callback changed'
+source=source.replace(old_command,"if(latest?.game)ctReceiveForgeState(latest.game);")
+old_watch="applyAuthoritativeGame(result.game);\n        app.view='game';app.modal='';app.notice='';render();"
+assert source.count(old_watch)==1, 'Initial game snapshot watcher changed'
+source=source.replace(old_watch,"ctReceiveForgeState(result.game);")
+old_notice="if (data.type === 'game.notice') {app.notice=String(data.payload?.message||'').slice(0,1500);render();return;}"
+assert source.count(old_notice)==1
+source=source.replace(old_notice,"if (data.type === 'game.notice') {ctNativeToast(data.payload?.message);return;}")
+# Note: explicit user actions (menu/pod/modal) still render immediately;
+# only authoritative Forge updates are coalesced.
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
