@@ -20,6 +20,18 @@ public final class CommandTableMain extends Main {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        CommandTableOverlay.show();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) CommandTableOverlay.show();
+    }
+
+    @Override
     protected void onDestroy() {
         CommandTableOverlay.release(this);
         super.onDestroy();
