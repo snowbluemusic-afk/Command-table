@@ -957,6 +957,91 @@ commander_css="""<style id="ct-command-zone-v0150">
 assert source.count('</head>')==1
 source=source.replace('</head>',commander_css+'</head>')
 
+
+# Surface Forge's current combat state clearly. This is a view on the actual
+# CombatView / Selection data, not an independent attack/block rules system.
+combat_helper=r"""
+function ctNativeCombatGuide(g){
+ if(!app.nativeMatch||!g||g.phase!=='combat')return '';
+ const detail=String(g.phaseDetail||'').toUpperCase();
+ const legal=window.ctForgeSelection?.legalCards||[];
+ const atk=Array.isArray(g.combat)?g.combat:[];
+ const defending=atk.some(x=>String(x.defenderId)===String(g.players?.[0]?.forgeId));
+ const attackersStage=/ATTACKERS/.test(detail);
+ const blockersStage=/BLOCKERS/.test(detail);
+ const damageStage=/DAMAGE/.test(detail);
+ const lines=atk.map(x=>{
+   const defender=g.players?.find(p=>String(p.forgeId)===String(x.defenderId));
+   const blockers=(x.blockerIds||[]).map(id=>
+     g.players.flatMap(p=>p.battlefield).find(c=>String(c.forgeId)===String(id))?.name||
+     'Blocker');
+   return '<div class="ct-combat-pair"><span>⚔ '+esc(x.cardName||'Attacker')+
+     '</span><b>→ '+esc(defender?.name||'target')+'</b>'+
+     (blockers.length?'<small>🛡 '+esc(blockers.join(', '))+'</small>':'')+'</div>';
+ }).join('');
+ let title='Combat';
+ let hint='Forge controls the attack and blocking steps.';
+ if(attackersStage){
+   title=g.active===0?'Declare attackers':'Opponent declaring attackers';
+   hint=g.active===0
+     ? 'Tap a glowing creature to attack. Use Undo to reverse a choice; Next confirms or skips combat.'
+     : 'Opponents choose attackers. Watch the highlighted cards and attack targets.';
+ }else if(blockersStage){
+   title=defending?'Defend — declare blockers':'Declare blockers';
+   hint=defending
+     ? 'Tap a glowing legal defender, then choose the attacker Forge offers. Use Undo to change a block, or Next when finished.'
+     : 'The defending player chooses blockers. Your attacking creatures are shown below.';
+ }else if(damageStage){
+   title='Combat damage';
+   hint='Review attacking creatures and blockers. Resolve to apply damage in Forge.';
+ }else if(atk.length){
+   title=defending?'You are under attack':'Attack in progress';
+   hint='Attacker → defender. Any blockers are shown beneath each attack.';
+ }
+ return '<aside class="ct-native-combat-guide" role="status" aria-label="Combat step">'+
+   '<header><span>⚔ '+esc(title)+'</span><small>'+legal.length+
+     ' legal card option'+(legal.length===1?'':'s')+'</small></header>'+
+   '<p>'+esc(hint)+'</p>'+
+   (lines?'<div class="ct-combat-pairs">'+lines+'</div>':'')+
+   '</aside>';
+}
+"""
+assert source.count('function gameView(){')==1
+source=source.replace('function gameView(){',combat_helper+'\nfunction gameView(){')
+needle='<div class="ct10-midline @@D@@{attack?@@BT@@ct10-midline-combat@@BT@@:@@BT@@@@BT@@}">'.replace('@@D@@',chr(36)).replace('@@BT@@',chr(96))
+# Keep guidance within the scene and outside individual card lanes.
+assert source.count('<div class="ct10-midline ')==1
+source=source.replace('<div class="ct10-midline ',
+  chr(36)+'{ctNativeCombatGuide(g)}\n   <div class="ct10-midline ',1)
+# Distinguish actively attacking or defending cards without changing Forge
+# tap semantics. These styles also work in multiplayer.
+orig='return smallCard(c,{tapped:x.tapped,token:!!x.token,counters:x.counters,bonus,selected:'
+assert source.count(orig)==1
+source=source.replace(orig,
+ 'return smallCard(c,{tapped:x.tapped,token:!!x.token,attacking:!!x.attacking,blocking:!!x.blocking,counters:x.counters,bonus,selected:')
+card_class="opts.selected?'chosen':'',opts.available?'available':''"
+assert source.count(card_class)==1
+source=source.replace(card_class,
+  "opts.selected?'chosen':'',opts.attacking?'ct-native-attacker':'',opts.blocking?'ct-native-blocker':'',opts.available?'available':''")
+combat_css="""<style id="ct-forge-combat-guidance-v0150">
+.ct-native-combat-guide{position:absolute;z-index:19;top:14%;left:1.4%;width:clamp(185px,29vw,380px);max-height:31%;overflow:auto;background:#0e2530ed;border:1px solid #d9a96d9e;border-left:3px solid #f4b368;border-radius:11px;padding:9px 11px;color:#f9efd9;pointer-events:auto;box-shadow:0 9px 28px #0009}
+.ct-native-combat-guide header{display:flex;align-items:center;justify-content:space-between;gap:7px;font-weight:850;font-size:clamp(11px,1.1vw,15px);color:#ffd39b}
+.ct-native-combat-guide header small{font-size:10px;color:#a8c6c9;font-weight:600;text-align:right}
+.ct-native-combat-guide p{margin:5px 0 0;color:#e7ddcd;font-size:clamp(10px,.95vw,13px);line-height:1.35}
+.ct-combat-pairs{display:grid;gap:4px;max-height:78px;overflow:auto;margin-top:8px}
+.ct-combat-pair{display:flex;align-items:center;flex-wrap:wrap;gap:5px;font-size:11px;border-top:1px solid #bfa57739;padding-top:3px}
+.ct-combat-pair b{color:#ffcc89;font-weight:700}
+.ct-combat-pair small{color:#8bd6e5;flex-basis:100%;padding-left:8px}
+.ct10-lane .game-card.ct-native-attacker{outline:3px solid #ffad54!important;outline-offset:2px;box-shadow:0 0 18px #fb903cdd!important}
+.ct10-lane .game-card.ct-native-blocker{outline:3px solid #7bd9ff!important;outline-offset:2px;box-shadow:0 0 18px #7bd9ffbc!important}
+.ct10-lane .game-card.ct-forge-legal-target{outline:3px solid #c1f9ff!important;outline-offset:3px;box-shadow:0 0 23px #61d7f5dd!important;animation:ct-combat-legal 1.6s ease-in-out infinite alternate}
+@keyframes ct-combat-legal{from{filter:brightness(1)}to{filter:brightness(1.24)}}
+@media(max-height:550px) and (orientation:landscape){.ct-native-combat-guide{top:13%;max-height:27%;width:clamp(170px,24vw,310px);padding:6px 9px}.ct-native-combat-guide p{font-size:11px}}
+@media(orientation:portrait){.ct-native-combat-guide{left:2%;top:14%;width:45%;max-height:27%}}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',combat_css+'</head>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
