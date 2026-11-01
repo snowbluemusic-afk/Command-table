@@ -728,6 +728,90 @@ new_drop="""if(e.clientY < innerHeight-155&&d.y-e.clientY>42){
 source=source.replace(old_drop,new_drop)
 assert source.count("case 'toggleHandZoom':app.handZoom=!app.handZoom;render();break;")==1
 
+
+# Dedicated battlefield zones: creatures mid-board, lands at the back,
+# artifacts/enchantments/planeswalkers to the right. Commander and secondary
+# zones live in a collapsible left drawer; never remove Forge permanents.
+old_lane=""" const isCreat=type==='creatures';
+ const perms=p.battlefield.filter(x=>isCreature(card(x.name))===isCreat);"""
+assert source.count(old_lane)==1
+source=source.replace(old_lane, """ const isCreat=type==='creatures';
+ const perms=p.battlefield.filter(x=>{
+  const c=card(x.name),kind=String(c?.type||'');
+  const creature=x.creature===undefined?isCreature(c):x.creature;
+  const land=x.land===undefined?/\\bLand\\b/i.test(kind):x.land;
+  return type==='creatures'?creature:type==='lands'?land:!creature&&!land;
+ });""")
+old_zone="@@DLR@@{isCreat?'Creatures':'Lands & support'}"
+assert source.count(old_zone.replace('@@DLR@@',chr(36)))==1
+source=source.replace(old_zone.replace('@@DLR@@',chr(36)),
+  chr(36)+"{type==='creatures'?'Creatures':type==='lands'?'Lands':'Artifacts · Enchantments · Planeswalkers'}")
+assert source.count("""<div class="ct10-opp-support">@@D@@{immersiveLane(enemy,focus,'support')}</div>""".replace('@@D@@',chr(36)))==1
+source=source.replace("""<div class="ct10-opp-support">@@D@@{immersiveLane(enemy,focus,'support')}</div>""".replace('@@D@@',chr(36)),
+  """<div class="ct10-opp-lands">@@D@@{immersiveLane(enemy,focus,'lands')}</div>
+   <div class="ct10-opp-support">@@D@@{immersiveLane(enemy,focus,'support')}</div>""".replace('@@D@@',chr(36)))
+assert source.count("""<div class="ct10-own-support">@@D@@{immersiveLane(me,0,'support')}</div>""".replace('@@D@@',chr(36)))==1
+source=source.replace("""<div class="ct10-own-support">@@D@@{immersiveLane(me,0,'support')}</div>""".replace('@@D@@',chr(36)),
+  """<div class="ct10-own-lands">@@D@@{immersiveLane(me,0,'lands')}</div>
+   <div class="ct10-own-support">@@D@@{immersiveLane(me,0,'support')}</div>""".replace('@@D@@',chr(36)))
+scene_head='<div class="ct10-scene" data-dropzone="battlefield">'
+assert source.count(scene_head)==1
+drawer=r"""<div class="ct10-zone-rail @@D@@{app.zonesOpen?'ct-zones-open':''}">
+  <button class="ct-zone-toggle" data-action="toggleZones" aria-expanded="@@D@@{!!app.zonesOpen}" aria-label="Show command zone, graveyard, exile and library">☰ Zones</button>
+  <aside class="ct10-zone-drawer">
+   <strong>YOUR ZONES</strong>
+   <div>♛ Commander <span>@@D@@{esc(me.commander.split(',')[0])}</span></div>
+   <div>↻ Commander tax <b>@@D@@{Number(me.commanderCasts||0)*2}</b></div>
+   <div>▤ Library <b>@@D@@{me.library.length}</b></div>
+   <div>♜ Graveyard <b>@@D@@{me.graveyard.length}</b></div>
+   <div>◇ Exile <b>@@D@@{me.exile.length}</b></div>
+  </aside>
+ </div>""".replace('@@D@@',chr(36))
+source=source.replace(scene_head,scene_head+drawer)
+# Native selection model decides which hand and battlefield cards can be
+# selected *now*. No JavaScript mana guess is allowed to claim legality.
+availability="available:!g.autoPilot&&!app.nativeMatch&&canCast(me,c)"
+assert source.count(availability)==1
+source=source.replace(availability,
+  "available:app.nativeMatch?!!window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i]):!g.autoPilot&&canCast(me,c)")
+# Make owner/inspection explicit when selecting a hand card, so an old
+# permanent's Activate button cannot appear on an unrelated card preview.
+assert source.count("case 'selectHand':if(!p?.hand?.length)break;")==1
+source=source.replace("case 'selectHand':if(!p?.hand?.length)break;",
+ "case 'selectHand':app.inspectForgeId=null;app.inspectOwner=null;if(!p?.hand?.length)break;")
+# Render native state above any stale training-only metadata warning.
+assert source.count('function immersiveInspect(){')==1
+source=source.replace('function immersiveInspect(){',
+ 'function immersiveInspect(){')
+board_css="""<style id="ct-commander-board-zones-v0148">
+.ct10-opp-lands,.ct10-own-lands{position:absolute;display:flex;align-items:center;min-width:0;min-height:0}
+.ct10-opp-lands{left:11%;top:13%;width:32%;height:14%}
+.ct10-opp-support{left:70%!important;top:13%!important;width:24%!important;height:14%!important}
+.ct10-opp-creatures{left:32%!important;top:28%!important;width:56%!important}
+.ct10-own-creatures{left:32%!important;top:49%!important;width:56%!important}
+.ct10-own-lands{left:13%;top:69%;width:36%;height:14%}
+.ct10-own-support{left:69%!important;top:67%!important;width:26%!important;height:14%!important}
+.ct10-lane.ct10-lands{border-top:1px dashed #c4b07a37}
+.ct10-lane.ct10-support{background:#132d2d55;border-radius:7px;border-right:2px solid #b7a77770}
+.ct10-lane.ct10-support .game-card{width:clamp(42px,5.2vw,83px)!important}
+.ct10-zone-rail{position:absolute;left:7px;top:36%;z-index:22;display:flex;align-items:flex-start;gap:7px;pointer-events:none}
+.ct10-zone-rail button{pointer-events:auto}
+.ct-zone-toggle{border:1px solid #b7a679;border-radius:9px;background:#132b32f0;color:#efdbaf;font-weight:800;padding:9px 7px;writing-mode:vertical-rl;font-size:11px;letter-spacing:1px}
+.ct10-zone-drawer{display:none;background:#112830f8;border:1px solid #c4aa77;border-radius:12px;padding:12px;min-width:190px;max-width:220px;box-shadow:0 10px 30px #000b;pointer-events:auto;color:#fff2db;font-size:12px}
+.ct-zones-open .ct10-zone-drawer{display:grid;gap:9px}
+.ct10-zone-drawer strong{font-size:12px;letter-spacing:1px;color:#ecbf82}
+.ct10-zone-drawer div{display:flex;justify-content:space-between;gap:8px}
+.ct10-zone-drawer span{max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ct10-our-turn .ct10-phase-badge{border-color:#e8b971!important;color:#ffe0a8!important;box-shadow:0 0 16px #e8b9714b!important}
+.ct10-their-turn .ct10-phase-badge{border-color:#81bddf!important;color:#a0d9ff!important;box-shadow:0 0 18px #4695d655!important}
+.ct10-their-turn .ct10-focused-opponent{filter:drop-shadow(0 0 12px #56adf84b)}
+.ct10-our-turn .ct10-own-player{filter:drop-shadow(0 0 12px #d6aa585e)}
+.ct10-stage .game-card.available{outline:2px solid #5fd8fc!important;outline-offset:1px;box-shadow:0 0 19px #36bcf8a9!important}
+@media(orientation:portrait){.ct10-opp-support,.ct10-own-support{left:75%!important;width:23%!important}.ct10-opp-lands,.ct10-own-lands{left:11%;width:38%}.ct10-zone-rail{top:39%}}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',board_css+'</head>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
