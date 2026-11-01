@@ -31,6 +31,7 @@ public final class CommandTableGuiProxy {
     public static IGuiGame wrap(IGuiGame delegate, Supplier<GameView> game,
                                 Consumer<GameView> onState, Consumer<Map<String, Object>> onPrompt,
                                 Consumer<Map<String, Object>> onSelection,
+                                Consumer<String> onNotice,
                                 CommandTableChoiceDispatcher choices,
                                 Runnable onNativeChoice, Runnable afterNativeChoice) {
         Objects.requireNonNull(delegate, "delegate");
@@ -38,12 +39,38 @@ public final class CommandTableGuiProxy {
         Objects.requireNonNull(onState, "onState");
         Objects.requireNonNull(onPrompt, "onPrompt");
         Objects.requireNonNull(onSelection, "onSelection");
+        Objects.requireNonNull(onNotice, "onNotice");
         Objects.requireNonNull(choices, "choices");
         return (IGuiGame) Proxy.newProxyInstance(
             IGuiGame.class.getClassLoader(),
             new Class<?>[] { IGuiGame.class },
             (object, method, args) -> {
                 String name = method.getName();
+                // Native Forge may remain initialized for controller bookkeeping,
+                // but it must never own Command Table's visible game or popups.
+                if ("message".equals(name) || "showErrorDialog".equals(name)) {
+                    if (args != null && args.length > 0 && args[0] != null)
+                        onNotice.accept(String.valueOf(args[0]));
+                    return null;
+                }
+                if ("reveal".equals(name) || "showRevealedCards".equals(name)) {
+                    String title = args != null && args.length > 0 ? String.valueOf(args[0]) : "Cards revealed";
+                    Object list = args != null && args.length > 1 ? args[1] :
+                                  args != null && args.length > 0 ? args[0] : null;
+                    StringBuilder info = new StringBuilder(title).append(": ");
+                    if (list instanceof Iterable<?> iterable) {
+                        int count=0;
+                        for (Object card : iterable) {
+                            if (count++ > 0) info.append(", ");
+                            info.append(String.valueOf(card));
+                            if (count >= 15) {info.append(" …");break;}
+                        }
+                    }
+                    onNotice.accept(info.toString());
+                    return null;
+                }
+                if ("flashIncorrectAction".equals(name) || "alertUser".equals(name))
+                    return null;
                 Object handled = choices.invoke(method, args);
                 if (handled != CommandTableChoiceDispatcher.NOT_HANDLED) {
                     GameView latest = game.get();
@@ -61,16 +88,23 @@ public final class CommandTableGuiProxy {
                     || "many".equals(name) || "order".equals(name)
                     || "insertInList".equals(name)
                     || "chooseSingleEntityForEffect".equals(name)
-                    || "reveal".equals(name)
                     || "sideboard".equals(name);
-                if (blockingChoice && onNativeChoice != null) onNativeChoice.run();
+                if (blockingChoice) {
+                    onNotice.accept("Forge needs a choice Command Table cannot yet display: " + name);
+                    throw new UnsupportedOperationException(
+                        "Missing Command Table Forge choice handler: " + name);
+                }
                 Object result;
                 try {
                     result = method.invoke(delegate, args);
                 } catch (InvocationTargetException ex) {
                     throw ex.getCause();
                 } finally {
-                    if (blockingChoice && afterNativeChoice != null) afterNativeChoice.run();
+                    if ("openView".equals(name) && afterNativeChoice != null) {
+                        // Forge builds controller state here. Keep the WebView on
+                        // top *after* the native match surface has been created.
+                        afterNativeChoice.run();
+                    }
                 }
                 if ("setSelection".equals(name) && args != null && args.length > 0
                         && args[0] instanceof Selection selection) {
