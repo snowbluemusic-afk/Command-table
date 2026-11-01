@@ -75,7 +75,7 @@ assert(projection.includes('m.put("token", c.isToken())'),
 const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
 assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
   'Installed Forge app must have a distinct launcher label from old Command Table');
-assert(frontend.includes('FORGE BUILT-IN · v0.14.4'),
+assert(frontend.includes('FORGE BUILT-IN · v0.14.5'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
   'An embedded Forge build must never advertise an external Forge app');
@@ -173,4 +173,19 @@ assert(selectionUi.includes("top:calc(env(safe-area-inset-top) + 65px)") &&
 assert(overlay.includes('activity.setRequestedOrientation(orientation)') &&
        overlay.includes('SCREEN_ORIENTATION_SENSOR_LANDSCAPE'),
   'Native Android orientation switch must not be a no-op');
+// On-device 0.14.4 showed two identical OK/Undo panels. The second one
+// was appended by patch_frontend.py and covered the entire bottom hand.
+assert(!frontend.includes("command-table-forge-choice") &&
+       !frontend.includes("setInterval(update,500)") &&
+       !frontend.includes("prompt_script ="),
+  'Only forge-selection.js may own native Forge priority buttons');
+assert(selectionUi.includes("decision.id='ct-forge-priority-buttons'") &&
+       selectionUi.split("decision.id='ct-forge-priority-buttons'").length===2,
+  'Exactly one Forge priority dock should exist');
+assert(selectionUi.includes("left:8px!important;right:auto!important") &&
+       selectionUi.includes("width:min(32vw,360px)"),
+  'Landscape controls must sit in compact left dock, not over right card inspector');
+assert(selectionUi.includes("!window.app?.modal") &&
+       selectionUi.includes("!otherChoiceOpen"),
+  'Do not overlay the hand browser or Forge detailed choice dialogs');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
