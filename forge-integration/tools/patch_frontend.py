@@ -277,7 +277,7 @@ gates = [
   ("!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||cmd)&&canCast(p,c,cmd)",
    "!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||cmd)&&(app.nativeMatch||canCast(p,c,cmd))"),
   ("available:!g.autoPilot&&canCast(me,c)",
-   "available:!g.autoPilot&&(app.nativeMatch||canCast(me,c))"),
+   "available:!g.autoPilot&&!app.nativeMatch&&canCast(me,c)"),
   ("const playable=canCast(p,c),canPlay=playable&&c.implemented&&!app.game?.autoPilot;",
    "const playable=app.nativeMatch||canCast(p,c),canPlay=app.nativeMatch?true:playable&&c.implemented&&!app.game?.autoPilot;"),
   ("can=g&&p&&(inHand||cmd)&&canCast(p,c,cmd)",
@@ -529,6 +529,16 @@ stack_css="""<style id="ct-forge-stack-polish">
 </style>"""
 assert source.count('</head>')==1
 source=source.replace('</head>',stack_css+'</head>')
+
+
+# Token count is derived from real Forge battlefield objects, NEVER from
+# UI-side guesses about what Krenko should create.
+token_label='strong>'+chr(36)+'{esc(p.commander.split(\',\')[0])}</strong>'
+# The badge has no extra rules: show only if Forge reported at least one token.
+token_label_from='<strong>'+chr(36)+'{esc(p.commander.split(\',\')[0])}</strong>'
+token_label_to=token_label_from+'<small class="ct-token-count">'+chr(36)+'{p.tokenCount>0?" · "+p.tokenCount+" token"+(p.tokenCount===1?"":"s"):""}</small>'
+assert source.count(token_label_from)==1
+source=source.replace(token_label_from,token_label_to)
 
 # All add-on scripts must use the SAME native match session and state.
 # The recovered core is wrapped in an IIFE, so expose a controlled bridge.
