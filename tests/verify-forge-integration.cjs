@@ -122,9 +122,9 @@ assert(frontend.includes("app.view='game';app.modal='';app.notice=''"),
 
 const projectionSource = read('forge-integration/src/main/java/forge/commandtable/CommandTableGameProjection.java');
 assert(projectionSource.includes('public static boolean ready(GameView game)') &&
-  projectionSource.includes('player.getCommanders() == null') &&
-  projectionSource.includes('game.getPlayerTurn() == null'),
-  'Do not publish partially initialized Forge Commander state');
+  projectionSource.includes('game.getPlayers().size() >= 2;') &&
+  projectionSource.includes('boolean pregame = game.getPlayerTurn() == null;'),
+  'Publish a safe pre-turn snapshot for Forge starting player and mulligan choices');
 assert(projectionSource.includes('ownCommanders != null && !ownCommanders.isEmpty()') &&
   projectionSource.includes('if (commanders == null) continue'),
   'Forge PlayerView.getCommanders() is nullable before first turn');
