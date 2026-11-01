@@ -405,7 +405,7 @@ source=source.replace(" if (CommandTableNative.ready) {\\n   // Forge must valid
 notice_receive = "    if (data.type === 'game.state') {for (const fn of onState) fn(data.payload);return;}"
 assert source.count(notice_receive) == 1, "Native reply protocol changed"
 source=source.replace(notice_receive,
-    notice_receive + "\\n    if (data.type === 'game.notice') {app.notice=String(data.payload?.message||'').slice(0,1500);render();return;}")
+    notice_receive + "\n    if (data.type === 'game.notice') {app.notice=String(data.payload?.message||'').slice(0,1500);render();return;}")
 # The old escape hatch showed Forge's native screens; keep every action in the
 # Command Table rules UI and direct users to the in-app legal choice panel.
 source=source.replace("case 'nativePrompts': window.AndroidBridge?.showNativePrompts?.();break;",
