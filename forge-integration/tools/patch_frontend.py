@@ -1081,6 +1081,13 @@ assert source.count(commander_drop)==1
 source=source.replace(commander_drop,
   "if((e.clientY < innerHeight-155&&d.y-e.clientY>42) || (d.commander && e.clientX-d.x>80 && e.clientY<innerHeight-90)){")
 
+# The legacy JS attack list is empty during native Forge play. Use the
+# authoritative Selection.chosen IDs for clear selected-attacker/blocker state.
+old_selected="selected:mine&&app.attackers.includes(x.uid)"
+assert source.count(old_selected)==1
+source=source.replace(old_selected,
+  "selected:app.nativeMatch?!!window.ctForgeSelection?.isSelectedCard?.(x.forgeId):mine&&app.attackers.includes(x.uid)")
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
