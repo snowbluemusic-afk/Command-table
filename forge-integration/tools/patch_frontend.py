@@ -343,7 +343,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "FORGE BUILT-IN · v0.14.8")
+                      "FORGE BUILT-IN · v0.14.9")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -386,7 +386,7 @@ source=source.replace("function turnControls(g,active,self){",
 native_entry="if(app.nativeMatch && NATIVE_GAME_COMMANDS.has(act)) {"
 assert source.count(native_entry)==1
 source=source.replace(native_entry,
-    native_entry+"\n   if(['castSelected','playInspected','quitGame'].includes(act)){app.modal='';render();}")
+    native_entry+"\n   if(['castSelected','playInspected','cardId','quitGame'].includes(act)){app.modal='';app.sideInspect=null;app.inspectOwner=null;app.inspectForgeId=null;render();}")
 assert source.count("⊞ Pod")==1
 source=source.replace("⊞ Pod","▦")
 assert source.count("overview?'Focus':'▦'")==1
@@ -397,7 +397,7 @@ assert source.count(menu_btn)>=1
 source=source.replace(menu_btn,
     '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-    "FORGE BUILT-IN · v0.14.8")
+    "FORGE BUILT-IN · v0.14.9")
 pod_css = """
 <style id="ct-forge-game-ux">
 .ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
@@ -811,6 +811,10 @@ board_css="""<style id="ct-commander-board-zones-v0148">
 </style>"""
 assert source.count('</head>')==1
 source=source.replace('</head>',board_css+'</head>')
+
+# The decorative centre star obscures cards in the combat row.
+assert source.count('<span>✦</span>')==1, 'Centreboard ornament changed'
+source=source.replace('<span>✦</span>','')
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
