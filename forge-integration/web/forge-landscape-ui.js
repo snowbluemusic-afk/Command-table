@@ -52,7 +52,7 @@
   if(!active)return;
   const current=token;
   function check(){
-   if(!active||current!==token||window.app?.view!=='game')return;
+   if(!active||current!==token||(typeof app==='undefined'||app.view!=='game'))return;
    const imgs=[...document.querySelectorAll('.ct10-stage .game-card img')];
    const pending=imgs.filter(img=>!img.complete).length;
    if(pending)message.textContent='Loading card artwork · '+pending+' remaining';
