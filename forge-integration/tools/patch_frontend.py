@@ -1283,9 +1283,9 @@ source=source.replace("active===me&&!g.autoPilot?'ct10-our-turn':'ct10-their-tur
 watch_disabled=chr(36)+"""{CommandTableNative.ready?'disabled title="Requires a separate AI human controller"':''}"""
 assert source.count(watch_disabled)>=1, 'Watch mode flag changed'
 source=source.replace(' '+watch_disabled,'')
-watch_forced="   app.autoPilot=false;\n   // Forge must validate"
-assert source.count(watch_forced)==1
-source=source.replace(watch_forced,"   // Forge must validate")
+watch_forced="app.autoPilot=false;"
+assert source.count(watch_forced)>=1, "Autopilot reset changed"
+source=source.replace(watch_forced,"",1)
 assert source.count("function scheduleAuto(){")==1
 source=source.replace("function scheduleAuto(){","function scheduleAuto(){if(app.nativeMatch)return;")
 assert source.count("autoPilot:false, autoPaused:false,")==1
