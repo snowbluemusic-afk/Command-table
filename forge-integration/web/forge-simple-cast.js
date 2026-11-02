@@ -195,8 +195,8 @@
       const card=getFromHand(index);
       if(!card)return;
       event.preventDefault();event.stopImmediatePropagation();
-      if(window.ctForgePriority?.isBottoming){
-        // Mulligan bottom-of-library is a Forge card selection, not a spell.
+      if(window.ctForgePriority?.isHandChoice){
+        // Discarding or mulliganing uses Forge card selection, not Cast.
         // Select by stable ID (two identical cards are different instances).
         if(!mulliganBusy){
           mulliganBusy=true;
@@ -209,7 +209,7 @@
               if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
               window.ctForgePriority?.refresh?.();
             }catch(error){
-              say('Forge could not select this mulligan card: '+(error?.message||String(error)));
+              say('Forge could not select this hand card: '+(error?.message||String(error)));
             }finally{mulliganBusy=false;}
           })();
         }
