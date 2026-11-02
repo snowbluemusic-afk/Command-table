@@ -307,6 +307,9 @@
   async function decide(ok){
     if(busy)return;
     busy=true;
+    // A player may press Confirm immediately after dragging two blockers.
+    // Wait for both Forge assignments before advancing combat.
+    if(window.ctDirectCombat?.pending)await window.ctDirectCombat.whenIdle();
     paintDecision();
     try{
       await window.CommandTableNative.request('game.command',{
@@ -372,6 +375,11 @@
     // Selection.chosen is the *focused defender/attacker*, NOT a count of
     // selected attacking or blocking creatures. Use CombatView exclusively.
     const combatCount=inAttack?confirmedAttackers:inBlock?confirmedBlockers:0;
+    const blockerNames=(game?.combat||[]).flatMap(attack=>(attack.blockerIds||[]).map(id=>{
+      const card=game.players?.flatMap(p=>p.battlefield||[]).find(c=>Number(c.forgeId)===Number(id));
+      return card?.name||('Card #'+id);
+    }));
+    const pendingAssignments=window.ctDirectCombat?.pending||0;
     const activeStack=Array.isArray(game?.stack)&&game.stack.length
       ?String(game.stack[game.stack.length-1]?.name||'Spell on stack'):'';
     decisionText.textContent=handChoice
@@ -380,7 +388,9 @@
       : pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
       : inAttack?'Choose attackers · tap glowing creatures':
-        inBlock?'Choose blockers · tap glowing creatures':
+        inBlock?('Choose blockers · '+combatCount+' confirmed'+
+          (blockerNames.length?' · '+blockerNames.join(', '):'')+
+          (pendingAssignments?' · '+pendingAssignments+' processing…':'')):
         'Turn '+(game?.turn||1)+' · '+phaseText+
         ' · '+(game?.players?.[0]?.priority?'Your priority':'Respond / advance');
     buttons.replaceChildren();
@@ -413,7 +423,7 @@
           original;
       if(inBlock&&!ok)continue; // no "End Turn" or stale cancel in blocker step
       b.setAttribute('aria-label',original+' — '+b.textContent);
-      b.disabled=!enabled||busy||syncBusy;
+      b.disabled=!enabled||busy||syncBusy||((inBlock||inAttack)&&pendingAssignments>0);
       b.style.cssText=[
         'flex:1','min-height:36px','padding:6px 8px','border-radius:9px',
         'border:1px solid #bda17d',
@@ -436,6 +446,7 @@
       buttons.append(refresh);
     }
   }
+  window.addEventListener('ct-combat-queue-updated',paintDecision);
   const firstReply=window.CommandTableNativeReply;
   window.CommandTableNativeReply=function(value){
     let payload;

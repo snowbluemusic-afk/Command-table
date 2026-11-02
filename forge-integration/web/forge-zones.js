@@ -12,13 +12,13 @@
     '#ct-floating-zones{position:fixed;inset:0;z-index:2147482800;display:none;background:#050b1070;pointer-events:auto}',
     '#ct-floating-zones[data-open="true"]{display:block}',
     '#ct-floating-zones .ct-floating-panel{position:fixed;display:grid!important;gap:10px;min-width:245px;',
-    'max-width:min(330px,70vw);max-height:78dvh;overflow:auto;padding:14px 16px;background:#0e2830;',
+    'width:min(330px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain;padding:14px 16px;background:#0e2830;',
     'border:1px solid #e4c18a;border-radius:15px;box-shadow:0 22px 65px #000e;color:#fce9cb;pointer-events:auto}',
     '#ct-floating-zones .ct-floating-head{display:flex;align-items:center;justify-content:space-between;gap:12px}',
     '#ct-floating-zones .ct-floating-head button{background:#263d45;color:#fbeac8;border:1px solid #ac9775;',
     'border-radius:8px;padding:5px 12px;font-size:16px;min-height:34px}',
     '#ct-floating-zones [data-action]{cursor:pointer;touch-action:manipulation}',
-    '@media(orientation:landscape) and (max-height:540px){#ct-floating-zones .ct-floating-panel{max-height:87dvh}}'
+    '@media(orientation:landscape) and (max-height:540px){#ct-floating-zones .ct-floating-panel{max-height:calc(100dvh - 16px)!important;gap:6px;padding:9px 12px}}'
   ].join('');
   document.head.append(style);
   const portal=document.createElement('div');
@@ -36,8 +36,19 @@
     const panel=portal.querySelector('.ct-floating-panel');
     if(!panel||!railToggle)return;
     const rect=railToggle.getBoundingClientRect();
-    panel.style.left=Math.max(6,Math.min(innerWidth-255,rect.right+8))+'px';
-    panel.style.top=Math.max(6,Math.min(innerHeight-145,rect.top))+'px';
+    const pad=8;
+    const width=Math.min(330,innerWidth-2*pad);
+    panel.style.width=width+'px';
+    panel.style.maxHeight=Math.max(130,innerHeight-pad*2)+'px';
+    // The old top clamp assumed the drawer was only 145px tall. On a phone
+    // that placed half the command zone below the bottom of the display.
+    const height=Math.min(panel.scrollHeight,innerHeight-pad*2);
+    let left=rect.right+8;
+    if(left+width>innerWidth-pad)left=rect.left-width-8;
+    left=Math.max(pad,Math.min(left,innerWidth-width-pad));
+    const top=Math.max(pad,Math.min(rect.top,innerHeight-pad-height));
+    panel.style.left=left+'px';
+    panel.style.top=top+'px';
   }
   function sync(){
     if(!window.app?.nativeMatch||window.app?.view!=='game'||!window.app?.zonesOpen){
