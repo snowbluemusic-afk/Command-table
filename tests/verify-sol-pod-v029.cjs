@@ -11,7 +11,7 @@ for(const [name,js] of [['gestures',gest],['Forge choices',selection],['layout',
  try{new Function(js);}catch(error){throw new Error('Invalid JS '+name+': '+error.message);}
 }
 const checks=[
- ['Two-tap blockers use one Forge command',gest.includes('selectedBlockTarget')&&gest.includes("selectSourceAndTarget(id,{kind:'card',id:chosen},'block')")],
+ ['Two-tap blockers use one Forge command',gest.includes('selectedBlocker')&&gest.includes("selectSourceAndTarget(blockerId,{kind:'card',id},'block')")],
  ['Rapid Forge combat assignments queue',gest.includes('commandQueue=commandQueue.catch(()=>{}).then(task)')],
  ['Block assignments verified using CombatView',gest.includes('(c.blockerIds||[]).some(id=>Number(id)===sourceId)')],
  ['Previous independent blocker cardId calls removed',!gest.includes("command={action:'cardId',value:cardId}")],
