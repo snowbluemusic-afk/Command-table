@@ -362,4 +362,8 @@ assert(selectionScript.includes("get isBottoming()") &&
        castingScript.includes("window.ctForgePriority?.isHandChoice") &&
        castingScript.includes("action:'cardId',value:card.id"),
   'Mulligan card taps must reach Forge without Cast');
-console.log('PASS: native mulligan selection, inspector dismissal and Forge integration');
+assert(selectionScript.includes("||handChoice") &&
+       selectionScript.includes("syncChoices()") &&
+       selectionScript.includes("'Confirm discard'"),
+  'Mandatory discard selections must remain visible without enabled native buttons');
+console.log('PASS: native hand confirmation, mulligan, inspector and Forge integration');
