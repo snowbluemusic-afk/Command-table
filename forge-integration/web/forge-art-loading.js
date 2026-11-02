@@ -47,7 +47,7 @@
   }
   function refreshStatus(){
     let count=0;
-    if(window.app?.view==='game'){
+    if((typeof app!=='undefined'&&app.view==='game')){
       for(const img of document.querySelectorAll(selector))
         if(img.classList.contains('ct-art-loading')&&visible(img))count++;
     }

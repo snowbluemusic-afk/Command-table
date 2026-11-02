@@ -71,7 +71,7 @@
     const turnChanged=previous.turn!==next.turn||previous.active!==next.active;
     const stackChanged=(next.stack?.length||0)>(previous.stack?.length||0);
     requestAnimationFrame(()=>setTimeout(()=>{
-      if(window.app?.view!=='game')return;
+      if((typeof app==='undefined'||app.view!=='game'))return;
       const cards=[...document.querySelectorAll('.ct10-lane .game-card[data-value]')];
       for(const [ids,cls] of [[appeared,'ct-card-enter'],[tapped,'ct-card-tap']]){
         for(const id of ids.slice(0,15)){

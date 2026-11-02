@@ -288,6 +288,7 @@ public final class CommandTableOverlay {
         try {
             JSONObject deckObject=p.getJSONObject("deck");
             final Deck own=decodeDeck(deckObject);
+            final boolean watchMode=p.optBoolean("autoPilot",false);
             int count=p.optInt("opponents",1);
             if(count<1 || count>3) throw new IllegalArgumentException("Choose 1, 2 or 3 AI opponents");
             List<Deck> enemies=new ArrayList<>();
@@ -323,8 +324,8 @@ public final class CommandTableOverlay {
                     pendingStart=id;
                     match=CommandTableMatchLauncher.start(own,enemies,proxy,m -> {
                         match=m;
-                        input=new CommandTableForgeInput(m);
-                    });
+                        input=watchMode ? null : new CommandTableForgeInput(m);
+                    },watchMode);
                     if(match.getGameView()!=null)publish(match.getGameView());
                 } catch(Throwable err) {
                     android.util.Log.e("CommandTable", "Forge match start failed", err);
@@ -337,9 +338,21 @@ public final class CommandTableOverlay {
     }
 
     private static void command(String id, JSONObject p) {
-        CommandTableForgeInput bridge=input;
-        if(bridge==null){respond(id,false,null,"No active Forge match");return;}
         String action=p.optString("action","");
+        CommandTableForgeInput bridge=input;
+        if(bridge==null){
+            // Watch mode has no human input controller. It can still exit cleanly.
+            if("quitGame".equals(action) || "concede".equals(action)){
+                HostedMatch previous=match;
+                match=null;
+                pendingStart=null;
+                if(previous!=null)FThreads.invokeInEdtNowOrLater(previous::endCurrentGame);
+                respond(id,true,new JSONObject(),null);
+            } else {
+                respond(id,false,null,"Forge is piloting this deck. Start a manual match to choose cards.");
+            }
+            return;
+        }
         Object value=p.opt("value");
         try {
             switch(action) {
