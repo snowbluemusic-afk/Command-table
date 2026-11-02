@@ -24,6 +24,9 @@
   hint.style.cssText='position:fixed;z-index:220001;left:50%;top:13%;transform:translateX(-50%);background:#112932f0;color:#ffe6af;border:1px solid #c9ab76;border-radius:9px;padding:7px 12px;font:700 12px system-ui;pointer-events:none;display:none;max-width:60vw;text-align:center';
   document.body.append(hint);
   let drag=null, suppressClick=null, busy=false;
+  let queued=0;
+  let commandQueue=Promise.resolve();
+  let suppressUntil=0;
   const phase=()=>String(window.app?.game?.phaseDetail||'').toUpperCase();
   const mode=()=>/ATTACKERS/.test(phase())?'attack':
                  /BLOCKERS/.test(phase())?'block':null;
@@ -69,22 +72,63 @@
   };
   // One gesture is one atomic Forge command. Forge's InputAttack/InputBlock
   // expects defender-before-attacker and attacker-before-blocker respectively.
-  const selectSourceAndTarget=async (sourceId,target,dragMode)=>{
-    if(busy)return;
-    busy=true;
-    try {
-      const action=dragMode==='attack'?'combat.attack':'combat.block';
-      const value=dragMode==='attack'
-        ? {attackerId:sourceId,defenderId:target.id}
-        : {attackerId:target.id,blockerId:sourceId};
-      await window.CommandTableNative.request('game.command',{action,value});
-      const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
-      if(snapshot?.game&&typeof window.ctReceiveForgeState==='function')
-        window.ctReceiveForgeState(snapshot.game);
-    }catch(error){
-      feedback('Forge could not apply this '+(dragMode==='attack'?'attack':'block')+
-        ': '+(error?.message||String(error)));
-    }finally{busy=false;}
+  // Queue every deliberate drag. Previously, the second quick drag was silently
+  // dropped while the first native command was processing.
+  const selectSourceAndTarget=(sourceId,target,dragMode)=>{
+    queued++;
+    const task=async()=>{
+      busy=true;
+      try {
+        if(mode()!==dragMode){
+          feedback('Combat moved on before your '+dragMode+' could be assigned.');
+          return;
+        }
+        const action=dragMode==='attack'?'combat.attack':'combat.block';
+        const value=dragMode==='attack'
+          ? {attackerId:sourceId,defenderId:target.id}
+          : {attackerId:target.id,blockerId:sourceId};
+        // Dragging an already assigned blocker must not unassign it by accident.
+        if(dragMode==='block'&&window.app?.game?.combat?.some(c=>
+          Number(c.cardId)===target.id&&(c.blockerIds||[]).some(id=>Number(id)===sourceId))){
+          feedback('This creature is already blocking that attacker.');
+          return;
+        }
+        await window.CommandTableNative.request('game.command',{action,value});
+        let snapshot=null,confirmed=false;
+        // A command can return before Forge publishes the updated CombatView.
+        for(let attempt=0;attempt<4;attempt++){
+          snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
+          const combat=snapshot?.game?.combat||[];
+          if(dragMode==='block'){
+            confirmed=combat.some(c=>Number(c.cardId)===target.id&&
+              (c.blockerIds||[]).some(id=>Number(id)===sourceId));
+          }else{
+            confirmed=combat.some(c=>Number(c.cardId)===sourceId&&
+              Number(c.defenderId)===target.id);
+          }
+          if(confirmed)break;
+          await new Promise(done=>setTimeout(done,110));
+        }
+        if(snapshot?.game&&typeof window.ctReceiveForgeState==='function')
+          window.ctReceiveForgeState(snapshot.game);
+        if(!confirmed){
+          feedback('Forge did not confirm that '+(dragMode==='block'?'blocker':'attacker')+
+            '. Check the highlighted combat connection before pressing Confirm.');
+        }else if(dragMode==='block'){
+          const count=(snapshot?.game?.combat||[]).reduce((sum,c)=>sum+(c.blockerIds||[]).length,0);
+          feedback('Block confirmed: '+count+' assigned. Drag another creature or confirm.');
+        }
+      }catch(error){
+        feedback('Forge could not apply this '+(dragMode==='attack'?'attack':'block')+
+          ': '+(error?.message||String(error)));
+      }finally{
+        busy=false;queued--;
+        window.dispatchEvent(new Event('ct-combat-queue-updated'));
+      }
+    };
+    commandQueue=commandQueue.catch(()=>{}).then(task);
+    window.dispatchEvent(new Event('ct-combat-queue-updated'));
+    return commandQueue;
   };
   // Candidate highlights are advisory; a transient empty Selection from
   // Forge is NOT proof that a creature cannot attack or block.
@@ -93,7 +137,7 @@
       Number(c.forgeId)===Number(id)&&c.creature===true)===true;
   }
   document.addEventListener('pointerdown',event=>{
-    if(busy||event.button!==0||!window.app?.nativeMatch||window.app?.view!=='game'||
+    if(event.button!==0||!window.app?.nativeMatch||window.app?.view!=='game'||
        window.app?.game?.winner!==null||window.app?.modal)return;
     const kind=mode();
     if(!kind)return;
@@ -123,8 +167,11 @@
     const target=state.moving?targetAt(event.clientX,event.clientY,state.kind):null;
     clear();
     if(!state.moving)return; // Ordinary tap keeps its native Forge behavior.
+    if(event.cancelable)event.preventDefault();
+    event.stopImmediatePropagation();
     suppressClick=state.el;
-    setTimeout(()=>{if(suppressClick===state.el)suppressClick=null;},220);
+    suppressUntil=Date.now()+750;
+    setTimeout(()=>{if(suppressClick===state.el)suppressClick=null;},750);
     if(!target) {
       feedback(state.kind==='attack'?'Drop on an opponent to declare the attack.':
         'Drop on an attacking creature to declare a block.');
@@ -134,7 +181,7 @@
   },true);
   document.addEventListener('pointercancel',clear,true);
   document.addEventListener('click',event=>{
-    if(!suppressClick)return;
+    if(!suppressClick||Date.now()>suppressUntil)return;
     // Touch browsers may synthesize click on the drop target rather than source.
     // Consume only the immediate post-drag click, never a later deliberate tap.
     event.preventDefault();
@@ -182,11 +229,12 @@
   style.id='ct-direct-combat-style';
   style.textContent=`
     .ct-direct-drag-hover{outline:4px solid #ffca69!important;box-shadow:0 0 20px #f1bd5fb5!important}
-    .ct10-lane-own.ct10-creatures .game-card.ct-forge-legal-target{touch-action:none}
+    .ct10-lane-own.ct10-creatures .game-card{touch-action:none}
     [data-ct-forge-player-id].ct-forge-legal-player{outline:3px solid #60d5f8!important;box-shadow:0 0 18px #48c9f890!important}
     @media (orientation:landscape) and (max-height:550px){
       #ct-direct-combat-hint{font-size:11px;top:8%}
     }`;
   document.head.append(style);
-  window.ctDirectCombat={reset:clear,get active(){return !!drag||busy;}};
+  window.ctDirectCombat={reset:clear,get active(){return !!drag||busy||queued>0;},
+    get pending(){return queued;},whenIdle:()=>commandQueue.catch(()=>{})};
 })();
