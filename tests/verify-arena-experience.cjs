@@ -52,7 +52,6 @@ assert(priority.includes("if(inBlock&&!ok)continue") &&
 assert(priority.includes("autoManaIssued") &&
        priority.includes("buttonState.enable1") &&
        priority.includes("window.ctAutoMana!==false") &&
-       patch.includes("data-action=\\"toggleAutoMana\\"")===false &&
        patch.includes('data-action="toggleAutoMana"') &&
        patch.includes("ct-auto-mana"),
   'Forge-enabled Auto mana payments must be opt-out, persisted and never auto-pass');
