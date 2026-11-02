@@ -1379,6 +1379,40 @@ source=source.replace(start_marker,
 source=source.replace('Matches save automatically on this device.',
                       'Forge is managing this match. You can return to the table at any time.')
 
+# v0.26: keep the active opponent at the top of the table. Manual cycling
+# remains available for inspecting other opponents during the current turn.
+pod_focus_helper=r"""
+function ctFocusActiveOpponent(previous,current){
+ if(!current?.native || !Array.isArray(current.players))return;
+ const active=Number(current.active);
+ const valid=index=>Number.isInteger(index)&&index>0&&index<current.players.length
+   &&!current.players[index]?.dead;
+ const changed=!previous?.native || Number(previous.active)!==active ||
+   Number(previous.turn)!==Number(current.turn);
+ // Focus the active opponent on every seat/turn transition, even if the user
+ // manually inspected another seat on the previous turn. Never steal focus
+ // from manual inspection during the same turn.
+ if(changed && valid(active)){
+   app.focusPlayer=active;
+   app.tableMode='focus';
+   app.sideInspect=null;
+ }else if(!valid(app.focusPlayer)){
+   app.focusPlayer=current.players.findIndex((p,i)=>i>0&&!p.dead);
+   if(app.focusPlayer<1)app.focusPlayer=1;
+ }
+}
+"""
+assert source.count("function ctReceiveForgeState(state) {")==1
+source=source.replace("function ctReceiveForgeState(state) {",
+                      pod_focus_helper+"\nfunction ctReceiveForgeState(state) {")
+history_hook="  ctRecordNativeHistory(before,app.game);\n  // The animation layer"
+assert source.count(history_hook)==1, 'Pod auto-focus insertion point changed'
+source=source.replace(history_hook,
+   "  ctRecordNativeHistory(before,app.game);\n  ctFocusActiveOpponent(before,app.game);\n  // The animation layer")
+# Visible player badge comes from focused board. The active seat must be in
+# focus whenever a Forge turn transition lands, but cycling within the turn
+# must not mutate the Forge active player.
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
