@@ -288,6 +288,7 @@ public final class CommandTableOverlay {
         try {
             JSONObject deckObject=p.getJSONObject("deck");
             final Deck own=decodeDeck(deckObject);
+            final boolean watchMode=p.optBoolean("autoPilot",false);
             int count=p.optInt("opponents",1);
             if(count<1 || count>3) throw new IllegalArgumentException("Choose 1, 2 or 3 AI opponents");
             List<Deck> enemies=new ArrayList<>();
@@ -323,8 +324,8 @@ public final class CommandTableOverlay {
                     pendingStart=id;
                     match=CommandTableMatchLauncher.start(own,enemies,proxy,m -> {
                         match=m;
-                        input=new CommandTableForgeInput(m);
-                    });
+                        input=watchMode ? null : new CommandTableForgeInput(m);
+                    },watchMode);
                     if(match.getGameView()!=null)publish(match.getGameView());
                 } catch(Throwable err) {
                     android.util.Log.e("CommandTable", "Forge match start failed", err);
