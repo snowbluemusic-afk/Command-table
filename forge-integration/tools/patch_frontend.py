@@ -1413,6 +1413,24 @@ source=source.replace(history_hook,
 # focus whenever a Forge turn transition lands, but cycling within the turn
 # must not mutate the Forge active player.
 
+# Sol Pod brand system: keep existing data storage keys for backwards-compatible
+# deck libraries. Only change visible identity and app icon.
+brand_svg=(Path(__file__).resolve().parent.parent / 'branding' / 'sol-pod-mark.svg').read_text()
+assert source.count('<span class="brand-icon">✦</span>')==1
+source=source.replace('<span class="brand-icon">✦</span>',
+    '<span class="brand-icon sol-pod-icon">'+brand_svg+'</span>')
+source=source.replace('<strong>COMMAND TABLE</strong>','<strong>SOL POD</strong>')
+source=source.replace('Commander, on your terms','Commander · Build · Play · Pods')
+source=source.replace('<title>Command Table</title>','<title>Sol Pod</title>')
+source=source.replace('Command Table loading…','Sol Pod loading…')
+source=source.replace('YOUR COMMANDER TABLE','WELCOME TO SOL POD')
+source=source.replace('Command Table is','Sol Pod is')
+source=source.replace('</head>','''<style id="sol-pod-brand">
+.brand-icon.sol-pod-icon{background:none!important;border:0!important;box-shadow:none!important;padding:0!important;overflow:visible!important}
+.sol-pod-icon svg{display:block;width:100%;height:100%;max-width:100%;max-height:100%}
+.brand strong{letter-spacing:1.4px}
+</style></head>''')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
