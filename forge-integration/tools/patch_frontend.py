@@ -1164,7 +1164,7 @@ source=source.replace(unknown_inspect,
 hand_drag="dragIndex:g.autoPilot?undefined:i"
 assert source.count(hand_drag)==1, 'Hand markup drag reference changed'
 source=source.replace(hand_drag,"dragIndex:undefined")
-assert source.count('data-drag-commander="true"')==1
+assert source.count('data-drag-commander="true"')==2
 source=source.replace('data-drag-commander="true"','')
 # v0.19: no one-tap cast. Card taps always open the centered preview;
 # only its Cast button submits an authoritative Forge card ID.
