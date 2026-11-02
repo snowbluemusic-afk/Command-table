@@ -150,9 +150,11 @@
   document.addEventListener('pointercancel',clear,true);
   document.addEventListener('click',event=>{
     if(!suppressClick)return;
-    if(event.target===suppressClick||suppressClick.contains(event.target)){
-      event.preventDefault();event.stopImmediatePropagation();suppressClick=null;
-    }
+    // Touch browsers may synthesize click on the drop target rather than source.
+    // Consume only the immediate post-drag click, never a later deliberate tap.
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    suppressClick=null;
   },true);
   // Tapping a glowing player in combat chooses that player in Forge rather
   // than opening the legacy inspect-player screen. Works in 1v1 and pods.
