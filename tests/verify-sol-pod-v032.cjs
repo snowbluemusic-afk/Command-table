@@ -38,7 +38,7 @@ async function blockerFlow(){
  const create=()=>({style:{},setAttribute(){},getAttribute(){return null;},append(){},
   classList:{add(){},remove(){}},set textContent(v){this._text=v;},get textContent(){return this._text;}});
  const document={
-  body:{append(){}},
+  body:{append(){}},head:{append(){}},
   createElementNS:create,createElement:create,
   getElementById(){return null;},
   addEventListener(type,fn){(listeners[type]??=[]).push(fn);},
