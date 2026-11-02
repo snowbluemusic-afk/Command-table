@@ -154,10 +154,16 @@
             '. Check for a mana, target or ability choice.');
         },7000);
         await request;
-        window.ctNativeToast?.('Forge accepted '+choice.name+
-          '. It will resolve after players pass priority.');
-        const snapshot=await window.CommandTableNative.request('game.snapshot');
-        if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
+        window.ctNativeToast?.('Forge selected '+choice.name+
+          '. Complete any mana or target choices; players can respond.');
+        // Snapshot refresh is best-effort. A transient snapshot error MUST
+        // NOT be misreported as a failed cast after Forge accepted the command.
+        try {
+          const snapshot=await window.CommandTableNative.request('game.snapshot');
+          if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
+        }catch(refreshError){
+          window.ctNativeToast?.('Forge accepted the card. Waiting for the next game update.');
+        }
       }catch(failure){
         const message='Forge could not cast this card: '+(failure?.message||String(failure));
         open(choice,message);
