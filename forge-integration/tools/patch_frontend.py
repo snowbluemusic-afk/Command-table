@@ -577,7 +577,7 @@ gestures_js = (Path(__file__).resolve().parent.parent / 'web' / 'forge-gestures.
 assert 'window.ctDirectCombat' in gestures_js
 source=source.replace('</body></html>', '<script>\n'+gestures_js+'\n</script></body></html>')
 # Foreground Zones, non-blocking hold-to-read, Forge-confirmed animation.
-for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js','forge-graveyard.js'):
+for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js','forge-graveyard.js','forge-art-loading.js'):
     feature_js=(Path(__file__).resolve().parent.parent / 'web' / feature).read_text()
     assert 'window.ct' in feature_js, 'Experience module export missing: '+feature
     source=source.replace('</body></html>', '<script>\n'+feature_js+'\n</script></body></html>')

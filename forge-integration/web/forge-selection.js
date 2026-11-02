@@ -258,6 +258,18 @@
     '#ct-forge-priority-buttons.ct-forge-pregame{top:calc(env(safe-area-inset-top) + 70px)!important;bottom:auto!important;right:9px!important}',
     '}'
   ].join('');
+  decisionCss.textContent += [
+    '#ct-forge-priority-buttons.ct-forge-hand-choice{border:2px solid #e8bd79!important;',
+    'background:#132b35fa!important;z-index:2147482400!important;',
+    'box-shadow:0 7px 28px #000e!important;max-width:380px!important}',
+    '#ct-forge-priority-buttons.ct-forge-hand-choice .ct-forge-decision-caption{',
+    'font-size:13px!important;line-height:1.35!important;max-height:none!important;',
+    'white-space:pre-wrap;color:#ffdfa9;font-weight:750;margin:5px 0 10px!important}',
+    '@media(orientation:landscape) and (max-height:600px){',
+    '#ct-forge-priority-buttons.ct-forge-hand-choice{max-height:145px!important;',
+    'width:min(30vw,385px)!important;overflow:auto!important}',
+    '#ct-forge-priority-buttons.ct-forge-hand-choice button{min-height:37px!important}}'
+  ].join('');
   document.head.append(decisionCss);
   const decisionText=document.createElement('div');
   decisionText.className='ct-forge-decision-caption';
@@ -275,6 +287,23 @@
   let openingMessage='';
   let busy=false;
   let autoManaIssued=false;
+  let syncBusy=false;
+  async function syncChoices(){
+    if(syncBusy)return;
+    syncBusy=true;
+    paintDecision();
+    try{
+      await window.CommandTableNative.request('engine.status');
+      const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
+      if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
+    }catch(error){
+      window.ctNativeToast?.('Unable to sync Forge choices: '+(error?.message||String(error)));
+    }finally{
+      syncBusy=false;
+      paintDecision();
+      update();
+    }
+  }
   async function decide(ok){
     if(busy)return;
     busy=true;
@@ -292,10 +321,12 @@
   function paintDecision(){
     const forgeChoice=document.getElementById('ct-forge-decision-sheet');
     const otherChoiceOpen=!!forgeChoice && forgeChoice.style.display!=='none';
+    const handChoice=!!window.ctForgePriority?.isHandChoice;
     const active=!!window.app?.nativeMatch &&
       window.app?.view==='game' && window.app?.game?.winner===null && !window.app?.modal &&
       !window.app?.sideInspect && !otherChoiceOpen &&
-      (!!buttonState.enable1||!!buttonState.enable2);
+      (!!buttonState.enable1||!!buttonState.enable2||handChoice);
+    decision.classList.toggle('ct-forge-hand-choice',handChoice);
     // A single small dock owns Forge buttons. Never mount a full-width
     // secondary prompt or cover the enlarged card browser.
     decision.style.pointerEvents=active?'auto':'none';
@@ -341,7 +372,12 @@
     // Selection.chosen is the *focused defender/attacker*, NOT a count of
     // selected attacking or blocking creatures. Use CombatView exclusively.
     const combatCount=inAttack?confirmedAttackers:inBlock?confirmedBlockers:0;
-    decisionText.textContent=pregame
+    const activeStack=Array.isArray(game?.stack)&&game.stack.length
+      ?String(game.stack[game.stack.length-1]?.name||'Spell on stack'):'';
+    decisionText.textContent=handChoice
+      ?((activeStack?activeStack+' · ':'')+
+        (window.ctForgePriority?.handInstruction||'Choose cards · Press Confirm'))
+      : pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
       : inAttack?'Choose attackers · tap glowing creatures':
         inBlock?'Choose blockers · tap glowing creatures':
@@ -363,7 +399,10 @@
       // It is never per-creature undo. InputBlock has no second action.
       const alpha=/alpha strike/i.test(original.trim());
       const callback=/call back|callback/i.test(original.trim());
-      b.textContent=!ok && inAttack && alpha?'Attack all':
+      b.textContent=handChoice && ok?
+          (/discard/i.test(String(openingMessage||'')+' '+String(promptMessage||''))?
+            'Confirm discard':'Confirm cards'):
+        !ok && inAttack && alpha?'Attack all':
         !ok && inAttack && callback?'Remove all attackers':
         ok && !pregame && ordinary && inAttack
           ? (combatCount?'Confirm '+combatCount+' attacker'+(combatCount===1?'':'s'):'No attacks'):
@@ -374,7 +413,7 @@
           original;
       if(inBlock&&!ok)continue; // no "End Turn" or stale cancel in blocker step
       b.setAttribute('aria-label',original+' — '+b.textContent);
-      b.disabled=!enabled||busy;
+      b.disabled=!enabled||busy||syncBusy;
       b.style.cssText=[
         'flex:1','min-height:36px','padding:6px 8px','border-radius:9px',
         'border:1px solid #bda17d',
@@ -384,6 +423,17 @@
       ].join(';');
       b.onclick=()=>decide(ok);
       buttons.append(b);
+    }
+    if(handChoice && !buttonState.enable1){
+      const refresh=document.createElement('button');
+      refresh.type='button';
+      refresh.textContent=syncBusy?'Syncing…':'Refresh choices';
+      refresh.style.cssText='flex:1;min-height:36px;padding:6px 8px;'+
+        'border-radius:9px;border:1px solid #8598a0;background:#294751;'+
+        'color:#f1e8d7;font:700 12px system-ui';
+      refresh.disabled=syncBusy;
+      refresh.onclick=()=>{void syncChoices();};
+      buttons.append(refresh);
     }
   }
   const firstReply=window.CommandTableNativeReply;
@@ -413,6 +463,9 @@
   window.ctForgePriority={
     reset:()=>{openingMessage='';buttonState.enable1=false;buttonState.enable2=false;paintDecision();},
     refresh:paintDecision,
+    syncChoices,
+    get canConfirm(){return !!buttonState.enable1&&!busy;},
+    confirm:()=>decide(true),
     // Distinguish Forge's mandatory hand-card choices from the ordinary
     // castable-card highlights shown during priority. Do not let the UI
     // mistake a discard for a request to cast.

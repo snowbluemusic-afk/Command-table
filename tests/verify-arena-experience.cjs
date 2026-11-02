@@ -7,10 +7,11 @@ const choice=read('forge-integration/web/forge-choice.js');
 const priority=read('forge-integration/web/forge-selection.js');
 const zones=read('forge-integration/web/forge-zones.js');
 const graveyard=read('forge-integration/web/forge-graveyard.js');
+const artLoading=read('forge-integration/web/forge-art-loading.js');
 const hold=read('forge-integration/web/forge-card-hold.js');
 const motion=read('forge-integration/web/forge-motion.js');
 
-for(const [name,text] of Object.entries({zones,graveyard,hold,motion,choice,priority})){
+for(const [name,text] of Object.entries({zones,graveyard,artLoading,hold,motion,choice,priority})){
   assert.doesNotThrow(()=>new Function(text),name+' must parse as JavaScript');
 }
 assert(zones.includes("document.body.append(portal)") &&
@@ -32,7 +33,7 @@ assert(motion.includes("previous?.native||!next?.native") &&
        motion.includes("reduced-motion") &&
        motion.includes("window.ctArenaMotion"),
   'Animations must reflect committed Forge GameViews only and respect accessibility');
-assert(patch.includes("for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js','forge-graveyard.js')") &&
+assert(patch.includes("for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js','forge-graveyard.js','forge-art-loading.js')") &&
        patch.includes("window.ctArenaMotion?.onState?.(before,app.game)") &&
        patch.includes("ct-native-stack ct-stack-compact") &&
        patch.includes("window.ctArenaMotion?.stackExpanded"),
@@ -67,4 +68,18 @@ assert(graveyard.includes('window.ctZoneBrowser=') &&
        patch.includes("data-ct-zone-view=") &&
        patch.includes("'forge-graveyard.js'"),
   'Forge graveyards must be browsable as a read-only overlay from Zones');
-console.log('PASS: v0.22 browsable graveyard/exile, Forge choice UX and game panels');
+assert(priority.includes("||handChoice") &&
+       priority.includes("get canConfirm()") &&
+       priority.includes("'Confirm discard'") &&
+       priority.includes("Refresh choices") &&
+       priority.includes("syncChoices()") &&
+       priority.includes("handInstruction"),
+  'Mandatory hand choices must always expose a visible Forge-gated confirmation and sync');
+assert(artLoading.includes('ct-art-loading') &&
+       artLoading.includes('MutationObserver') &&
+       artLoading.includes('naturalWidth') &&
+       artLoading.includes('Loading card art') &&
+       artLoading.includes('ct-art-missing') &&
+       artLoading.includes('ctArtLoading'),
+  'Every card art image must display a placeholder and fallback until loaded');
+console.log('PASS: v0.23 persistent hand-choice confirmation, art placeholders and Forge UI');
