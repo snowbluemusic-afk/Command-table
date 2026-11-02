@@ -1,0 +1,111 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const source=fs.readFileSync('forge-integration/web/forge-simple-cast.js','utf8');
+function createHarness(reject=false){
+  const events=new Map(),requests=[],status=[];
+  function el(tag){
+    return {
+      tag,style:{},dataset:{},children:[],attrs:{},className:'',
+      setAttribute(key,val){this.attrs[key]=val;},
+      getAttribute(key){return this.attrs[key]??null;},
+      append(...children){this.children.push(...children);},
+      replaceChildren(...children){this.children=[...children];},
+      focus(){},
+      querySelector(){return null;},
+      get textContent(){return this.text||'';},
+      set textContent(v){this.text=v;}
+    };
+  }
+  const doc={
+    head:el('head'),body:el('body'),createElement:el,
+    addEventListener(type,callback){
+      if(!events.has(type))events.set(type,[]);
+      events.get(type).push(callback);
+    }
+  };
+  const app={nativeMatch:true,view:'game',modal:'',sideInspect:null,
+    game:{players:[{
+      hand:['Arcane Signet','Arcane Signet'],
+      handForgeIds:[41,42],
+      commandZone:[{id:211,name:'Bruna, Light of Alabaster',commander:true,
+        manaCost:'{3}{W}{W}{U}',type:'Legendary Creature — Angel',rulesText:'Flying and vigilance.'}]
+    }]}};
+  const win={app,
+    ctForgeCards:{'arcane signet':{name:'Arcane Signet',type:'Artifact',
+      cost:'{2}',text:'Tap: Add one mana of any color in your commander identity.'}},
+    ctCardArtUrl:name=>'https://images.example.invalid/'+encodeURIComponent(name),
+    ctNativeToast:text=>status.push(text),
+    announce:text=>status.push(text),
+    render:()=>{},
+    ctReceiveForgeState:()=>{},
+    CommandTableNative:{
+      request:async(method,payload)=>{
+        requests.push({method,payload});
+        if(reject&&method==='game.command')throw new Error('No priority or mana available');
+        return method==='game.snapshot'?{game:{players:[]}}:{};
+      }
+    }
+  };
+  vm.runInNewContext(source,{document:doc,window:win,console},{timeout:1000});
+  const overlay=()=>doc.body.children.find(x=>x.id==='ct-cast-preview');
+  const find=(root,predicate)=>{
+    if(predicate(root))return root;
+    for(const c of root?.children||[]){const f=find(c,predicate);if(f)return f;}
+    return null;
+  };
+  const buttons=()=>({
+    cast:find(overlay(),x=>x.className==='ct-cast-go'),
+    cancel:find(overlay(),x=>x.className==='ct-cast-cancel'),
+    error:find(overlay(),x=>x.className==='ct-cast-error')
+  });
+  function tap(source){
+    const target={closest:selector=>{
+      if(selector.startsWith('.ct10-hand-slot'))return source==='hand'?hand:null;
+      if(selector.startsWith('.ct-commander-zone-card'))return source==='commander'?commander:null;
+      return null;
+    }};
+    const event={target,stopped:false,preventDefault(){this.stopped=true;},
+      stopImmediatePropagation(){this.stopped=true;}};
+    for(const fn of events.get('click')||[])fn(event);
+    return event;
+  }
+  const hand={getAttribute:key=>key==='data-drag-index'?'1':null};
+  const commander={getAttribute:()=>null};
+  return {tap,buttons,overlay,requests,status,win};
+}
+(async()=>{
+  const h=createHarness();
+  const event=h.tap('hand');
+  assert(event.stopped,'Tapping hand must suppress legacy direct-cast click');
+  assert.equal(h.overlay().dataset.open,'true','Centered card sheet must open');
+  assert.equal(h.requests.length,0,'Tapping a card must NOT submit a cast');
+  assert.equal(h.buttons().cast.textContent,'Cast');
+  const rules=h.overlay().children[0].children[1].children.find(x=>x.className==='ct-cast-rules');
+  assert.match(rules.textContent,/Add one mana/,'Full card rules must be available');
+  await h.buttons().cast.onclick();
+  assert.equal(h.overlay().dataset.open,'false');
+  assert.deepEqual(JSON.parse(JSON.stringify(h.requests[0])),
+    {method:'game.command',payload:{action:'castById',value:42}},
+    'Duplicate card copies must cast by their exact Forge ID');
+  assert.equal(h.requests[1].method,'game.snapshot');
+  const cancelled=createHarness();
+  cancelled.tap('hand');
+  cancelled.buttons().cancel.onclick();
+  assert.equal(cancelled.requests.length,0,'Cancel must not cast');
+  const cmd=createHarness();
+  cmd.tap('commander');
+  assert.equal(cmd.buttons().cast.textContent,'Cast');
+  await cmd.buttons().cast.onclick();
+  assert.deepEqual(JSON.parse(JSON.stringify(cmd.requests[0].payload)),
+    {action:'castById',value:211});
+  const failure=createHarness(true);
+  failure.tap('hand');
+  await failure.buttons().cast.onclick();
+  assert.equal(failure.overlay().dataset.open,'true',
+    'A rejected cast must display an error and allow retry');
+  assert.match(failure.buttons().error.textContent,/No priority or mana/);
+  assert(source.includes('Forge checks timing, mana, targets'));
+  console.log('PASS: centred preview, full text, cancel, duplicate IDs, commander and failed cast');
+})().catch(error=>{console.error(error);process.exitCode=1;});
