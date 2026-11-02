@@ -1543,10 +1543,10 @@ function solDeckLibraryTile(d){
 """
 assert source.count('function decksView(){')==1
 source=source.replace('function decksView(){',deck_wrap+'\nfunction decksView(){')
-old_grid='<div class="deck-grid">'+chr(36)+'{app.decks.map(deckCard).join('+chr(39)+chr(39)+')}</div>'
+old_grid='<div class="deck-grid ct-deck-library-grid">'+chr(36)+'{ctSortedDecks(ctShowStarterDecks()).map(deckCard).join('+chr(39)+chr(39)+')}</div>'
 assert source.count(old_grid)==1
 source=source.replace(old_grid,
- '<div class="deck-grid">'+chr(36)+'{app.decks.map(solDeckLibraryTile).join('+chr(39)+chr(39)+')}</div>')
+ '<div class="deck-grid ct-deck-library-grid">'+chr(36)+'{ctSortedDecks(ctShowStarterDecks()).map(solDeckLibraryTile).join('+chr(39)+chr(39)+')}</div>')
 old_button='<button class="danger-btn" data-action="deleteDeck">Delete</button>'
 assert source.count(old_button)==1
 source=source.replace(old_button,
