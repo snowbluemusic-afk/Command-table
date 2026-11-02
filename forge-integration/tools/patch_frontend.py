@@ -1252,6 +1252,76 @@ new_hint=chr(36)+'{app.nativeMatch&&window.ctForgePriority?.isHandChoice?(window
 assert source.count(old_hint)==1, 'Native hand ribbon changed'
 source=source.replace(old_hint,new_hint)
 
+# v0.24: landscape-only matches, startup card art and real Forge AI watch seat.
+import re
+visual_js=(Path(__file__).resolve().parent.parent / 'web' / 'forge-landscape-ui.js').read_text()
+assert source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+visual_js+'\n</script></body>')
+assert source.count("app.notice='Starting native Forge match…';render();")==1
+source=source.replace("app.notice='Starting native Forge match…';render();",
+                      "window.ctMatchLoading?.show();app.notice='Starting native Forge match…';render();")
+landscape_gate="const mode=app.view==='game' && app.landscapeMatches?'landscape':'portrait';"
+assert source.count(landscape_gate)==1
+source=source.replace(landscape_gate,
+    "const mode=(app.view==='game'||window.ctMatchLoading?.active)?'landscape':'portrait';")
+render_end="root.innerHTML=shell(view);syncNativeOrientation();scheduleAuto();}"
+assert source.count(render_end)==1
+source=source.replace(render_end,
+    "root.innerHTML=shell(view);syncNativeOrientation();scheduleAuto();if(app.view==='game')window.ctMatchLoading?.ready();if(app.nativeMatch&&app.autoPilot)ctWatchForgeMatch();}")
+source,n1=re.subn(r'<button data-action="rotateMatch" aria-label="Rotate battlefield"[^<]*</button>','',source)
+assert n1==1, 'Top game rotation control changed'
+source,n2=re.subn(r'<button class="secondary full" data-action="rotateMatch">.*?</button>','',source)
+assert n2==1, 'Match options rotation control changed'
+source,n3=re.subn(r'<div class="ct-orientation-choice"><span>Game screen</span>.*?</div>',
+                  '<div class="ct-orientation-choice"><span>Game screen</span><strong>Landscape during matches</strong></div>',source)
+assert n3==1, 'Setup orientation preference changed'
+assert source.count("case 'rotateMatch':app.landscapeMatches=!app.landscapeMatches;")==1
+source=source.replace("case 'rotateMatch':app.landscapeMatches=!app.landscapeMatches;",
+                      "case 'rotateMatch':app.landscapeMatches=true;")
+source=source.replace("active===me&&!g.autoPilot?'ct10-our-turn':'ct10-their-turn'",
+                      "active===me?'ct10-our-turn':'ct10-their-turn'")
+watch_disabled=chr(36)+"""{CommandTableNative.ready?'disabled title="Requires a separate AI human controller"':''}"""
+assert source.count(watch_disabled)>=1, 'Watch mode flag changed'
+source=source.replace(' '+watch_disabled,'')
+watch_forced="   app.autoPilot=false;\n   // Forge must validate"
+assert source.count(watch_forced)==1
+source=source.replace(watch_forced,"   // Forge must validate")
+assert source.count("function scheduleAuto(){")==1
+source=source.replace("function scheduleAuto(){","function scheduleAuto(){if(app.nativeMatch)return;")
+assert source.count("autoPilot:false, autoPaused:false,")==1
+source=source.replace("autoPilot:false, autoPaused:false,",
+                      "autoPilot:!!ps[0]?.cpu, autoPaused:false,")
+source,n4=re.subn(r'<button class="secondary full" data-action="toggleAutoPilot">.*?</button>',
+  '<p class="ct-watch-mode-note">Watch mode is selected before the match; changing controllers requires a new match.</p>',source)
+assert n4==1, 'Native watch mode option changed'
+timeout="app.nativeMatch=false;\n     announce('Forge match start timed out"
+assert source.count(timeout)==1
+source=source.replace(timeout,
+                      "app.nativeMatch=false;window.ctMatchLoading?.hide();\n     announce('Forge match start timed out")
+# Catch errors when a deck is rejected rather than leaving the loading veil visible.
+source,n5=re.subn(r'\.catch\(error=>announce\(([^;\n]*?Forge could not start this game:[^\n]*?)\)\);',
+  r'.catch(error=>{window.ctMatchLoading?.hide();announce(\1);});',source)
+assert n5==1, 'Forge start catch changed'
+poller=r"""
+let ctForgeWatchPolling=false;
+async function ctWatchForgeMatch(){
+ if(ctForgeWatchPolling || !app.nativeMatch || !app.autoPilot || app.view!=='game')return;
+ ctForgeWatchPolling=true;
+ try{
+  while(app.nativeMatch && app.autoPilot && app.view==='game' && app.game?.winner===null){
+   await new Promise(done=>setTimeout(done,900));
+   if(!app.nativeMatch||!app.autoPilot||app.view!=='game')break;
+   try{
+    const state=await CommandTableNative.request('game.snapshot');
+    if(state?.game)ctReceiveForgeState(state.game);
+   }catch(error){ /* A transition between games may temporarily lack a view. */ }
+  }
+ }finally{ctForgeWatchPolling=false;}
+}
+"""
+assert source.count("function ctReceiveForgeState(state) {")==1
+source=source.replace("function ctReceiveForgeState(state) {",poller+"\nfunction ctReceiveForgeState(state) {")
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
