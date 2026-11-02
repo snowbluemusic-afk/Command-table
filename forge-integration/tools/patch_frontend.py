@@ -551,6 +551,8 @@ window.app = app;
 window.render = render;
 window.applyAuthoritativeGame = applyAuthoritativeGame;
 window.announce = announce;
+window.ctNativeToast = ctNativeToast;
+window.ctReceiveForgeState = ctReceiveForgeState;
 window.CommandTableAction = action;
 window.ctCardArtUrl = name => artUrl(card(name));
 """
