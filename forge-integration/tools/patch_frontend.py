@@ -1257,9 +1257,9 @@ import re
 visual_js=(Path(__file__).resolve().parent.parent / 'web' / 'forge-landscape-ui.js').read_text()
 assert source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+visual_js+'\n</script></body>')
-assert source.count("app.notice='Starting native Forge match…';render();")==1
-source=source.replace("app.notice='Starting native Forge match…';render();",
-                      "window.ctMatchLoading?.show();app.notice='Starting native Forge match…';render();")
+assert source.count("app.nativeMatch=true;app.notice='Starting Forge Commander match…';render();")==1
+source=source.replace("app.nativeMatch=true;app.notice='Starting Forge Commander match…';render();",
+                      "app.nativeMatch=true;window.ctMatchLoading?.show();app.notice='Starting Forge Commander match…';render();")
 landscape_gate="const mode=app.view==='game' && app.landscapeMatches?'landscape':'portrait';"
 assert source.count(landscape_gate)==1
 source=source.replace(landscape_gate,
