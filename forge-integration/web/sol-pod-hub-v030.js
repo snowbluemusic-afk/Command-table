@@ -16,9 +16,15 @@
  const move=()=>{
    const notices=document.getElementById('sol-pod-notices');
    const choices=document.getElementById('ct-forge-legal-actions');
-   const stack=document.querySelector('.ct-native-stack');
+   // Forge redraws the stack with each state. Replace the old moved instance
+   // rather than accumulating detached/stale event panels inside the hub.
+   const stacks=[...document.querySelectorAll('.ct-native-stack')];
+   const stack=stacks.find(node=>!contents.contains(node))||stacks.at(-1)||null;
    if(notices&&notices.parentNode!==contents)contents.append(notices);
    if(stack&&stack.parentNode!==contents)contents.append(stack);
+   for(const prior of [...contents.querySelectorAll('.ct-native-stack')]){
+     if(prior!==stack)prior.remove();
+   }
    if(choices&&choices.parentNode!==contents)contents.append(choices);
    const hasInfo=!!notices?.children?.length;
    const hasChoices=!!choices&&choices.style.display!=='none'&&choices.style.display!=='';
