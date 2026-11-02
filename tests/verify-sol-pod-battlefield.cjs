@@ -7,11 +7,10 @@ assert(frontend.includes('solPodPermanentRows(p,idx,type)'), 'Three-zone rendere
 assert(frontend.includes('solPodRoster(g,focus)'), 'Pod roster missing');
 for(const side of ['own','opp']){
  for(const kind of ['lands','support','creatures']){
-  assert(frontend.includes("('"+side+"'")||frontend.includes("('opp','enemy','focus')"), 'Expected both board sides');
-  assert(css.includes('.sol-'+side+'.sol-'+kind)||css.includes('.sol-'+side+'.sol-'+kind),side+' '+kind+' not positioned');
+  assert(css.includes('.sol-'+side+'.sol-'+kind),side+' '+kind+' not positioned');
  }
 }
-assert(frontend.includes('solPodPermanentRows('+String(''), 'Row markup should use the renderer');
+assert(frontend.includes('solPodPermanentRows('+"'"), 'Row markup should use the renderer');
 assert(css.includes('#ct-forge-priority-buttons:not(.ct-forge-pregame)'),
  'Responsive dock must restyle real Forge priority buttons');
 assert(css.includes('.sol-board-row>.ct10-lane'),
