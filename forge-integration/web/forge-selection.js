@@ -412,7 +412,14 @@
   };
   window.ctForgePriority={
     reset:()=>{openingMessage='';buttonState.enable1=false;buttonState.enable2=false;paintDecision();},
-    refresh:paintDecision
+    refresh:paintDecision,
+    // Forge owns keep/mulligan/return decisions. Change tap behaviour only
+    // for the prompt asking for cards on the bottom of the library.
+    get isBottoming(){
+      return window.app?.game?.phase==='mulligan' &&
+        /\b(?:return|put)\b.*\bbottom\b.*\b(?:library|deck)\b/i
+          .test(String(openingMessage||''));
+    }
   };
 
   const appRoot=document.getElementById('app');

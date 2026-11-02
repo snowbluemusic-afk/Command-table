@@ -26,7 +26,7 @@ function createHarness(reject=false){
     }
   };
   const app={nativeMatch:true,view:'game',modal:'',sideInspect:null,
-    game:{players:[{
+    game:{phase:'main1',players:[{
       hand:['Arcane Signet','Arcane Signet'],
       handForgeIds:[41,42],
       commandZone:[{id:211,name:'Bruna, Light of Alabaster',commander:true,
@@ -95,6 +95,16 @@ function createHarness(reject=false){
     {method:'game.command',payload:{action:'castById',value:42}},
     'Duplicate card copies must cast by their exact Forge ID');
   assert.equal(h.requests[1].method,'game.snapshot');
+  const mulligan=createHarness();
+  mulligan.win.app.game.phase='mulligan';
+  mulligan.win.ctForgePriority={isBottoming:true,refresh:()=>{}};
+  const tapped=mulligan.tap('hand');
+  await Promise.resolve();
+  assert(tapped.stopped,'Mulligan selection must suppress the preview');
+  assert.equal(mulligan.overlay().dataset.open,'false');
+  assert.deepEqual(JSON.parse(JSON.stringify(mulligan.requests[0])),
+    {method:'game.command',payload:{action:'cardId',value:42}},
+    'Mulligan card choice must use Forge selectCard, not castById');
   const cancelled=createHarness();
   cancelled.tap('hand');
   cancelled.buttons().cancel.onclick();
@@ -123,5 +133,5 @@ function createHarness(reject=false){
     'Cast acknowledgements should be visible to the player');
   assert(source.includes('Forge checks timing, mana, targets'));
 
-  console.log('PASS: centred preview, full text, cancel, duplicate IDs, commander and failed cast');
+  console.log('PASS: mulligan selection, cast preview, cancel, duplicate IDs, commander and errors');
 })().catch(error=>{console.error(error);process.exitCode=1;});
