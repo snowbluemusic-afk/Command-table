@@ -71,7 +71,12 @@ function createHarness(reject=false){
     for(const fn of events.get('click')||[])fn(event);
     return event;
   }
-  const hand={getAttribute:key=>key==='data-drag-index'?'1':null};
+  // v0.19 intentionally removes drag-to-cast attributes. A hand card must
+  // still select its correct copy from the slot position in the DOM.
+  const slot={parentElement:null};
+  slot.parentElement={children:[{},slot]};
+  const hand={getAttribute:key=>null,closest:selector=>
+    selector.includes('.ct10-hand-slot')?slot:null};
   const commander={getAttribute:()=>null};
   return {tap,buttons,overlay,requests,status,win};
 }
