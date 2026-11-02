@@ -1,7 +1,7 @@
 name: Command Table Android integration build
 on:
   push:
-    branches: [main, command-table-native-ui-only]
+    branches: [main, command-table-native-ui-only, 'feature/**', 'fix/**']
     paths:
       - 'android/**'
       - 'forge-integration/**'
@@ -9,7 +9,7 @@ on:
       - 'ci/**'
       - '.github/workflows/command-table-android.yml'
   pull_request:
-    branches: [main, fix-commander-cast-combat-guidance-v0150]
+    branches: [main, fix-commander-cast-combat-guidance-v0150, feature/arena-combat-casting-v0160]
     paths:
       - 'android/**'
       - 'forge-integration/**'
