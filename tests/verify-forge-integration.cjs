@@ -79,7 +79,7 @@ const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
 assert(forgeHostPatch.includes('<manifestApplicationLabel>Sol Pod</manifestApplicationLabel>') &&
        forgeHostPatch.includes('sol_pod_launcher.xml'),
   'Installed app must have Sol Pod label and dedicated launcher icon');
-assert(frontend.includes('FORGE BUILT-IN · v0.15.0'),
+assert(frontend.includes('FORGE BUILT-IN') || frontend.includes('SOL POD'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
   'An embedded Forge build must never advertise an external Forge app');

@@ -1496,6 +1496,147 @@ assert 'window.solPodBattlefield' in pod_style
 assert source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+pod_style+'\n</script></body>')
 
+
+# v0.28: readable symmetrical boards, protected deck deletion, immersive inspection.
+import re
+stage_prefix='<div class="ct-stage ct10-stage sol-battlefield '
+assert source.count(stage_prefix)==1
+source=source.replace(stage_prefix,stage_prefix+chr(36)+'{app.solRosterOpen?"sol-roster-expanded":""} sol-ai-'+chr(36)+'{Math.max(1,focus)} ')
+assert source.count('<span class="ct10-phase-badge">')==1
+source,n=re.subn(r'<span class="ct10-phase-badge">.*?</span>','',source,count=1)
+assert n==1
+focus_title='<div class="ct10-focused-opponent">'+chr(36)+'{immersiveOppBadge(enemy,focus)}</div>'
+assert source.count(focus_title)==1
+phase='<div class="sol-turn-detail">'+chr(36)+'{esc(active.name)} · '+chr(36)+'{esc(g.phase==="main1"?"Main phase":g.phase==="main2"?"Second main":g.phase.replace(/_/g," "))} · T'+chr(36)+'{g.turn}</div>'
+source=source.replace(focus_title,
+ '<div class="ct10-focused-opponent">'+chr(36)+'{immersiveOppBadge(enemy,focus)}'+phase+'</div>')
+cycle_start='  '+chr(36)+'{!overview&&opponents.length>1?'
+cycle_end='</div>'+chr(96)+':'+chr(39)*2+'}'
+idx=source.find(cycle_start)
+assert idx>=0,'Carousel marker missing'
+end=source.find(cycle_end,idx)
+assert end>=idx,'Carousel end missing'
+source=source[:idx]+source[end+len(cycle_end):]
+roster_start="'<nav class=\"sol-roster\" aria-label=\"Pod players\">'"
+assert source.count(roster_start)==1
+source=source.replace(roster_start,
+  """'<nav class="sol-roster" aria-label="Pod players">'+
+   '<button class="sol-roster-toggle" type="button" data-action="toggleSolRoster" aria-expanded="'+
+   (!!app.solRosterOpen)+'">'+(app.solRosterOpen?'▣ Hide players':'☷ Players · '+g.players.length+' ▾')+'</button>'""")
+act=" case 'toggleHandZoom':app.handZoom=!app.handZoom;render();break;"
+assert source.count(act)==1
+source=source.replace(act," case 'toggleSolRoster':app.solRosterOpen=!app.solRosterOpen;render();break;\n"+
+ " case 'toggleHandZoom':app.handZoom=!app.handZoom;app.modal='';render();break;")
+guard_marker="'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame','toggleAutoMana'"
+assert source.count(guard_marker)==1
+source=source.replace(guard_marker,guard_marker+",'toggleSolRoster'")
+old_inspection="app.inspectOwner=owner;app.selectedCard=perm.name;\n   if(!matchMedia('(orientation:landscape)').matches)app.modal='inspect';"
+assert source.count(old_inspection)==1
+source=source.replace(old_inspection,
+ "app.inspectOwner=owner;app.selectedCard=perm.name;app.sideInspect=null;\n   app.modal='inspect';")
+deck_wrap=r"""
+function solDeckLibraryTile(d){
+ return '<div class="sol-deck-tile-wrap">'+deckCard(d)+
+ (d.prebuilt?'':'<button class="sol-deck-tile-delete" type="button" data-action="deleteDeckFromLibrary" data-value="'+
+ esc(d.id)+'" aria-label="Delete '+esc(d.name)+'">Delete</button>')+'</div>';
+}
+"""
+assert source.count('function decksView(){')==1
+source=source.replace('function decksView(){',deck_wrap+'\nfunction decksView(){')
+old_grid='<div class="deck-grid ct-deck-library-grid">'+chr(36)+'{ctSortedDecks(ctShowStarterDecks()).map(deckCard).join('+chr(39)+chr(39)+')}</div>'
+assert source.count(old_grid)==1
+source=source.replace(old_grid,
+ '<div class="deck-grid ct-deck-library-grid">'+chr(36)+'{ctSortedDecks(ctShowStarterDecks()).map(solDeckLibraryTile).join('+chr(39)+chr(39)+')}</div>')
+old_button='<button class="danger-btn" data-action="deleteDeck">Delete</button>'
+assert source.count(old_button)==1
+source=source.replace(old_button,
+ chr(36)+'{!d.prebuilt?'+chr(96)+'<button class="danger-btn" data-action="deleteDeck">Delete deck</button>'+chr(96)+':""}')
+old_delete=" case 'deleteDeck':{if(!window.confirm('Delete this deck from the device?'))break;app.decks=app.decks.filter(x=>x.id!==app.editing);app.matchDeck=app.decks[0]?.id;persist();setView('decks');break;}"
+assert source.count(old_delete)==1
+source=source.replace(old_delete,
+ """ case 'deleteDeckFromLibrary':app.pendingDeleteDeckId=v;app.modal='confirmDeleteDeck';render();break;
+ case 'deleteDeck':app.pendingDeleteDeckId=app.editing;app.modal='confirmDeleteDeck';render();break;
+ case 'cancelDeleteDeck':app.pendingDeleteDeckId=null;app.modal='';render();break;
+ case 'confirmDeleteDeck':{
+  const target=app.decks.find(x=>x.id===app.pendingDeleteDeckId);
+  if(!target||target.prebuilt){app.pendingDeleteDeckId=null;app.modal='';announce('Preinstalled decks are protected.');break;}
+  app.decks=app.decks.filter(x=>x.id!==target.id);
+  if(app.matchDeck===target.id)app.matchDeck=app.decks[0]?.id||null;
+  if(app.editing===target.id)app.editing=null;
+  app.pendingDeleteDeckId=null;app.modal='';persist();setView('decks');
+  announce('Deleted '+target.name);break;
+ }""")
+modal_anchor=" if(app.modal==='restoreBackup'){"
+assert source.count(modal_anchor)==1
+source=source.replace(modal_anchor,
+ """ if(app.modal==='confirmDeleteDeck'){
+  const target=app.decks.find(d=>d.id===app.pendingDeleteDeckId);
+  inside='<div class="sol-delete-confirm"><h2>Delete imported or custom deck?</h2><p>Delete '+
+    '<strong>'+esc(target?.name||'this deck')+'</strong> from this device? This cannot be undone. '+
+    'Other decks and your Forge card library will not be changed.</p>'+
+    '<div class="sol-delete-actions"><button class="secondary" data-action="cancelDeleteDeck">Cancel</button>'+
+    '<button class="danger-btn" data-action="confirmDeleteDeck" '+(!target||target.prebuilt?'disabled':'')+
+    '>Delete deck</button></div></div>';
+ }
+"""+modal_anchor)
+v28=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-ui-v028.js').read_text()
+assert 'window.solPodUi28' in v28
+assert source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+v28+'\n</script></body>')
+
+
+# Dense battlefields can be inspected at readable size without distorting
+# tap/drag gestures on the main Forge battlefield. Both sides work identically.
+label_start="'<div class=\"sol-zone-label\"><span>'+icons[type]"
+label_end="' <small>('+perms.length+')</small></strong></div>'+immersiveLane(p,idx,type)"
+assert source.count(label_start)==1 and source.count(label_end)==1
+source=source.replace(label_start,
+ """'<button type="button" class="sol-zone-label" data-action="zoomBoardRow" data-value="'+
+ idx+':'+type+'" aria-label="Enlarge '+labels[type]+'"><span>'+icons[type]""")
+source=source.replace(label_end,
+ "' <small>('+perms.length+')</small></strong></button>'+immersiveLane(p,idx,type)")
+guard_anchor="'toggleSolRoster'"
+assert source.count(guard_anchor)>=1
+# Only game action guard, not the stage or button, needs this action.
+allow_line="'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame','toggleAutoMana','toggleSolRoster'"
+assert source.count(allow_line)==1
+source=source.replace(allow_line,allow_line+",'zoomBoardRow'")
+game_actions=" case 'toggleSolRoster':app.solRosterOpen=!app.solRosterOpen;render();break;"
+assert source.count(game_actions)==1
+source=source.replace(game_actions,
+ """ case 'zoomBoardRow':{
+  const [seat,kind]=String(v||'').split(':');
+  const idx=Number(seat);
+  if(!Number.isInteger(idx)||idx<0||idx>=(app.game?.players?.length||0))break;
+  if(!['lands','support','creatures'].includes(kind))break;
+  app.solZoomRow={seat:idx,kind};app.modal='solBoardZoom';render();break;
+ }
+"""+game_actions)
+modal_anchor=" if(app.modal==='confirmDeleteDeck'){"
+assert source.count(modal_anchor)==1
+source=source.replace(modal_anchor,
+ """ if(app.modal==='solBoardZoom'){
+  const info=app.solZoomRow,seat=info?.seat,kind=info?.kind;
+  const owner=app.game?.players?.[seat];
+  const filtered=(owner?.battlefield||[]).filter(x=>{
+   const c=card(x.name),t=String(c.type||'');
+   const creature=x.creature===undefined?isCreature(c):x.creature;
+   const land=x.land===undefined?/\\bLand\\b/i.test(t):x.land;
+   return kind==='creatures'?creature:kind==='lands'?land:!creature&&!land;
+  });
+  inside='<div class="sol-board-zoom"><h2>'+esc(seat===0?'Your battlefield':owner?.name||'Opponent')+
+   ' · '+esc(kind==='support'?'Artifacts & enchantments':kind)+'</h2>'+
+   '<p>Tap any permanent for its full card details. Swipe to see more cards.</p>'+
+   '<div class="sol-board-zoom-cards">'+(filtered.length?filtered.map(x=>{
+    const c=card(x.name);
+    return '<button data-action="inspectBoardPermanent" data-value="'+seat+':'+esc(x.uid)+'">'+
+      '<img data-art-name="'+esc(c.name)+'" src="'+esc(artUrl(c))+
+      '" alt="'+esc(c.name)+'" onerror="this.style.display=\\'none\\'">'+
+      '<strong>'+esc(c.name)+'</strong></button>';
+   }).join(''):'<p>No permanents in this row.</p>')+'</div></div>';
+ }
+"""+modal_anchor)
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
