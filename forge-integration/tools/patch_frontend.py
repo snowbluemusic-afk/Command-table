@@ -347,7 +347,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "FORGE BUILT-IN · v0.18.0")
+                      "FORGE BUILT-IN · v0.19.0")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -401,7 +401,7 @@ assert source.count(menu_btn)>=1
 source=source.replace(menu_btn,
     '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-    "FORGE BUILT-IN · v0.18.0")
+    "FORGE BUILT-IN · v0.19.0")
 pod_css = """
 <style id="ct-forge-game-ux">
 .ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
@@ -552,6 +552,7 @@ window.render = render;
 window.applyAuthoritativeGame = applyAuthoritativeGame;
 window.announce = announce;
 window.CommandTableAction = action;
+window.ctCardArtUrl = name => artUrl(card(name));
 """
 assert source.count("window.CommandTableEngineStatus = () =>")==1
 source=source.replace("window.CommandTableEngineStatus = () =>",
@@ -578,6 +579,10 @@ for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js'):
     feature_js=(Path(__file__).resolve().parent.parent / 'web' / feature).read_text()
     assert 'window.ct' in feature_js, 'Experience module export missing: '+feature
     source=source.replace('</body></html>', '<script>\n'+feature_js+'\n</script></body></html>')
+# v0.19: The centered native cast sheet owns hand and commander cast clicks.
+cast_preview_js=(Path(__file__).resolve().parent.parent / 'web' / 'forge-simple-cast.js').read_text()
+assert 'window.ctSimpleCast' in cast_preview_js
+source=source.replace('</body></html>', '<script>\n'+cast_preview_js+'\n</script></body></html>')
 # The sideload app has its full Forge catalog locally; no server dependency.
 source=source.replace('Online discoveries can be saved to decks but are not playable until their rules are implemented.',
                       'Search the complete Forge card database included with Command Table. No extra download required.')
@@ -1140,15 +1145,11 @@ source=source.replace('</head>',"""<style id="ct-legal-defender-v0160">
  cursor:pointer}
 </style></head>""")
 
-# v0.17 fast casting: when Forge exposes a hand card in its Selection,
-# a single tap plays it. Hand zoom remains available through Open Hand.
-# This never relies on approximate JS mana/legality calculations.
+# v0.19: restoring predictable tap-to-preview. All hand cards keep
+# the original selectHand action as a fallback. forge-simple-cast.js
+# intercepts the click to open the centered Cast/Cancel view.
 quick_hand="smallCard(c,{action:'selectHand',value:String(i),dragIndex:"
 assert source.count(quick_hand)==1, 'Hand card renderer changed'
-source=source.replace(quick_hand,
-  """smallCard(c,{action:app.nativeMatch && window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?'castById':'selectHand',
-   value:app.nativeMatch && window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?
-     String(me.handForgeIds[i]):String(i),dragIndex:""")
 # The legacy training-card database can return a stale 'Not simulated'
 # message while the embedded Forge engine is already playing that card.
 # Avoid claiming a fully simulated Forge card is deck-building-only.
@@ -1157,22 +1158,9 @@ assert source.count(unknown_inspect)==1, 'Card inspector text renderer changed'
 source=source.replace(unknown_inspect,
   "esc(app.nativeMatch&&!c.implemented?'Card text is loading; Forge handles the rules.':(c.text||c.type||''))")
 
-# v0.18: one-tap casting when Forge explicitly offers a hand card, or
-# when timing and conservative visible mana permit an attempt. Forge still
-# rejects illegal casts and handles all actual mana costs and targets.
-instant="'castById':'selectHand'"
-assert source.count(instant)==1, 'Hand tap action mapping changed'
-source=source.replace(
-  "window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?'castById':'selectHand'",
-  "(window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])||"+
-  "(ctNativeTiming(c).allowed&&ctNativeAffordable(c,me,g)))?'castById':'selectHand'")
-assert source.count("window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?\n     String(me.handForgeIds[i]):String(i)")==1, 'Hand index/value render changed'
-source=source.replace(
-  "window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?\n     String(me.handForgeIds[i]):String(i)",
-  "(window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])||"+
-  "(ctNativeTiming(c).allowed&&ctNativeAffordable(c,me,g)))?\n     String(me.handForgeIds[i]):String(i)")
-# Native request flow already swallows click-through after accepted cast.
-# The hold-to-inspect gesture explicitly suppresses its synthetic click.
+# v0.19: no one-tap cast. Card taps always open the centered preview;
+# only its Cast button submits an authoritative Forge card ID.
+assert source.count(quick_hand)==1
 ux_css="""<style id="ct-arena-flow-v018">
 .ct-native-stack.ct-stack-compact{right:2%!important;top:18%!important;
  width:clamp(140px,20vw,265px)!important;max-height:40dvh!important;
