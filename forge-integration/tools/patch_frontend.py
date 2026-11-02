@@ -1656,6 +1656,31 @@ assert source.count(announce_marker)==1
 source=source.replace(announce_marker,
  "function announce(message){if(app.nativeMatch&&window.solPodNotice){window.solPodNotice(message,/error|failed|cannot|rejected/i.test(String(message))?'error':'info');return;}app.notice=message;render();}")
 
+
+# v0.30: abandon guessed "playable" mana highlights; only a current Forge
+# selection is authoritative. Lands with non-free abilities (Skycloud Expanse)
+# must NEVER be counted as free colored sources by the UI.
+old_glow="available:app.nativeMatch?(!!window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])||ctNativeAffordable(c,me,g)):!g.autoPilot&&canCast(me,c)"
+assert source.count(old_glow)==1, 'v0.29 highlighted-card logic changed'
+source=source.replace(old_glow,
+  "available:app.nativeMatch?!!window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i]):!g.autoPilot&&canCast(me,c)")
+# Keep a casting affordance but explicitly defer legal costs, abilities and
+# targets to Forge. Do not imply that the app has already verified mana.
+cast_heading='<button class="primary" data-action="playInspected">Cast / play ↗</button>'
+assert source.count(cast_heading)==1
+source=source.replace(cast_heading,
+  '<button class="primary" data-action="playInspected">'+chr(36)+'{app.nativeMatch?"Ask Forge to cast":"Cast / play"} ↗</button>')
+cast_modal='<button class="primary full" data-action="castSelected">'+chr(36)+"{isLand(c)?'Play land':cmd?'Cast commander':'Cast spell'}</button>"
+assert source.count(cast_modal)==1
+source=source.replace(cast_modal,
+ '<button class="primary full" data-action="castSelected">'+chr(36)+'{app.nativeMatch?"Ask Forge to cast":isLand(c)?"Play land":cmd?"Cast commander":"Cast spell"}</button>')
+# Render Forge's actual decision badges and the Sol Pod information hub
+# after all previous layered styles and event adapters.
+hub=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-hub-v030.js').read_text()
+assert 'window.solPodHub' in hub
+assert source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+hub+'\n</script></body>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
