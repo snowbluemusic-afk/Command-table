@@ -54,7 +54,7 @@ function ctHydrateForgeState(raw) {
   const phase=phaseValue.includes('MAIN1')?'main1':phaseValue.includes('MAIN2')?'main2':
     phaseValue.includes('COMBAT')?'combat':phaseValue.includes('END')?'end':phaseValue.toLowerCase();
   return {
-    native:true, players:ps, active, turn:raw.turn||1, phase,
+    native:true, players:ps, active, turn:raw.turn||1, phase, phaseDetail:String(raw.phase||''),
     stack:(Array.isArray(raw.stack)?raw.stack:[]).map((item,i)=>
       typeof item==='string'?{id:i,name:item}:item),
     combat:Array.isArray(raw.combat)?raw.combat:[],
@@ -81,7 +81,7 @@ source=source.replace("app.game={...state,native:true};app.savedGame=null;",
                       "app.game=ctHydrateForgeState(state);app.savedGame=null;")
 # Native matches MUST NOT run their own rules; route card taps and phase actions to Forge.
 source=source.replace(" 'toggleAutoPilot','pauseAutoPilot'\n]);",
-                      " 'permanent','cancelCastTarget','concede','quitGame','targetPlayer','selectStack'\n]);")
+                      " 'permanent','cardId','castCommander','castById','cancelCastTarget','concede','quitGame','targetPlayer','selectStack'\n]);")
 # Leave a native match by conceding in Forge before discarding its UI state.
 source=source.replace(
  ".then(result=>{if(result?.game){applyAuthoritativeGame(result.game);render();}})",
@@ -90,7 +90,7 @@ source=source.replace(
 # Safety check: never allow a native match to fall through to the JS simulator.
 source=source.replace(" const g=app.game,p=g?.players[0],active=g&&turnPlayer();switch(act){",
                       """  if(app.nativeMatch && app.view==='game' &&
-      !new Set(['focusPlayer','togglePod','menuGame','inspect','inspectFull','inspectCommander','inspectPlayer','showHandCard','openHand','previousHand','nextHand','selectHand','closeModal','cycleOpponent','viewStack','viewHistory','helpCurrent','back','nativePrompts','quitGame','clearSideInspect']).has(act)) {
+      !new Set(['focusPlayer','togglePod','menuGame','inspect','inspectFull','inspectCommander','inspectPlayer','showHandCard','openHand','previousHand','nextHand','selectHand','closeModal','cycleOpponent','viewStack','viewHistory','helpCurrent','back','nativePrompts','quitGame','clearSideInspect','dismiss','rotateMatch','togglePod','toggleHandZoom','inspectBoardPermanent','toggleZones']).has(act)) {
     announce('This action must be handled by Forge: '+act); return;
   }
  const g=app.game,p=g?.players[0],active=g&&turnPlayer();switch(act){""")
@@ -107,10 +107,14 @@ function ctNativeActionValue(act, v) {
     const name=act==='playInspected'?app.sideInspect:app.inspect;
     const me=app.game?.players?.[0];
     if(!name||!me)return -2;
-    const idx=me.hand.findIndex(n=>n.toLowerCase()===String(name).toLowerCase());
-    if(idx>=0)return idx;
-    if(String(name).toLowerCase()===String(me.commander).toLowerCase())return -1;
-    return -2;
+    // Forge's stable zone IDs survive hand reordering and never confuse
+    // command-zone cards with out-of-range hand indices.
+    const handIndex=me.hand.findIndex(n=>n.toLowerCase()===String(name).toLowerCase());
+    if(handIndex>=0)return me.handForgeIds?.[handIndex]??null;
+    const commandCard=me.commandZone?.find(c=>c.commander||
+      String(c.name).toLowerCase()===String(name).toLowerCase());
+    if(commandCard)return commandCard.id;
+    return null;
   }
   if(act==='chooseCastTarget' && typeof v==='string') {
     const parts=v.split(':');
@@ -125,7 +129,7 @@ assert source.count("function action(act,v){")==1
 source=source.replace("function action(act,v){",action_value+"\nfunction action(act,v){")
 assert source.count("CommandTableNative.request('game.command',{action:act,value:v??null})")==1
 source=source.replace("CommandTableNative.request('game.command',{action:act,value:v??null})",
-                      "CommandTableNative.request('game.command',{action:act,value:ctNativeActionValue(act,v)})")
+                      "CommandTableNative.request('game.command',{action:(act==='castSelected'||act==='playInspected')?'castById':act,value:ctNativeActionValue(act,v)})")
 
 assert 'if(app.nativeMatch && app.view' in source, 'Simulator fallback guard missing'
 assert 'ctNativeActionValue(act,v)' in source, 'Native action payload translation missing'
@@ -147,88 +151,117 @@ assert source.count(".catch(error=>announce(`Forge could not start this game: ${
 source=source.replace(".catch(error=>announce(`Forge could not start this game: ${error.message}`));",
                       ".catch(error=>{app.nativeMatch=false;announce(`Forge could not start this game: ${error.message}`);});")
 
-# Render Forge's live priority prompt over the existing Command Table board.
-# Buttons call Forge IGameController methods; they do not advance the JS simulator.
-prompt_script = r"""
-<script>
-(function() {
-  let prompt = {};
-  const oldReceive = window.CommandTableNativeReply;
-  const panel = document.createElement('section');
-  panel.id = 'command-table-forge-choice';
-  panel.setAttribute('aria-live', 'polite');
-  Object.assign(panel.style, {
-    position:'fixed', bottom:'calc(env(safe-area-inset-bottom) + 46px)',
-    left:'8px', right:'8px', maxWidth:'700px', margin:'auto', zIndex:'9999',
-    background:'#14252dee', border:'1px solid #c8a77a', borderRadius:'14px',
-    padding:'12px', boxShadow:'0 10px 40px #000c', display:'none',
-    fontFamily:'system-ui', color:'#f5e8cf'
-  });
-  const message=document.createElement('div');
-  Object.assign(message.style,{fontSize:'13px',lineHeight:'1.4',marginBottom:'8px',maxHeight:'66px',overflow:'auto'});
-  panel.append(message);
-  const row=document.createElement('div');
-  Object.assign(row.style,{display:'flex',gap:'8px'});
-  panel.append(row);
-  const playersRow=document.createElement('div');
-  Object.assign(playersRow.style,{display:'none',gap:'6px',marginTop:'8px',flexWrap:'wrap'});
-  panel.append(playersRow);
-  const confirm=document.createElement('button'), cancel=document.createElement('button');
-  const advanced=document.createElement('button');
-  for(const b of [confirm,cancel,advanced]) {
-    Object.assign(b.style,{borderRadius:'9px',minHeight:'42px',padding:'8px 12px',
-      border:'1px solid #99836c',background:'#263d42',color:'#f8e5c4',fontWeight:'700',flex:'1'});
-    row.append(b);
-  }
-  confirm.textContent='Continue';cancel.textContent='Cancel';advanced.textContent='More choices';
-  advanced.onclick=()=>window.AndroidBridge?.showNativePrompts?.();
-  async function act(name,value) {
-    try { await CommandTableNative.request('game.command',{action:name,value}); }
-    catch(e){ if(typeof announce==='function') announce('Forge: '+e.message); }
-  }
-  confirm.onclick=()=>act('resolve');
-  cancel.onclick=()=>act('cancelCastTarget');
-  function update() {
-    let playing=false;
-    try{playing=!!app.nativeMatch && app.view==='game';}catch(e){}
-    const visible=playing && (prompt.message || prompt.label1 || prompt.label2);
-    panel.style.display=visible?'block':'none';
-    message.textContent=prompt.message || 'Choose how to respond';
-    confirm.textContent=prompt.label1||'Continue';
-    cancel.textContent=prompt.label2||'Cancel';
-    confirm.disabled=prompt.enable1===false;
-    cancel.disabled=prompt.enable2===false;
-    confirm.style.opacity=confirm.disabled?'.4':'1';
-    cancel.style.opacity=cancel.disabled?'.4':'1';
-    const asksForPlayer=/choose.*(player|opponent)|target.*(player|opponent)|attack.*(player|opponent)|defending player/i.test(prompt.message||'');
-    playersRow.style.display=visible&&asksForPlayer?'flex':'none';
-    playersRow.replaceChildren();
-    if(asksForPlayer) for(const p of window.ctForgePlayers||[]) {
-      const b=document.createElement('button');
-      b.textContent='Target '+p.name;
-      Object.assign(b.style,{padding:'8px',border:'1px solid #b9a077',borderRadius:'8px',
-        background:'#34454b',color:'#fff',flex:'1',fontSize:'12px'});
-      b.onclick=()=>act('targetPlayer',p.id);
-      playersRow.append(b);
+# Repair ONLY bundled starter lists before any Forge match begins.
+# Forge evaluates oracle-text mana symbols and Commander deck legality.
+# Imported/user-edited decks are never automatically repaired.
+repair_script = r"""
+async function ctRepairStarterDecks() {
+  const starters=app.decks.filter(d=>d.prebuilt===true && d.cards?.length===99);
+  let fixes=0;
+  const failed=new Map();
+  for(const d of starters) {
+    try {
+      const result=await CommandTableNative.request('deck.repairPrebuilt',{
+        deck:{name:d.name,commander:d.commander,main:d.cards}
+      });
+      if(result?.valid!==true || !Array.isArray(result.main)||result.main.length!==99) {
+        failed.set(d.id,result?.reason||'Forge could not validate the starter');
+        continue;
+      }
+      if(Array.isArray(result.replacements)&&result.replacements.length) {
+        d.cards=result.main;
+        fixes+=result.replacements.length;
+        persist();
+      }
+    } catch(error) {
+      failed.set(d.id,error?.message||String(error));
     }
   }
-  document.body.append(panel);
-  window.CommandTableNativeReply=function(value) {
-    let event;
-    try {event=typeof value==='string'?JSON.parse(value):value;}catch(e){}
-    if(event && event.type==='game.prompt') {
-      Object.assign(prompt,event.payload||{});
-      update();return;
-    }
-    return oldReceive(value);
-  };
-  setInterval(update,500);
-})();
-</script>
+  const selected=app.decks.find(d=>d.id===(app.matchDeck||app.decks[0]?.id));
+  if(selected?.prebuilt && failed.has(selected.id)) {
+    throw new Error(selected.name+' is not legal: '+failed.get(selected.id));
+  }
+  if(fixes) {
+    app.notice='Forge repaired '+fixes+' off-colour cards in the included starter decks.';
+    persist();
+    render();
+  }
+  return app.decks.filter(d=>!failed.has(d.id)).map(deck=>({
+    name:deck.name,commander:deck.commander,main:deck.cards
+  }));
+}
 """
-assert source.endswith("</body></html>"), "Expected complete Command Table document"
-source=source.replace("</body></html>",prompt_script+"</body></html>")
+assert source.count("function startGame(){")==1, "Match start location changed"
+source=source.replace("function startGame(){",repair_script+"\nfunction startGame(){")
+assert source.count("   const allDecks = app.decks.map(deck=>({name:deck.name,commander:deck.commander,main:deck.cards}));")==1
+source=source.replace("   const allDecks = app.decks.map(deck=>({name:deck.name,commander:deck.commander,main:deck.cards}));",
+                      "   // Repair starter decks using Forge before creating opponent deck payloads.")
+assert source.count("   void CommandTableNative.request('match.start',{")==1
+source=source.replace("   void CommandTableNative.request('match.start',{",
+                      "   void ctRepairStarterDecks().then(allDecks => CommandTableNative.request('match.start',{")
+assert source.count("   }).then(payload=>{")==1
+source=source.replace("   }).then(payload=>{","   })).then(payload=>{")
+# Enter the actual Command Table board as soon as an authoritative state
+# arrives. Forge can deliver a game.state before it acknowledges match.start.
+state_listener = "try {applyAuthoritativeGame(message); if(app.view==='game') render();}"
+assert source.count(state_listener)==1, "Native match state listener changed"
+source=source.replace(state_listener,
+    """try {
+     applyAuthoritativeGame(message);
+     app.view='game';app.modal='';app.notice='';
+     render();
+   }""")
 
+# Forge's first GameView callback can also be lost while native dialogs or
+# initial asset activities are transitioning. Poll the authoritative snapshot
+# for a bounded period instead of remaining forever on the home screen.
+watch_script = r"""
+async function ctWatchNativeMatchStart() {
+  for(let attempt=0;attempt<40;attempt++) {
+    await new Promise(done=>setTimeout(done,1000));
+    if(!app.nativeMatch || app.view==='game')return;
+    try {
+      const result=await CommandTableNative.request('game.snapshot');
+      if(result?.game?.players?.length>=2) {
+        applyAuthoritativeGame(result.game);
+        app.view='game';app.modal='';app.notice='';render();
+        return;
+      }
+    }catch(error){ /* Forge may still be preparing game state */ }
+  }
+  if(app.nativeMatch && app.view!=='game') {
+    app.nativeMatch=false;
+    announce('Forge match start timed out before a playable board was created. No deck data was changed.');
+  }
+}
+"""
+assert source.count("function startGame(){")==1
+source=source.replace("function startGame(){",watch_script+"\nfunction startGame(){")
+start_request = "void ctRepairStarterDecks().then(allDecks => CommandTableNative.request('match.start',{"
+assert source.count(start_request)==1,"Starter match request changed"
+source=source.replace(start_request,
+    "void ctRepairStarterDecks().then(allDecks => {void ctWatchNativeMatchStart(); return CommandTableNative.request('match.start',{")
+end_request = "   })).then(payload=>{"
+assert source.count(end_request)==1, "Starter match acknowledgment changed"
+source=source.replace(end_request,"   });}).then(payload=>{")
+
+# Forge already includes tokens in the GameView. Keep those distinct permanents
+# in Command Table instead of treating them as missing deck cards.
+assert source.count("uid:String(c.id), forgeId:c.id, name:c.name, tapped:!!c.tapped,")==1
+source=source.replace("uid:String(c.id), forgeId:c.id, name:c.name, tapped:!!c.tapped,",
+                      "uid:String(c.id), forgeId:c.id, name:c.name, token:!!c.token, tapped:!!c.tapped,")
+assert source.count("return smallCard(c,{tapped:x.tapped,counters:x.counters,bonus,selected:")==1
+source=source.replace("return smallCard(c,{tapped:x.tapped,counters:x.counters,bonus,selected:",
+                      "return smallCard(c,{tapped:x.tapped,token:!!x.token,counters:x.counters,bonus,selected:")
+assert source.count("const classes=['game-card',kind,opts.tapped?'tapped':'',")==1
+source=source.replace("const classes=['game-card',kind,opts.tapped?'tapped':'',",
+                      "const classes=['game-card',kind,opts.tapped?'tapped':'',opts.token?'ct-token-permanent':'',")
+token_css='<style>.ct-token-permanent{position:relative}.ct-token-permanent:after{content:"TOKEN";position:absolute;top:3px;right:3px;background:#18382d;color:#a8edcf;border:1px solid #589b7a;border-radius:5px;padding:1px 4px;font:700 9px system-ui;pointer-events:none}</style>'
+assert source.count("</head>")==1
+source=source.replace("</head>",token_css+"</head>")
+
+# Forge's priority buttons have ONE owner: forge-selection.js.
+# Do not inject a second fixed overlay for the same game.prompt events.
 
 # Native taps on any battlefield permanent must go to Forge for legal
 # targeting/blocker choices. The training simulator keeps its original actions.
@@ -248,7 +281,7 @@ gates = [
   ("!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||cmd)&&canCast(p,c,cmd)",
    "!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||cmd)&&(app.nativeMatch||canCast(p,c,cmd))"),
   ("available:!g.autoPilot&&canCast(me,c)",
-   "available:!g.autoPilot&&(app.nativeMatch||canCast(me,c))"),
+   "available:!g.autoPilot&&!app.nativeMatch&&canCast(me,c)"),
   ("const playable=canCast(p,c),canPlay=playable&&c.implemented&&!app.game?.autoPilot;",
    "const playable=app.nativeMatch||canCast(p,c),canPlay=app.nativeMatch?true:playable&&c.implemented&&!app.game?.autoPilot;"),
   ("can=g&&p&&(inHand||cmd)&&canCast(p,c,cmd)",
@@ -314,7 +347,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "COMMANDER · FORGE RULES")
+                      "FORGE BUILT-IN · v0.15.0")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -334,6 +367,182 @@ source=source.replace('data-action="setPlayMode" data-value="watch"',
   'data-action="setPlayMode" data-value="watch" ${CommandTableNative.ready?\'disabled title="Requires a separate AI human controller"\':\'\'}')
 source=source.replace(" if (CommandTableNative.ready) {\\n   // Forge must validate",
   " if (CommandTableNative.ready) {\\n   app.autoPilot=false;\\n   // Forge must validate")
+
+# Native Forge informational messages must appear in Command Table, never
+# trigger Forge's modal message box or replace the board.
+notice_receive = "    if (data.type === 'game.state') {for (const fn of onState) fn(data.payload);return;}"
+assert source.count(notice_receive) == 1, "Native reply protocol changed"
+source=source.replace(notice_receive,
+    notice_receive + "\n    if (data.type === 'game.notice') {app.notice=String(data.payload?.message||'').slice(0,1500);render();return;}")
+# The old escape hatch showed Forge's native screens; keep every action in the
+# Command Table rules UI and direct users to the in-app legal choice panel.
+source=source.replace("case 'nativePrompts': window.AndroidBridge?.showNativePrompts?.();break;",
+    "case 'nativePrompts': announce('Select a legal Forge card or target from the Command Table choice panel.');break;")
+# Never expose a button which silently changes rendering engines.
+source=source.replace("  advanced.onclick=()=>window.AndroidBridge?.showNativePrompts?.();",
+    "  advanced.style.display='none';")
+
+# The training UI shows its own turn buttons; Forge is the sole gameplay
+# controller in real matches. Removing duplicates also frees the hand area.
+assert source.count("function turnControls(g,active,self){")==1
+source=source.replace("function turnControls(g,active,self){",
+    "function turnControls(g,active,self){if(app.nativeMatch)return '';")
+native_entry="if(app.nativeMatch && NATIVE_GAME_COMMANDS.has(act)) {"
+assert source.count(native_entry)==1
+source=source.replace(native_entry,
+    native_entry+"\n   if(['castSelected','playInspected','cardId','quitGame'].includes(act)){app.modal='';app.sideInspect=null;app.inspectOwner=null;app.inspectForgeId=null;render();}")
+assert source.count("⊞ Pod")==1
+source=source.replace("⊞ Pod","▦")
+assert source.count("overview?'Focus':'▦'")==1
+source=source.replace("overview?'Focus':'▦'","overview?'▣':'▦'")
+source=source.replace('aria-label="Pod overview"','aria-label="Toggle pod overview" title="Show all players"')
+menu_btn='<button data-action="menuGame" aria-label="Options">⚙</button>'
+assert source.count(menu_btn)>=1
+source=source.replace(menu_btn,
+    '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
+source=source.replace("TABLETOP ALPHA · 0.11.0",
+    "FORGE BUILT-IN · v0.15.0")
+pod_css = """
+<style id="ct-forge-game-ux">
+.ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
+.ct10-top-tools .ct10-phase-badge{max-width:calc(100% - 180px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ct10-top-tools button{flex:0 0 34px!important;min-width:34px!important;width:34px!important;height:34px!important;font-size:19px!important;line-height:1!important;white-space:nowrap!important}
+.ct10-overview{inset:11% 3% 16% 3%!important;width:auto!important;height:auto!important;overflow-y:auto!important;padding:10px!important;background:#0d2026f3!important}
+.ct10-overview .ct-pod-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:minmax(132px,1fr)!important;gap:9px!important;min-height:0!important}
+.ct10-overview .ct-pod-seat{min-width:0;min-height:125px}
+@media(max-width:370px){.ct10-top-tools .ct10-phase-badge{font-size:9px!important;letter-spacing:0!important;padding:6px!important}}
+@media(orientation:landscape) and (max-height:650px){
+ .ct10-top-tools .ct10-phase-badge{max-width:calc(100% - 190px)}
+ .ct10-overview{inset:12% 3% 12% 3%!important}
+ .ct10-overview .ct-pod-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-auto-rows:minmax(105px,1fr)!important}
+}
+</style>
+"""
+assert source.count("</head>")==1
+source=source.replace("</head>",pod_css+"</head>")
+
+
+# Deck presentation is a view preference, not a change to saved data.
+deck_polish = r"""
+function ctShowStarterDecks(){return storage.getItem('ct_show_starter_decks_v1')!=='false';}
+function ctIsStarter(d){return !!d.prebuilt||String(d.id||'').startsWith('prebuilt-');}
+function ctSortedDecks(showStarters=true){
+ const indexed=app.decks.map((d,i)=>({d,i}));
+ return indexed.filter(x=>showStarters||!ctIsStarter(x.d))
+ .sort((a,b)=>Number(ctIsStarter(a.d))-Number(ctIsStarter(b.d))||a.i-b.i)
+ .map(x=>x.d);
+}
+function ctHomeDeckCards(){return ctSortedDecks(ctShowStarterDecks()).slice(0,12).map(deckCard).join('');}
+"""
+assert source.count("function home(){")==1
+source=source.replace("function home(){",deck_polish+"\nfunction home(){")
+assert source.count("const deckChoices=app.decks.map(d=>")==1
+source=source.replace("const deckChoices=app.decks.map(d=>","const deckChoices=ctSortedDecks().map(d=>")
+old_grid='<div class="deck-grid ct-featured-grid">'+chr(36)+'{FEATURED.map(f=>app.decks.find(d=>d.id===`prebuilt-'+chr(36)+'{f.key}`)).filter(Boolean).map(deckCard).join(\'\')}</div>'
+assert source.count(old_grid)==1, "Featured deck section changed"
+source=source.replace(old_grid,'<div class="deck-grid ct-featured-grid ct-home-decks">'+chr(36)+'{ctHomeDeckCards()}</div>')
+old_title='<button class="text-btn" data-action="decks">All decks →</button></div>'
+assert source.count(old_title)==1
+source=source.replace(old_title,
+ '<div class="ct-deck-heading-actions"><button class="text-btn" data-action="toggleStarterDecks">'+chr(36)+'{ctShowStarterDecks()?"Hide starter decks":"Show starter decks"}</button><button class="text-btn" data-action="decks">All decks →</button></div></div>')
+old_library='<div class="deck-grid">'+chr(36)+'{app.decks.map(deckCard).join(\'\')}</div>'
+assert source.count(old_library)==1
+source=source.replace(old_library,
+ '<div class="ct-deck-filter"><strong>Imported & custom decks first</strong><button class="secondary" data-action="toggleStarterDecks">'+chr(36)+'{ctShowStarterDecks()?"Hide starter decks":"Show starter decks"}</button></div><div class="deck-grid ct-deck-library-grid">'+chr(36)+'{ctSortedDecks(ctShowStarterDecks()).map(deckCard).join(\'\')}</div>')
+assert source.count(" case 'newDeck':")==1
+source=source.replace(" case 'newDeck':",
+ " case 'toggleStarterDecks':storage.setItem('ct_show_starter_decks_v1',String(!ctShowStarterDecks()));render();break;\n case 'newDeck':")
+deck_css="""<style id="ct-forge-decks-polish">
+.ct-home-decks{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))!important;gap:9px!important}
+.ct-home-decks .deck-tile{height:148px!important;min-height:148px!important;border-radius:12px!important}
+.ct-home-decks .ct-deck-type{top:7px;left:7px;padding:3px 5px;font-size:8px}
+.ct-home-decks .ct-deck-info{padding:9px!important}
+.ct-home-decks .ct-deck-info strong{font-size:13px!important}
+.ct-home-decks .ct-deck-info small{font-size:10px!important;margin-top:3px}
+.ct-home-decks .ct-deck-foot{margin-top:5px;padding-top:4px;font-size:8px}
+.ct-deck-heading-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.ct-deck-heading-actions button{min-height:32px}
+.ct-deck-filter{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:7px 0 16px;flex-wrap:wrap}
+.ct-deck-library-grid .deck-tile{height:175px!important;min-height:175px!important}
+@media(max-width:430px){.ct-home-decks{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',deck_css+'</head>')
+
+
+# Expand the opening hand automatically, and allow two-state hand size from
+# the ribbon or empty area of the fan. Card tap remains native card inspection.
+assert source.count('<div class="ct-stage ct10-stage ')==1
+source=source.replace('<div class="ct-stage ct10-stage ',
+ '<div class="ct-stage ct10-stage '+chr(36)+'{app.handZoom?"ct10-hand-zoom":""} '+chr(36)+'{g.phase==="mulligan"?"ct10-hand-mulligan":""} ')
+assert source.count('data-action="openHand">YOUR HAND')==1
+source=source.replace('data-action="openHand">YOUR HAND',
+ 'data-action="toggleHandZoom" aria-label="Expand or collapse hand" aria-pressed="'+chr(36)+'{!!app.handZoom}">YOUR HAND')
+assert source.count('YOUR HAND <b>'+chr(36)+'{me.hand.length}</b> ⤢')==1
+source=source.replace('YOUR HAND <b>'+chr(36)+'{me.hand.length}</b> ⤢',
+ 'YOUR HAND <b>'+chr(36)+'{me.hand.length}</b> '+chr(36)+'{app.handZoom?"−":"⤢"}')
+assert source.count('<div class="ct10-hand-fan">'+chr(36)+'{hand||')==1
+source=source.replace('<div class="ct10-hand-fan">'+chr(36)+'{hand||',
+ '<div class="ct10-hand-fan" data-action="toggleHandZoom">'+chr(36)+'{hand||')
+assert source.count(" case 'openHand':")==1
+source=source.replace(" case 'openHand':",
+ " case 'toggleHandZoom':app.handZoom=!app.handZoom;render();break;\n case 'openHand':")
+hand_css="""<style id="ct-forge-hand-polish">
+.ct10-hand-mulligan .ct10-hand-wrap,.ct10-hand-zoom .ct10-hand-wrap{
+ left:5%!important;width:90%!important;bottom:3%!important;
+ height:clamp(185px,44dvh,355px)!important;z-index:10!important}
+.ct10-hand-mulligan .ct10-hand-ribbon,.ct10-hand-zoom .ct10-hand-ribbon{height:29px!important;font-size:13px!important}
+.ct10-hand-mulligan .ct10-hand-ribbon button,.ct10-hand-zoom .ct10-hand-ribbon button{font-size:13px!important;min-height:29px}
+.ct10-hand-mulligan .ct10-hand-fan,.ct10-hand-zoom .ct10-hand-fan{height:calc(100% - 29px)!important;align-items:flex-end!important}
+.ct10-hand-mulligan .ct10-hand-slot,.ct10-hand-zoom .ct10-hand-slot{margin-right:clamp(-32px,-1.3vw,-10px)!important;transform:rotate(var(--tilt))!important}
+.ct10-hand-mulligan .ct10-hand-slot:hover,.ct10-hand-zoom .ct10-hand-slot:hover,
+.ct10-hand-mulligan .ct10-hand-slot:has(.chosen),.ct10-hand-zoom .ct10-hand-slot:has(.chosen){
+ transform:translateY(-14px) scale(1.06) rotate(0deg)!important}
+.ct10-hand-mulligan .ct10-hand-slot .game-card,.ct10-hand-zoom .ct10-hand-slot .game-card{
+ height:clamp(165px,39dvh,320px)!important;width:clamp(115px,26dvh,225px)!important;
+ max-width:25vw;box-shadow:0 12px 28px #000b}
+.ct10-hand-mulligan .ct10-hand-slot .gc-nameplate strong,.ct10-hand-zoom .ct10-hand-slot .gc-nameplate strong{font-size:clamp(10px,1vw,13px)!important}
+.ct10-hand-wrap .ct10-hand-ribbon button{touch-action:manipulation}
+@media(orientation:portrait){
+ .ct10-hand-mulligan .ct10-hand-wrap,.ct10-hand-zoom .ct10-hand-wrap{bottom:11%!important;height:clamp(180px,30dvh,265px)!important}
+ .ct10-hand-mulligan .ct10-hand-slot .game-card,.ct10-hand-zoom .ct10-hand-slot .game-card{height:clamp(145px,25dvh,230px)!important;width:clamp(85px,17.5vw,145px)!important;max-width:none}
+ .ct10-hand-mulligan .ct10-hand-slot,.ct10-hand-zoom .ct10-hand-slot{margin-right:-23px!important}
+}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',hand_css+'</head>')
+
+
+# Forge owns spell resolution; the browser only renders the authoritative stack.
+stack_old='<button class="ct10-stack" data-action="viewStack">⚡ '+chr(36)+'{esc(g.stack.at(-1).name)} · '+chr(36)+'{g.stack.length} on stack</button>'
+assert source.count(stack_old)==1, "Stack markup changed"
+stack_new='<aside class="ct-native-stack" aria-label="Forge spell stack"><strong>⚡ Stack · '+chr(36)+'{g.stack.length}</strong><ol>'+chr(36)+'{g.stack.slice().reverse().map((spell,i)=>`<li><b>'+chr(36)+'{i===0?"NEXT":i+1}</b><span>'+chr(36)+'{esc(spell.name||"Ability")}</span></li>`).join("")}</ol></aside>'
+source=source.replace(stack_old,stack_new)
+assert source.count("commandZone:cardZone(p.commandZone), priority:!!p.priority")==1
+source=source.replace("commandZone:cardZone(p.commandZone), priority:!!p.priority",
+ "commandZone:cardZone(p.commandZone), tokenCount:Number(p.tokenCount||0), priority:!!p.priority")
+stack_css="""<style id="ct-forge-stack-polish">
+.ct-native-stack{position:absolute;right:2%;top:18%;width:clamp(170px,20vw,270px);max-height:42dvh;overflow:auto;z-index:7;background:#112631ec;border:1px solid #9ed5e9;border-radius:12px;padding:9px;color:#fff4dc;box-shadow:0 7px 25px #000a}
+.ct-native-stack>strong{display:block;font-size:12px;letter-spacing:.7px}
+.ct-native-stack ol{margin:7px 0 0;padding:0;list-style:none;display:grid;gap:5px}
+.ct-native-stack li{display:flex;gap:7px;align-items:flex-start;background:#203d48;border-left:3px solid #a0d8f4;border-radius:6px;padding:7px;font-size:11px;line-height:1.3;overflow-wrap:anywhere}
+.ct-native-stack li b{font-size:9px;color:#e8bd73;flex:none}
+.ct10-scene:has(.ct10-inspect) .ct-native-stack{display:none}
+.ct-forge-legal-target{outline:3px solid #58ddfc!important;outline-offset:2px;box-shadow:0 0 18px #36bafaa8!important}
+@media(orientation:portrait){.ct-native-stack{max-height:30dvh;width:44vw;top:18%}}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',stack_css+'</head>')
+
+
+# Token count is derived from real Forge battlefield objects, NEVER from
+# UI-side guesses about what Krenko should create.
+token_label='strong>'+chr(36)+'{esc(p.commander.split(\',\')[0])}</strong>'
+# The badge has no extra rules: show only if Forge reported at least one token.
+token_label_from='<strong>'+chr(36)+'{esc(p.commander.split(\',\')[0])}</strong>'
+token_label_to=token_label_from+'<small class="ct-token-count">'+chr(36)+'{p.tokenCount>0?" · "+p.tokenCount+" token"+(p.tokenCount===1?"":"s"):""}</small>'
+assert source.count(token_label_from)==1
+source=source.replace(token_label_from,token_label_to)
 
 # All add-on scripts must use the SAME native match session and state.
 # The recovered core is wrapped in an IIFE, so expose a controlled bridge.
@@ -363,6 +572,522 @@ source=source.replace('</body></html>', '<script>\n'+catalog_js+'\n</script></bo
 # The sideload app has its full Forge catalog locally; no server dependency.
 source=source.replace('Online discoveries can be saved to decks but are not playable until their rules are implemented.',
                       'Search the complete Forge card database included with Command Table. No extra download required.')
+# Native interaction continuity: Forge can emit several state messages while
+# completing one action. The legacy adapter tore down and recreated the entire
+# battlefield on *every* message, clearing in-progress inspection each time.
+# Coalesce identical/rapid states but never delay the first game screen.
+smooth_runtime = r"""
+let ctForgeLastSignature = '';
+let ctForgeRenderTimer = null;
+function ctReceiveForgeState(state) {
+  if(!state || !Array.isArray(state.players)) return;
+  const signature=JSON.stringify(state);
+  if(app.view==='game' && signature===ctForgeLastSignature) return;
+  ctForgeLastSignature=signature;
+  const alreadyPlaying=app.view==='game';
+  applyAuthoritativeGame(state);
+  if(!alreadyPlaying) {
+    app.view='game';app.modal='';app.notice='';
+    render();
+    return;
+  }
+  // Preserve open card inspector / hand browser through native state updates.
+  // Render at most once per short interaction frame, with the newest GameView.
+  if(ctForgeRenderTimer!==null) return;
+  ctForgeRenderTimer=setTimeout(()=>{
+    ctForgeRenderTimer=null;
+    if(!app.nativeMatch || app.view!=='game')return;
+    if(app.modal==='hand' && !app.game?.players?.[0]?.hand?.length)app.modal='';
+    render();
+    window.ctForgePriority?.refresh?.();
+    window.ctForgeSelection?.refresh?.();
+  },90);
+}
+let ctForgeToastTimer=null;
+function ctNativeToast(message){
+  const txt=String(message||'').trim().slice(0,350);
+  if(!txt)return;
+  if(app.view!=='game'){announce(txt);return;}
+  let notice=document.getElementById('ct-native-toast');
+  if(!notice){
+    notice=document.createElement('div');notice.id='ct-native-toast';
+    notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');
+    notice.style.cssText='position:fixed;top:calc(env(safe-area-inset-top) + 49px);left:50%;transform:translateX(-50%);max-width:min(70vw,620px);max-height:70px;overflow:auto;z-index:210010;background:#283830f5;border:1px solid #a98e65;border-radius:11px;padding:9px 15px;color:#f5e7d6;box-shadow:0 5px 20px #0009;font:600 12px system-ui;text-align:center;pointer-events:auto';
+    notice.onclick=()=>{notice.style.display='none';};
+    document.body.append(notice);
+  }
+  notice.textContent=txt;
+  notice.style.display='block';
+  if(ctForgeToastTimer!==null)clearTimeout(ctForgeToastTimer);
+  ctForgeToastTimer=setTimeout(()=>{notice.style.display='none';ctForgeToastTimer=null;},3700);
+}
+"""
+assert source.count("function applyAuthoritativeGame(state) {")==1
+source=source.replace("function applyAuthoritativeGame(state) {",
+                      smooth_runtime+"\nfunction applyAuthoritativeGame(state) {")
+old_listener="""     applyAuthoritativeGame(message);
+     app.view='game';app.modal='';app.notice='';
+     render();"""
+assert source.count(old_listener)==1, 'Native game.state listener changed'
+source=source.replace(old_listener, "      ctReceiveForgeState(message);")
+old_command="if(latest?.game){applyAuthoritativeGame(latest.game);if(app.view==='game')render();}"
+assert source.count(old_command)==1, 'Native command snapshot callback changed'
+source=source.replace(old_command,"if(latest?.game)ctReceiveForgeState(latest.game);")
+old_watch="applyAuthoritativeGame(result.game);\n        app.view='game';app.modal='';app.notice='';render();"
+assert source.count(old_watch)==1, 'Initial game snapshot watcher changed'
+source=source.replace(old_watch,"ctReceiveForgeState(result.game);")
+old_notice="if (data.type === 'game.notice') {app.notice=String(data.payload?.message||'').slice(0,1500);render();return;}"
+assert source.count(old_notice)==1
+source=source.replace(old_notice,"if (data.type === 'game.notice') {ctNativeToast(data.payload?.message);return;}")
+# A common on-device false affordance: the card preview showed Cast/play
+# for a sorcery-speed artifact while the opponent was taking their turn.
+# This is a conservative TIMING hint, not an independent legality/rules
+# engine. Forge alone still checks costs, permissions, alternate casts, etc.
+timing_helper = r"""
+function ctNativeTiming(c){
+  if(!app.nativeMatch)return {allowed:true,reason:''};
+  const g=app.game,p=g?.players?.[0];
+  if(!g||!p)return {allowed:false,reason:'Game is loading'};
+  if(!p.priority)return {allowed:false,reason:'Waiting for priority'};
+  const type=String(c?.type||'');
+  const oracle=String(c?.text||'');
+  const land=/\bLand\b/i.test(type);
+  const instant=/\bInstant\b/i.test(type);
+  const special=/\bflash\b|as though (?:it|they) had flash|any time you could cast an instant/i.test(oracle);
+  const main=g.active===0&&(g.phase==='main1'||g.phase==='main2')&&
+    !g.stack?.length;
+  if(land){
+    if(!main)return {allowed:false,reason:'Play lands during your main phase'};
+    if(Number(p.landPlays||0)>=1)return {allowed:false,reason:'Land already played this turn'};
+  } else if(!instant && !special && type && !main){
+    return {allowed:false,reason:'Wait for your main phase to cast this card'};
+  }
+  return {allowed:true,reason:''};
+}
+"""
+assert source.count("function immersiveInspect(){")==1
+source=source.replace("function immersiveInspect(){",
+    timing_helper+"\nfunction immersiveInspect(){")
+timing_old="const castable=!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||cmd)&&(app.nativeMatch||canCast(p,c,cmd));"
+assert source.count(timing_old)==1, 'Inspector casting gate changed'
+source=source.replace(timing_old,
+    "const castable=!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||cmd)&&(app.nativeMatch?ctNativeTiming(c).allowed:canCast(p,c,cmd));")
+browser_old="const playable=app.nativeMatch||canCast(p,c),canPlay=app.nativeMatch?true:playable&&c.implemented&&!app.game?.autoPilot;"
+assert source.count(browser_old)==1, 'Hand browser gate changed'
+source=source.replace(browser_old,
+    "const timing=ctNativeTiming(c);const playable=app.nativeMatch?timing.allowed:canCast(p,c),canPlay=app.nativeMatch?timing.allowed:playable&&c.implemented&&!app.game?.autoPilot;")
+# Do not present a mana/phase error when the rules engine rejected a cast for
+# another reason; show the strictly local timing hint only.
+foot_old="!c.implemented?'Deck-only card':'Not enough mana or wrong phase'"
+assert source.count(foot_old)==1
+source=source.replace(foot_old,
+    "!c.implemented?'Deck-only card':app.nativeMatch?(timing.reason||'Forge checks mana and legality'):'Not enough mana or wrong phase'")
+
+# Note: explicit user actions (menu/pod/modal) still render immediately;
+# only authoritative Forge updates are coalesced.
+
+
+# Native UX corrections: local inspection must never be forwarded as a
+# numeric card selection. Forge is authoritative for drag/drop.
+inspect_case = r""" case 'inspectBoardPermanent':{
+   const [seat,uid]=String(v||'').split(':',2);
+   const owner=Number(seat);
+   const perm=app.game?.players?.[owner]?.battlefield?.find(c=>String(c.uid)===uid);
+   if(!perm){ctNativeToast('This card is no longer on the battlefield');break;}
+   app.inspect=perm.name;app.sideInspect=perm.name;
+   app.inspectForgeId=Number.isInteger(Number(perm.forgeId))?Number(perm.forgeId):null;
+   app.inspectOwner=owner;app.selectedCard=perm.name;
+   if(!matchMedia('(orientation:landscape)').matches)app.modal='inspect';
+   render();break;
+  }
+  case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;
+  case 'permanent':"""
+assert source.count(" case 'permanent':")==1
+source=source.replace(" case 'permanent':",inspect_case)
+old_target="action:app.nativeMatch?'permanent':(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?x.uid:(app.pendingCast&&targetable?target:mine?x.uid:c.name)"
+assert source.count(old_target)==1, 'Battlefield card mapping changed'
+new_target="""action:app.nativeMatch?(window.ctForgeSelection?.isLegalCard?.(x.forgeId)?'cardId':'inspectBoardPermanent'):(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?(window.ctForgeSelection?.isLegalCard?.(x.forgeId)?String(x.forgeId):idx+':'+x.uid):(app.pendingCast&&targetable?target:mine?x.uid:c.name)"""
+source=source.replace(old_target,new_target)
+# The player sees the card on first tap; interacting with the permanent
+# is a separate, deliberate action through its authoritative Forge ID.
+preview_anchor='<button class="secondary" data-action="inspectFull" data-value="'+chr(36)+'{esc(c.name)}">Full details</button>'
+assert source.count(preview_anchor)==1
+activate='<span class="ct-native-permanent-action">'+chr(36)+'{app.nativeMatch&&app.inspectOwner===0&&Number.isInteger(app.inspectForgeId)&&app.game?.players?.[0]?.priority?`<button class="secondary" data-action="cardId" data-value="'+chr(36)+'{app.inspectForgeId}">Activate / interact ↗</button>`:""}</span>'
+source=source.replace(preview_anchor,activate+preview_anchor)
+# Native game.command resolves the drag, never simulator beginCastFromDrag.
+old_drop="if(e.clientY < innerHeight-155&&d.y-e.clientY>42)beginCastFromDrag(d.commander,d.index);"
+assert source.count(old_drop)==1, 'Native drag handler changed'
+new_drop="""if(e.clientY < innerHeight-155&&d.y-e.clientY>42){
+  if(app.nativeMatch){
+    const index=d.commander?-1:d.index;
+    if(!Number.isInteger(index))return;
+    void CommandTableNative.request('game.command',{action:'selectHand',value:index})
+      .then(async()=>{
+        try{const snap=await CommandTableNative.request('game.snapshot');
+          if(snap?.game)ctReceiveForgeState(snap.game);}catch(_){}
+      })
+      .catch(error=>ctNativeToast('Could not play that card: '+(error?.message||String(error))));
+  }else beginCastFromDrag(d.commander,d.index);
+}"""
+source=source.replace(old_drop,new_drop)
+assert source.count("case 'toggleHandZoom':app.handZoom=!app.handZoom;render();break;")==1
+
+
+# Dedicated battlefield zones: creatures mid-board, lands at the back,
+# artifacts/enchantments/planeswalkers to the right. Commander and secondary
+# zones live in a collapsible left drawer; never remove Forge permanents.
+old_lane=""" const isCreat=type==='creatures';
+ const perms=p.battlefield.filter(x=>isCreature(card(x.name))===isCreat);"""
+assert source.count(old_lane)==1
+source=source.replace(old_lane, """ const isCreat=type==='creatures';
+ const perms=p.battlefield.filter(x=>{
+  const c=card(x.name),kind=String(c?.type||'');
+  const creature=x.creature===undefined?isCreature(c):x.creature;
+  const land=x.land===undefined?/\\bLand\\b/i.test(kind):x.land;
+  return type==='creatures'?creature:type==='lands'?land:!creature&&!land;
+ });""")
+old_zone="@@DLR@@{isCreat?'Creatures':'Lands & support'}"
+assert source.count(old_zone.replace('@@DLR@@',chr(36)))==1
+source=source.replace(old_zone.replace('@@DLR@@',chr(36)),
+  chr(36)+"{type==='creatures'?'Creatures':type==='lands'?'Lands':'Artifacts · Enchantments · Planeswalkers'}")
+assert source.count("""<div class="ct10-opp-support">@@D@@{immersiveLane(enemy,focus,'support')}</div>""".replace('@@D@@',chr(36)))==1
+source=source.replace("""<div class="ct10-opp-support">@@D@@{immersiveLane(enemy,focus,'support')}</div>""".replace('@@D@@',chr(36)),
+  """<div class="ct10-opp-lands">@@D@@{immersiveLane(enemy,focus,'lands')}</div>
+   <div class="ct10-opp-support">@@D@@{immersiveLane(enemy,focus,'support')}</div>""".replace('@@D@@',chr(36)))
+assert source.count("""<div class="ct10-own-support">@@D@@{immersiveLane(me,0,'support')}</div>""".replace('@@D@@',chr(36)))==1
+source=source.replace("""<div class="ct10-own-support">@@D@@{immersiveLane(me,0,'support')}</div>""".replace('@@D@@',chr(36)),
+  """<div class="ct10-own-lands">@@D@@{immersiveLane(me,0,'lands')}</div>
+   <div class="ct10-own-support">@@D@@{immersiveLane(me,0,'support')}</div>""".replace('@@D@@',chr(36)))
+scene_head='<div class="ct10-scene" data-dropzone="battlefield">'
+assert source.count(scene_head)==1
+drawer=r"""<div class="ct10-zone-rail @@D@@{app.zonesOpen?'ct-zones-open':''}">
+  <button class="ct-zone-toggle" data-action="toggleZones" aria-expanded="@@D@@{!!app.zonesOpen}" aria-label="Show command zone, graveyard, exile and library">☰ Zones</button>
+  <aside class="ct10-zone-drawer">
+   <strong>YOUR ZONES</strong>
+   <div>♛ Commander <span>@@D@@{esc(me.commander.split(',')[0])}</span></div>
+   <div>↻ Commander tax <b>@@D@@{Number(me.commanderCasts||0)*2}</b></div>
+   <div>▤ Library <b>@@D@@{me.library.length}</b></div>
+   <div>♜ Graveyard <b>@@D@@{me.graveyard.length}</b></div>
+   <div>◇ Exile <b>@@D@@{me.exile.length}</b></div>
+  </aside>
+ </div>""".replace('@@D@@',chr(36))
+source=source.replace(scene_head,scene_head+drawer)
+# Native selection model decides which hand and battlefield cards can be
+# selected *now*. No JavaScript mana guess is allowed to claim legality.
+availability="available:!g.autoPilot&&!app.nativeMatch&&canCast(me,c)"
+assert source.count(availability)==1
+source=source.replace(availability,
+  "available:app.nativeMatch?!!window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i]):!g.autoPilot&&canCast(me,c)")
+# Make owner/inspection explicit when selecting a hand card, so an old
+# permanent's Activate button cannot appear on an unrelated card preview.
+assert source.count("case 'selectHand':if(!p?.hand?.length)break;")==1
+source=source.replace("case 'selectHand':if(!p?.hand?.length)break;",
+ "case 'selectHand':app.inspectForgeId=null;app.inspectOwner=null;if(!p?.hand?.length)break;")
+# Render native state above any stale training-only metadata warning.
+assert source.count('function immersiveInspect(){')==1
+source=source.replace('function immersiveInspect(){',
+ 'function immersiveInspect(){')
+board_css="""<style id="ct-commander-board-zones-v0148">
+.ct10-opp-lands,.ct10-own-lands{position:absolute;display:flex;align-items:center;min-width:0;min-height:0}
+.ct10-opp-lands{left:11%;top:13%;width:32%;height:14%}
+.ct10-opp-support{left:70%!important;top:13%!important;width:24%!important;height:14%!important}
+.ct10-opp-creatures{left:32%!important;top:28%!important;width:56%!important}
+.ct10-own-creatures{left:32%!important;top:49%!important;width:56%!important}
+.ct10-own-lands{left:13%;top:69%;width:36%;height:14%}
+.ct10-own-support{left:69%!important;top:67%!important;width:26%!important;height:14%!important}
+.ct10-lane.ct10-lands{border-top:1px dashed #c4b07a37}
+.ct10-lane.ct10-support{background:#132d2d55;border-radius:7px;border-right:2px solid #b7a77770}
+.ct10-lane.ct10-support .game-card{width:clamp(42px,5.2vw,83px)!important}
+.ct10-zone-rail{position:absolute;left:7px;top:36%;z-index:22;display:flex;align-items:flex-start;gap:7px;pointer-events:none}
+.ct10-zone-rail button{pointer-events:auto}
+.ct-zone-toggle{border:1px solid #b7a679;border-radius:9px;background:#132b32f0;color:#efdbaf;font-weight:800;padding:9px 7px;writing-mode:vertical-rl;font-size:11px;letter-spacing:1px}
+.ct10-zone-drawer{display:none;background:#112830f8;border:1px solid #c4aa77;border-radius:12px;padding:12px;min-width:190px;max-width:220px;box-shadow:0 10px 30px #000b;pointer-events:auto;color:#fff2db;font-size:12px}
+.ct-zones-open .ct10-zone-drawer{display:grid;gap:9px}
+.ct10-zone-drawer strong{font-size:12px;letter-spacing:1px;color:#ecbf82}
+.ct10-zone-drawer div{display:flex;justify-content:space-between;gap:8px}
+.ct10-zone-drawer span{max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ct10-our-turn .ct10-phase-badge{border-color:#e8b971!important;color:#ffe0a8!important;box-shadow:0 0 16px #e8b9714b!important}
+.ct10-their-turn .ct10-phase-badge{border-color:#81bddf!important;color:#a0d9ff!important;box-shadow:0 0 18px #4695d655!important}
+.ct10-their-turn .ct10-focused-opponent{filter:drop-shadow(0 0 12px #56adf84b)}
+.ct10-our-turn .ct10-own-player{filter:drop-shadow(0 0 12px #d6aa585e)}
+.ct10-stage .game-card.available{outline:2px solid #5fd8fc!important;outline-offset:1px;box-shadow:0 0 19px #36bcf8a9!important}
+@media(orientation:portrait){.ct10-opp-support,.ct10-own-support{left:75%!important;width:23%!important}.ct10-opp-lands,.ct10-own-lands{left:11%;width:38%}.ct10-zone-rail{top:39%}}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',board_css+'</head>')
+
+# The decorative centre star obscures cards in the combat row.
+assert source.count('<span>✦</span>')==1, 'Centreboard ornament changed'
+source=source.replace('<span>✦</span>','')
+
+
+# Authoritative end-of-game feedback: the GameView signals completion; no
+# player-side algorithm may decide when someone won or lost.
+result_helper = r"""
+function ctNativeEndOverlay(g) {
+  if(!app.nativeMatch || !g?.native || g.winner===null)return '';
+  const me=g.players?.[0],winner=String(g.winner||'').trim();
+  const ownName=String(me?.forgeName||me?.name||'').trim();
+  const won=!me?.dead && (winner.toLowerCase()===ownName.toLowerCase() ||
+      g.players.slice(1).every(p=>p.dead));
+  const lost=!!me?.dead || (winner && winner!=='Game ended' && !won);
+  const title=won?'Victory!':lost?'Defeat':'Match finished';
+  const subtitle=won?'Your Commander claimed the table.':
+      lost?'The opposing Commander claimed the table.':'The Forge match has ended.';
+  return @@BT@@<div class="ct-native-game-end" role="dialog" aria-modal="true" aria-label="@@D@@{title}">
+     <div class="ct-native-result-card">
+       <span class="ct-native-end-crest">@@D@@{won?'✦':lost?'◇':'✧'}</span>
+       <span class="ct-native-end-label">COMMAND TABLE · MATCH COMPLETE</span>
+       <h2>@@D@@{title}</h2><p>@@D@@{subtitle}</p>
+       <div class="ct-native-final-life">You @@D@@{me?.life??0} ♥ <span>·</span> Turn @@D@@{g.turn}</div>
+       <button class="primary" data-action="leaveFinishedGame">Back to decks / Play again</button>
+     </div>
+   </div>@@BT@@;
+}
+""".replace('@@BT@@',chr(96)).replace('@@D@@',chr(36))
+assert source.count('function gameView(){')==1
+source=source.replace('function gameView(){',result_helper+'\nfunction gameView(){')
+assert source.count("  "+chr(36)+"{immersiveInspect()}")==1
+source=source.replace("  "+chr(36)+"{immersiveInspect()}",
+  "  "+chr(36)+"{immersiveInspect()}\n  "+chr(36)+"{ctNativeEndOverlay(g)}")
+assert source.count("id:'P'+(i+1), forgeId:p.id, name:i===0?'You':p.name,")==1
+source=source.replace("id:'P'+(i+1), forgeId:p.id, name:i===0?'You':p.name,",
+  "id:'P'+(i+1), forgeId:p.id, forgeName:p.name, name:i===0?'You':p.name,")
+assert source.count("case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;")==1
+source=source.replace("case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;",
+  "case 'leaveFinishedGame':{window.ctForgeChoice?.close?.();window.ctForgePriority?.reset?.();window.ctForgeSelection?.reset?.();app.nativeMatch=false;app.game=null;app.savedGame=null;setView('home');break;}\n  case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;")
+assert source.count("'toggleHandZoom','inspectBoardPermanent','toggleZones'")==1
+source=source.replace("'toggleHandZoom','inspectBoardPermanent','toggleZones'",
+                      "'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame'")
+result_css = """<style id="ct-game-complete-v0149">
+.ct10-scene>.ct-native-game-end{z-index:999!important}
+.ct-native-game-end{position:absolute;inset:0;z-index:999!important;display:flex;justify-content:center;align-items:center;background:#07131cd8;backdrop-filter:blur(7px);pointer-events:auto}
+.ct-native-result-card{border:1px solid #e7b974;background:radial-gradient(circle at 50% -35%,#466c6880,#14282cef 62%);box-shadow:0 24px 80px #000e;border-radius:19px;padding:clamp(17px,3vw,38px);color:#f6ead4;text-align:center;width:min(90%,430px)}
+.ct-native-end-crest{display:block;color:#eebd79;font-size:46px;text-shadow:0 0 20px #dbac8b}
+.ct-native-end-label{font-size:10px;letter-spacing:2px;font-weight:800;color:#ddbe87}
+.ct-native-result-card h2{margin:9px 0;font-family:Georgia,serif;font-size:clamp(35px,5vw,58px);color:#fff1d6}
+.ct-native-result-card p{margin:9px 0 16px;font-size:15px}
+.ct-native-final-life{display:flex;justify-content:center;gap:10px;font-size:14px;color:#e5cb9a;margin-bottom:20px}
+.ct-native-result-card button{width:100%;padding:14px 12px;min-height:48px}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',result_css+'</head>')
+
+
+# Use Forge's explicit selection first. If no selection is published, display
+# an advisory mana glow ONLY for costs payable by visible untapped basic lands
+# and simple fixed mana costs. Forge still decides legal casting.
+affordability_helper = r"""
+function ctNativeAffordable(c,me,g){
+ if(!app.nativeMatch||!c||!me||!g||!ctNativeTiming(c).allowed)return false;
+ const type=String(c.type||'');
+ if(/\bLand\b/i.test(type))return true;
+ const raw=String(c.cost||'').toUpperCase().trim();
+ if(!raw||raw.includes('X')||raw.includes('/')||raw.includes('P')||raw.includes('Y'))return false;
+ const braceSymbols=[...raw.matchAll(/\{([^}]+)\}/g)].map(m=>m[1]);
+ const symbols=braceSymbols.length?braceSymbols:(raw.match(/\d+|[WUBRGCS]/g)||[]);
+ if(!symbols.length||symbols.some(x=>!/^(\d+|[WUBRGCS])$/.test(x)))return false;
+ const mana=[];
+ const basic={PLAINS:'W',ISLAND:'U',SWAMP:'B',MOUNTAIN:'R',FOREST:'G',WASTES:'C'};
+ for(const perm of me.battlefield||[]){
+   if(perm.tapped||!perm.land)continue;
+   const name=String(perm.name||'').toUpperCase();
+   const land=Object.entries(basic).find(([k])=>
+     new RegExp('(^|[^A-Z])'+k+'($|[^A-Z])').test(name));
+   if(land)mana.push(land[1]);
+ }
+ let generic=0;const colors=[];
+ for(const symbol of symbols){
+   if(/^\d+$/.test(symbol))generic+=Number(symbol);
+   else if(symbol==='S')return false;
+   else colors.push(symbol);
+ }
+ // Spend colored sources first, then check the generic remaining.
+ for(const color of colors){
+   const index=mana.indexOf(color);
+   if(index<0)return false;
+   mana.splice(index,1);
+ }
+ return mana.length>=generic;
+}
+"""
+assert source.count('function gameView(){')==1
+source=source.replace('function gameView(){',
+  affordability_helper+'\nfunction gameView(){')
+old_available="available:app.nativeMatch?!!window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i]):!g.autoPilot&&canCast(me,c)"
+assert source.count(old_available)==1,'Native hand affordance changed'
+source=source.replace(old_available,
+  "available:app.nativeMatch?(!!window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])||ctNativeAffordable(c,me,g)):!g.autoPilot&&canCast(me,c)")
+# Correctness: neither highlights nor preview heuristics ever call Forge's
+# controller or move a card. The existing native command remains sole writer.
+
+
+# Expose the actual command zone and a dedicated Forge casting action.
+# Never guess which hand index contains a commander.
+commander_case="case 'castCommander':"
+assert source.count("case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;")==1
+# Native actions are already intercepted by NATIVE_GAME_COMMANDS.
+zone_line="   <div>♛ Commander <span>@@D@@{esc(me.commander.split(',')[0])}</span></div>".replace('@@D@@',chr(36))
+assert source.count(zone_line)==1
+cast_line="""   <div class="ct-commander-zone-card"><span>♛ @@D@@{esc(me.commander.split(',')[0])}</span>
+     <button data-action="inspectCommander" aria-label="View commander">View</button>
+     @@D@@{app.nativeMatch&&me.commandZone?.length?@@BT@@<button class="ct-cast-commander" data-action="castCommander" data-drag-commander="true" aria-label="Cast commander or drag onto battlefield from command zone">Cast commander ↗</button>@@BT@@:''}</div>""".replace('@@D@@',chr(36)).replace('@@BT@@',chr(96))
+source=source.replace(zone_line,cast_line)
+# A tap on the commander portrait should surface the command-zone preview,
+# not a training-only card popup with no way to actually cast the card.
+portrait="data-action=\"inspectCommander\"><img"
+assert source.count(portrait)==1
+source=source.replace(portrait,"data-action=\"inspectCommander\" title=\"Tap for commander actions\"><img")
+# A commander may be in command zone but absent from hand; do not show a
+# misleading cast affordance if Forge does not list that actual card.
+inspector_old="const castable=!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||cmd)&&(app.nativeMatch?ctNativeTiming(c).allowed:canCast(p,c,cmd));"
+assert source.count(inspector_old)==1
+inspector_new="""const castable=!g.autoPilot&&(p.hand.some(x=>equalName(x,name))||
+      (app.nativeMatch?p.commandZone?.some(z=>equalName(z.name,name)):cmd))&&
+      (app.nativeMatch?ctNativeTiming(c).allowed:canCast(p,c,cmd));"""
+source=source.replace(inspector_old,inspector_new)
+# In the modal inspector the castSelected button also resolves via stable
+# card IDs in ctNativeActionValue.
+commander_css="""<style id="ct-command-zone-v0150">
+.ct-commander-zone-card{display:flex!important;align-items:center!important;flex-wrap:wrap;gap:6px!important}
+.ct-commander-zone-card span{flex:1 1 100%;min-width:0;font-weight:700}
+.ct-commander-zone-card button{flex:1;background:#203a41;color:#f7d9a3;border:1px solid #af976f;border-radius:8px;padding:8px 6px;font-size:11px;min-height:33px}
+.ct-commander-zone-card .ct-cast-commander{background:#e2b36c;color:#172a2e;font-weight:800}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',commander_css+'</head>')
+
+
+# Surface Forge's current combat state clearly. This is a view on the actual
+# CombatView / Selection data, not an independent attack/block rules system.
+combat_helper=r"""
+function ctNativeCombatGuide(g){
+ if(!app.nativeMatch||!g||g.phase!=='combat')return '';
+ const detail=String(g.phaseDetail||'').toUpperCase();
+ const legal=window.ctForgeSelection?.legalCards||[];
+ const atk=Array.isArray(g.combat)?g.combat:[];
+ const defending=atk.some(x=>String(x.defenderId)===String(g.players?.[0]?.forgeId));
+ const attackersStage=/ATTACKERS/.test(detail);
+ const blockersStage=/BLOCKERS/.test(detail);
+ const damageStage=/DAMAGE/.test(detail);
+ const lines=atk.map(x=>{
+   const defender=g.players?.find(p=>String(p.forgeId)===String(x.defenderId));
+   const blockers=(x.blockerIds||[]).map(id=>
+     g.players.flatMap(p=>p.battlefield).find(c=>String(c.forgeId)===String(id))?.name||
+     'Blocker');
+   return '<div class="ct-combat-pair"><span>⚔ '+esc(x.cardName||'Attacker')+
+     '</span><b>→ '+esc(defender?.name||'target')+'</b>'+
+     (blockers.length?'<small>🛡 '+esc(blockers.join(', '))+'</small>':'')+'</div>';
+ }).join('');
+ let title='Combat';
+ let hint='Forge controls the attack and blocking steps.';
+ if(attackersStage){
+   title=g.active===0?'Declare attackers':'Opponent declaring attackers';
+   hint=g.active===0
+     ? 'Tap a glowing creature to attack. Use Undo to reverse a choice; Next confirms or skips combat.'
+     : 'Opponents choose attackers. Watch the highlighted cards and attack targets.';
+ }else if(blockersStage){
+   title=defending?'Defend — declare blockers':'Declare blockers';
+   hint=defending
+     ? 'Tap a glowing legal defender, then choose the attacker Forge offers. Use Undo to change a block, or Next when finished.'
+     : 'The defending player chooses blockers. Your attacking creatures are shown below.';
+ }else if(damageStage){
+   title='Combat damage';
+   hint='Review attacking creatures and blockers. Resolve to apply damage in Forge.';
+ }else if(atk.length){
+   title=defending?'You are under attack':'Attack in progress';
+   hint='Attacker → defender. Any blockers are shown beneath each attack.';
+ }
+ return '<aside class="ct-native-combat-guide" role="status" aria-label="Combat step">'+
+   '<header><span>⚔ '+esc(title)+'</span><small>'+legal.length+
+     ' legal card option'+(legal.length===1?'':'s')+'</small></header>'+
+   '<p>'+esc(hint)+'</p>'+
+   (lines?'<div class="ct-combat-pairs">'+lines+'</div>':'')+
+   '</aside>';
+}
+"""
+assert source.count('function gameView(){')==1
+source=source.replace('function gameView(){',combat_helper+'\nfunction gameView(){')
+needle='<div class="ct10-midline @@D@@{attack?@@BT@@ct10-midline-combat@@BT@@:@@BT@@@@BT@@}">'.replace('@@D@@',chr(36)).replace('@@BT@@',chr(96))
+# Keep guidance within the scene and outside individual card lanes.
+assert source.count('<div class="ct10-midline ')==1
+source=source.replace('<div class="ct10-midline ',
+  chr(36)+'{ctNativeCombatGuide(g)}\n   <div class="ct10-midline ',1)
+# Distinguish actively attacking or defending cards without changing Forge
+# tap semantics. These styles also work in multiplayer.
+orig='return smallCard(c,{tapped:x.tapped,token:!!x.token,counters:x.counters,bonus,selected:'
+assert source.count(orig)==1
+source=source.replace(orig,
+ 'return smallCard(c,{tapped:x.tapped,token:!!x.token,attacking:!!x.attacking,blocking:!!x.blocking,counters:x.counters,bonus,selected:')
+card_class="opts.selected?'chosen':'',opts.available?'available':''"
+assert source.count(card_class)==1
+source=source.replace(card_class,
+  "opts.selected?'chosen':'',opts.attacking?'ct-native-attacker':'',opts.blocking?'ct-native-blocker':'',opts.available?'available':''")
+combat_css="""<style id="ct-forge-combat-guidance-v0150">
+.ct-native-combat-guide{position:absolute;z-index:19;top:14%;left:1.4%;width:clamp(185px,29vw,380px);max-height:31%;overflow:auto;background:#0e2530ed;border:1px solid #d9a96d9e;border-left:3px solid #f4b368;border-radius:11px;padding:9px 11px;color:#f9efd9;pointer-events:auto;box-shadow:0 9px 28px #0009}
+.ct-native-combat-guide header{display:flex;align-items:center;justify-content:space-between;gap:7px;font-weight:850;font-size:clamp(11px,1.1vw,15px);color:#ffd39b}
+.ct-native-combat-guide header small{font-size:10px;color:#a8c6c9;font-weight:600;text-align:right}
+.ct-native-combat-guide p{margin:5px 0 0;color:#e7ddcd;font-size:clamp(10px,.95vw,13px);line-height:1.35}
+.ct-combat-pairs{display:grid;gap:4px;max-height:78px;overflow:auto;margin-top:8px}
+.ct-combat-pair{display:flex;align-items:center;flex-wrap:wrap;gap:5px;font-size:11px;border-top:1px solid #bfa57739;padding-top:3px}
+.ct-combat-pair b{color:#ffcc89;font-weight:700}
+.ct-combat-pair small{color:#8bd6e5;flex-basis:100%;padding-left:8px}
+.ct10-lane .game-card.ct-native-attacker{outline:3px solid #ffad54!important;outline-offset:2px;box-shadow:0 0 18px #fb903cdd!important}
+.ct10-lane .game-card.ct-native-blocker{outline:3px solid #7bd9ff!important;outline-offset:2px;box-shadow:0 0 18px #7bd9ffbc!important}
+.ct10-lane .game-card.ct-forge-legal-target{outline:3px solid #c1f9ff!important;outline-offset:3px;box-shadow:0 0 23px #61d7f5dd!important;animation:ct-combat-legal 1.6s ease-in-out infinite alternate}
+@keyframes ct-combat-legal{from{filter:brightness(1)}to{filter:brightness(1.24)}}
+@media(max-height:550px) and (orientation:landscape){.ct-native-combat-guide{top:13%;max-height:27%;width:clamp(170px,24vw,310px);padding:6px 9px}.ct-native-combat-guide p{font-size:11px}}
+@media(orientation:portrait){.ct-native-combat-guide{left:2%;top:14%;width:45%;max-height:27%}}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',combat_css+'</head>')
+
+
+# Fix the on-device affordance mismatch: untapped mana rocks are absent from
+# the visual mana estimate even when Forge can tap them during a cast.
+# This preview is conservative and *not* a replacement for Forge legality.
+rocks_old="""  if(land)mana.push(land[1]);
+ }
+ let generic=0;const colors=[];"""
+assert source.count(rocks_old)==1
+source=source.replace(rocks_old,"""  if(land) {mana.push(land[1]);continue;}
+   const key=String(perm.name||'').trim().toLowerCase();
+   // Artifacts are only counted untapped and when the card itself is not a
+   // creature. Colored-rock legality remains in Forge.
+   if(perm.creature)continue;
+   if(key==='sol ring')mana.push('C','C');
+   else if(['arcane signet','commanders sphere',"commander's sphere",
+       'chromatic lantern'].includes(key))mana.push('*');
+   else if(['mind stone','thought vessel','prismatic lens',
+       'everflowing chalice','war room'].includes(key))mana.push('C');
+ }
+ let generic=0;const colors=[];""")
+rock_colored="""   const index=mana.indexOf(color);
+   if(index<0)return false;
+   mana.splice(index,1);"""
+assert source.count(rock_colored)==1
+source=source.replace(rock_colored,"""   let index=mana.indexOf(color);
+   if(index<0)index=mana.indexOf('*');
+   if(index<0)return false;
+   mana.splice(index,1);""")
+# Avoid false confidence on unconventional sources; the only green glow is
+# affordable-as-shown, with actual game choices still Forge-authoritative.
+
+# A commander starts in the LEFT drawer rather than the bottom hand; the
+# old hand drag gesture only accepted upward movement, so dragging the
+# commander rightward onto the battlefield never committed.
+commander_drop="if(e.clientY < innerHeight-155&&d.y-e.clientY>42){"
+assert source.count(commander_drop)==1
+source=source.replace(commander_drop,
+  "if((e.clientY < innerHeight-155&&d.y-e.clientY>42) || (d.commander && e.clientX-d.x>80 && e.clientY<innerHeight-90)){")
+
+# The legacy JS attack list is empty during native Forge play. Use the
+# authoritative Selection.chosen IDs for clear selected-attacker/blocker state.
+old_selected="selected:mine&&app.attackers.includes(x.uid)"
+assert source.count(old_selected)==1
+source=source.replace(old_selected,
+  "selected:app.nativeMatch?!!window.ctForgeSelection?.isSelectedCard?.(x.forgeId):mine&&app.attackers.includes(x.uid)")
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')

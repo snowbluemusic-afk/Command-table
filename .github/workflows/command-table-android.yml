@@ -1,11 +1,12 @@
 name: Command Table Android integration build
 on:
   push:
-    branches: [main]
+    branches: [main, command-table-native-ui-only]
     paths:
       - 'android/**'
       - 'forge-integration/**'
       - 'tests/**'
+      - 'ci/**'
       - '.github/workflows/command-table-android.yml'
   pull_request:
     branches: [main]
@@ -13,6 +14,7 @@ on:
       - 'android/**'
       - 'forge-integration/**'
       - 'tests/**'
+      - 'ci/**'
       - '.github/workflows/command-table-android.yml'
   workflow_dispatch:
 concurrency:
@@ -37,6 +39,7 @@ jobs:
       - name: Verify recovery integration contract before downloading Forge
         run: |
           mkdir -p recovery-logs
+          bash -n ci/android-smoke.sh
           node tests/verify-forge-integration.cjs 2>&1 | tee recovery-logs/preflight.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Fetch pinned Forge engine and Android source
@@ -73,10 +76,12 @@ jobs:
           python3 - <<'PY'
           import pathlib, re, subprocess
           doc=pathlib.Path('/tmp/forge/forge-gui-android/assets/command-table.html').read_text()
-          checks=['ctHydrateForgeState','game.prompt','command-table-forge-choice','window.ctForgeCards',
+          checks=['ctHydrateForgeState','game.prompt','ct-forge-priority-buttons','window.ctForgeCards',
                   'if(app.nativeMatch && app.view','ctNativeActionValue(act,v)']
           for check in checks:
               assert check in doc, 'Native integration missing: '+check
+          assert 'command-table-forge-choice' not in doc, 'Duplicate legacy priority panel reintroduced'
+          assert doc.count("decision.id='ct-forge-priority-buttons'")==1, 'Expected only one Forge priority dock'
           blocks=re.findall(r'<script(?:\\s[^>]*)?>(.*?)</script>',doc,re.S|re.I)
           assert blocks, 'No JavaScript in Android UI'
           for i,block in enumerate(blocks):
@@ -149,7 +154,7 @@ jobs:
     name: Install and launch embedded Forge APK in emulator
     needs: embedded-forge-android
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4

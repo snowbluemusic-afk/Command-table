@@ -17,6 +17,7 @@ import android.widget.FrameLayout;
 
 import forge.StaticData;
 import forge.commandtable.CommandTableForgeDecks;
+import forge.commandtable.CommandTableStarterDeckRepair;
 import forge.commandtable.CommandTableForgeInput;
 import forge.commandtable.CommandTableCardCatalog;
 import forge.commandtable.CommandTableChoiceDispatcher;
@@ -71,7 +72,7 @@ public final class CommandTableOverlay {
             }
             host = activity;
             if (web != null) {
-                web.bringToFront();
+                show();
                 return;
             }
             WebView view = new WebView(activity);
@@ -108,6 +109,8 @@ public final class CommandTableOverlay {
             view.addJavascriptInterface(new DeviceBridge(activity), "AndroidBridge");
             web = view;
             activity.addContentView(view, new FrameLayout.LayoutParams(-1, -1));
+            view.setElevation(32f);
+            view.bringToFront();
             view.loadUrl("https://appassets.androidplatform.net/assets/index.html");
         });
     }
@@ -140,10 +143,18 @@ public final class CommandTableOverlay {
     }
 
     public static void hideForNativePrompt() {
-        UI.post(() -> { if (web != null) web.setVisibility(android.view.View.GONE); });
+        // Never switch to Forge's native gameplay surface. Choices must be
+        // handled by our WebView; unsupported choices are reported there.
+        show();
     }
     public static void show() {
-        UI.post(() -> { if (web != null) {web.setVisibility(android.view.View.VISIBLE);web.bringToFront();} });
+        UI.post(() -> {
+            if (web == null) return;
+            web.setVisibility(android.view.View.VISIBLE);
+            web.setElevation(32f);
+            web.bringToFront();
+            web.requestLayout();
+        });
     }
 
     private static boolean initialized() {
@@ -187,6 +198,18 @@ public final class CommandTableOverlay {
         }
     }
 
+    private static void publishNotice(String message) {
+        try {
+            String safe=message == null ? "" : message;
+            if (safe.isBlank()) return;
+            send(new JSONObject().put("v",1).put("type","game.notice")
+                .put("payload",new JSONObject().put("message",safe)));
+            show();
+        } catch (Exception error) {
+            android.util.Log.e("CommandTable", "Unable to deliver Forge message", error);
+        }
+    }
+
     private static void publishPrompt(Map<String, Object> prompt) {
         try {
             send(new JSONObject().put("v", 1).put("type", "game.prompt")
@@ -195,7 +218,13 @@ public final class CommandTableOverlay {
     }
 
     private static void publish(GameView game) {
-        if (game == null || game.getPlayers().isEmpty()) return;
+        // Forge announces a GameView before loading PlayerView commander data
+        // and before selecting the starting player. This is normal and NOT a
+        // failed game; keep pendingStart intact until a usable snapshot exists.
+        if (!CommandTableGameProjection.ready(game)) return;
+        // Forge's libGDX match surface can be recreated on every match;
+        // reassert the Command Table window's presentation after updates.
+        show();
         try {
             PlayerView human=game.getPlayers().get(0);
             Map<String,Object> snapshot = CommandTableGameProjection.snapshot(game,human);
@@ -209,8 +238,14 @@ public final class CommandTableOverlay {
                 send(new JSONObject().put("v",1).put("type","game.state").put("payload",gameJson));
             }
         } catch(Exception ex) {
+            android.util.Log.e("CommandTable", "GameView projection failed", ex);
             String id=pendingStart;
-            if(id!=null){pendingStart=null;respond(id,false,null,ex.getMessage());}
+            if(id!=null){
+                pendingStart=null;
+                respond(id,false,null,
+                    "Forge game-state projection failed: "+
+                    ex.getClass().getSimpleName()+": "+ex.getMessage());
+            }
         }
     }
 
@@ -281,6 +316,7 @@ public final class CommandTableOverlay {
                         CommandTableOverlay::publish,
                         CommandTableOverlay::publishPrompt,
                         CommandTableOverlay::publishSelection,
+                        CommandTableOverlay::publishNotice,
                         choices,
                         CommandTableOverlay::hideForNativePrompt,
                         CommandTableOverlay::show);
@@ -291,8 +327,10 @@ public final class CommandTableOverlay {
                     });
                     if(match.getGameView()!=null)publish(match.getGameView());
                 } catch(Throwable err) {
+                    android.util.Log.e("CommandTable", "Forge match start failed", err);
                     pendingStart=null;
-                    respond(id,false,null,"Forge match start failed: "+err.getMessage());
+                    respond(id,false,null,"Forge match start failed: "+
+                        err.getClass().getSimpleName()+": "+err.getMessage());
                 }
             });
         } catch(Exception ex){respond(id,false,null,ex.getMessage());}
@@ -305,7 +343,7 @@ public final class CommandTableOverlay {
         Object value=p.opt("value");
         try {
             switch(action) {
-                case "playInspected":case "castSelected":case "selectHand":
+                case "playInspected":case "castSelected":case "selectHand": {
                     if (value == null || JSONObject.NULL.equals(value)) {
                         throw new IllegalArgumentException("Select a card to play");
                     }
@@ -321,6 +359,35 @@ public final class CommandTableOverlay {
                         throw new IllegalArgumentException("Card selection outside hand/command zone");
                     }
                     break;
+                }
+                case "castCommander": {
+                    GameView view=match.getGameView();
+                    if(view==null)throw new IllegalStateException("Game not ready");
+                    PlayerView human=view.getPlayers().get(0);
+                    if(human.getCommand()==null || human.getCommand().isEmpty())
+                        throw new IllegalArgumentException("Commander is not in the command zone");
+                    bridge.selectCard(human.getCommand().get(0).getId());
+                    break;
+                }
+                case "castById": {
+                    if(value==null || JSONObject.NULL.equals(value))
+                        throw new IllegalArgumentException("Choose a card from your hand or command zone");
+                    int wanted=Integer.parseInt(String.valueOf(value));
+                    GameView view=match.getGameView();
+                    if(view==null)throw new IllegalStateException("Game not ready");
+                    PlayerView human=view.getPlayers().get(0);
+                    boolean found=false;
+                    for(forge.game.card.CardView c:human.getHand()) {
+                        if(c.getId()==wanted) {bridge.selectCard(wanted);found=true;break;}
+                    }
+                    if(!found && human.getCommand()!=null) {
+                        for(forge.game.card.CardView c:human.getCommand()) {
+                            if(c.getId()==wanted) {bridge.selectCard(wanted);found=true;break;}
+                        }
+                    }
+                    if(!found)throw new IllegalArgumentException("This card is no longer in your hand or command zone");
+                    break;
+                }
                 case "permanent":case "cardId":
                     bridge.selectCard(Integer.parseInt(String.valueOf(value)));break;
                 case "selectPlayer":
@@ -386,6 +453,22 @@ public final class CommandTableOverlay {
                             break;
                         case "deck.validate":
                             validateCommanderDeck(id,p.getJSONObject("deck"));break;
+                        case "deck.repairPrebuilt": {
+                            if (!initialized()) {
+                                respond(id,false,null,"Forge card library is still loading");
+                                break;
+                            }
+                            JSONObject incoming=p.getJSONObject("deck");
+                            JSONArray requested=incoming.getJSONArray("main");
+                            List<String> main=new ArrayList<>();
+                            for (int i=0; i<requested.length(); i++)
+                                main.add(requested.getString(i));
+                            Map<String,Object> repaired=CommandTableStarterDeckRepair.repair(
+                                incoming.optString("name","Starter deck"),
+                                incoming.getString("commander"),main);
+                            respond(id,true,new JSONObject(repaired),null);
+                            break;
+                        }
                         case "card.search": {
                             if(!initialized()){respond(id,false,null,"Forge card catalog is still starting");break;}
                             List<Map<String,Object>> cards=CommandTableCardCatalog.search(
@@ -431,6 +514,8 @@ public final class CommandTableOverlay {
                             HostedMatch current=match;
                             if(current==null || current.getGameView()==null)
                                 respond(id,false,null,"No active Commander game");
+                            else if(!CommandTableGameProjection.ready(current.getGameView()))
+                                respond(id,false,null,"Forge is preparing the Commander game");
                             else {
                                 Map<String,Object> state=CommandTableGameProjection.snapshot(
                                     current.getGameView(),current.getGameView().getPlayers().get(0));
@@ -457,9 +542,26 @@ public final class CommandTableOverlay {
             });
         }
         @JavascriptInterface public void setOrientation(String mode) {
-            // Forge's libGDX rendering thread owns orientation.
+            // Command Table is an Android WebView hosted by Forge. The original
+            // prototype called this method but it was a no-op, so landscape
+            // never worked even when the player selected it in settings.
+            // Keep the existing activity/Forge match alive across rotations.
+            if (!(context instanceof android.app.Activity)) return;
+            final android.app.Activity activity=(android.app.Activity)context;
+            final int orientation="landscape".equals(mode)
+                ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
+            UI.post(() -> {
+                if (activity.isFinishing() || activity.isDestroyed()) return;
+                if (activity.getRequestedOrientation()!=orientation)
+                    activity.setRequestedOrientation(orientation);
+                show();
+            });
         }
-        @JavascriptInterface public void showNativePrompts() {hideForNativePrompt();}
+        @JavascriptInterface public void showNativePrompts() {
+            publishNotice("Use Command Table's on-screen choices to interact with Forge.");
+            show();
+        }
         @JavascriptInterface public void returnToCommandTable() {show();}
     }
 }
