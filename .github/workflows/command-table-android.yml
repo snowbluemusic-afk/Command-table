@@ -9,7 +9,7 @@ on:
       - 'ci/**'
       - '.github/workflows/command-table-android.yml'
   pull_request:
-    branches: [main]
+    branches: [main, fix-commander-cast-combat-guidance-v0150]
     paths:
       - 'android/**'
       - 'forge-integration/**'
