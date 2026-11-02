@@ -724,8 +724,15 @@ assert source.count(old_drop)==1, 'Native drag handler changed'
 new_drop="""if(e.clientY < innerHeight-155&&d.y-e.clientY>42){
   if(app.nativeMatch){
     const index=d.commander?-1:d.index;
-    if(!Number.isInteger(index))return;
-    void CommandTableNative.request('game.command',{action:'selectHand',value:index})
+    const me=app.game?.players?.[0];
+    const stableId=d.commander
+      ? (me?.commandZone?.find(c=>c.commander)?.id ?? me?.commandZone?.[0]?.id)
+      : me?.handForgeIds?.[index];
+    if(!Number.isInteger(Number(stableId))) {
+      ctNativeToast('Card is no longer in your hand or command zone');
+      return;
+    }
+    void CommandTableNative.request('game.command',{action:'castById',value:stableId})
       .then(async()=>{
         try{const snap=await CommandTableNative.request('game.snapshot');
           if(snap?.game)ctReceiveForgeState(snap.game);}catch(_){}
@@ -988,12 +995,12 @@ function ctNativeCombatGuide(g){
  if(attackersStage){
    title=g.active===0?'Declare attackers':'Opponent declaring attackers';
    hint=g.active===0
-     ? 'Tap a glowing creature to attack. Use Undo to reverse a choice; Next confirms or skips combat.'
+     ? 'Tap a glowing creature or drag it to an opponent. Undo retracts; Next confirms.'
      : 'Opponents choose attackers. Watch the highlighted cards and attack targets.';
  }else if(blockersStage){
    title=defending?'Defend — declare blockers':'Declare blockers';
    hint=defending
-     ? 'Tap a glowing legal defender, then choose the attacker Forge offers. Use Undo to change a block, or Next when finished.'
+     ? 'Tap a glowing blocker then an attacker, or drag between them. Undo changes blocks; Next confirms.'
      : 'The defending player chooses blockers. Your attacking creatures are shown below.';
  }else if(damageStage){
    title='Combat damage';
