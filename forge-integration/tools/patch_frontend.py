@@ -1584,6 +1584,59 @@ assert 'window.solPodUi28' in v28
 assert source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+v28+'\n</script></body>')
 
+
+# Dense battlefields can be inspected at readable size without distorting
+# tap/drag gestures on the main Forge battlefield. Both sides work identically.
+label_start="'<div class=\"sol-zone-label\"><span>'+icons[type]"
+label_end="' <small>('+perms.length+')</small></strong></div>'+immersiveLane(p,idx,type)"
+assert source.count(label_start)==1 and source.count(label_end)==1
+source=source.replace(label_start,
+ """'<button type="button" class="sol-zone-label" data-action="zoomBoardRow" data-value="'+
+ idx+':'+type+'" aria-label="Enlarge '+labels[type]+'"><span>'+icons[type]""")
+source=source.replace(label_end,
+ "' <small>('+perms.length+')</small></strong></button>'+immersiveLane(p,idx,type)")
+guard_anchor="'toggleSolRoster'"
+assert source.count(guard_anchor)>=1
+# Only game action guard, not the stage or button, needs this action.
+allow_line="'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame','toggleAutoMana','toggleSolRoster'"
+assert source.count(allow_line)==1
+source=source.replace(allow_line,allow_line+",'zoomBoardRow'")
+game_actions=" case 'toggleSolRoster':app.solRosterOpen=!app.solRosterOpen;render();break;"
+assert source.count(game_actions)==1
+source=source.replace(game_actions,
+ """ case 'zoomBoardRow':{
+  const [seat,kind]=String(v||'').split(':');
+  const idx=Number(seat);
+  if(!Number.isInteger(idx)||idx<0||idx>=(app.game?.players?.length||0))break;
+  if(!['lands','support','creatures'].includes(kind))break;
+  app.solZoomRow={seat:idx,kind};app.modal='solBoardZoom';render();break;
+ }
+"""+game_actions)
+modal_anchor=" if(app.modal==='confirmDeleteDeck'){"
+assert source.count(modal_anchor)==1
+source=source.replace(modal_anchor,
+ """ if(app.modal==='solBoardZoom'){
+  const info=app.solZoomRow,seat=info?.seat,kind=info?.kind;
+  const owner=app.game?.players?.[seat];
+  const filtered=(owner?.battlefield||[]).filter(x=>{
+   const c=card(x.name),t=String(c.type||'');
+   const creature=x.creature===undefined?isCreature(c):x.creature;
+   const land=x.land===undefined?/\\bLand\\b/i.test(t):x.land;
+   return kind==='creatures'?creature:kind==='lands'?land:!creature&&!land;
+  });
+  inside='<div class="sol-board-zoom"><h2>'+esc(seat===0?'Your battlefield':owner?.name||'Opponent')+
+   ' · '+esc(kind==='support'?'Artifacts & enchantments':kind)+'</h2>'+
+   '<p>Tap any permanent for its full card details. Swipe to see more cards.</p>'+
+   '<div class="sol-board-zoom-cards">'+(filtered.length?filtered.map(x=>{
+    const c=card(x.name);
+    return '<button data-action="inspectBoardPermanent" data-value="'+seat+':'+esc(x.uid)+'">'+
+      '<img data-art-name="'+esc(c.name)+'" src="'+esc(artUrl(c))+
+      '" alt="'+esc(c.name)+'" onerror="this.style.display=\\'none\\'">'+
+      '<strong>'+esc(c.name)+'</strong></button>';
+   }).join(''):'<p>No permanents in this row.</p>')+'</div></div>';
+ }
+"""+modal_anchor)
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
