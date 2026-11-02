@@ -342,7 +342,6 @@ assert(selectionUi.includes("const combatCount=inAttack?confirmedAttackers:inBlo
        selectionUi.includes("Remove all attackers") &&
        selectionUi.includes("if(inBlock&&!ok)continue"),
   'Combat counts/confirmations must reflect Forge CombatView, not current target selection');
-const matchLauncher=read('forge-integration/src/main/java/forge/commandtable/CommandTableMatchLauncher.java');
 assert(matchLauncher.includes('FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true') &&
        matchLauncher.indexOf('FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true') <
          matchLauncher.indexOf('match.startMatch(rules,'),
