@@ -1192,6 +1192,32 @@ ux_css="""<style id="ct-arena-flow-v018">
 assert source.count('</head>')==1
 source=source.replace('</head>',ux_css+'</head>')
 
+# Forge auto mana is on by default for Arena-like casting, but optional.
+# Only an ENABLED "Auto" button from Forge may trigger a payment.
+assert source.count('window.CommandTableAction = action;')==1
+source=source.replace('window.CommandTableAction = action;',
+ """window.CommandTableAction = action;
+try{window.ctAutoMana=localStorage.getItem('ct-auto-mana')!=='off';}
+catch(_){window.ctAutoMana=true;}""")
+auto_button='<button class="secondary full" data-action="viewHistory">Match history</button>'
+assert source.count(auto_button)==1
+source=source.replace(auto_button,
+  '<button class="secondary full" data-action="toggleAutoMana">Auto-tap mana: '+
+  chr(36)+'{window.ctAutoMana?"On":"Off"}</button>'+auto_button)
+native_allow="'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame'"
+assert source.count(native_allow)==1
+source=source.replace(native_allow,
+  "'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame','toggleAutoMana'")
+zone_case="case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;"
+assert source.count(zone_case)==1
+source=source.replace(zone_case,
+  """case 'toggleAutoMana':{
+    window.ctAutoMana=!window.ctAutoMana;
+    try{localStorage.setItem('ct-auto-mana',window.ctAutoMana?'on':'off');}catch(_){}
+    render();break;
+  }
+  """+zone_case)
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
