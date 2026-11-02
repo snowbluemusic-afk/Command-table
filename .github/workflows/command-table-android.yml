@@ -41,6 +41,7 @@ jobs:
           mkdir -p recovery-logs
           bash -n ci/android-smoke.sh
           node tests/verify-arena-gestures.cjs 2>&1 | tee recovery-logs/arena-gestures.txt
+          node tests/verify-arena-experience.cjs 2>&1 | tee recovery-logs/arena-experience.txt
           node tests/verify-forge-integration.cjs 2>&1 | tee recovery-logs/preflight.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Fetch pinned Forge engine and Android source

@@ -347,7 +347,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "FORGE BUILT-IN · v0.15.0")
+                      "FORGE BUILT-IN · v0.18.0")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -390,7 +390,7 @@ source=source.replace("function turnControls(g,active,self){",
 native_entry="if(app.nativeMatch && NATIVE_GAME_COMMANDS.has(act)) {"
 assert source.count(native_entry)==1
 source=source.replace(native_entry,
-    native_entry+"\n   if(['castSelected','playInspected','cardId','quitGame'].includes(act)){app.modal='';app.sideInspect=null;app.inspectOwner=null;app.inspectForgeId=null;render();}")
+    native_entry+"\n   if(['castSelected','playInspected','castById','castCommander','cardId','quitGame'].includes(act)){app.modal='';app.sideInspect=null;app.inspectOwner=null;app.inspectForgeId=null;render();}")
 assert source.count("⊞ Pod")==1
 source=source.replace("⊞ Pod","▦")
 assert source.count("overview?'Focus':'▦'")==1
@@ -401,7 +401,7 @@ assert source.count(menu_btn)>=1
 source=source.replace(menu_btn,
     '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-    "FORGE BUILT-IN · v0.15.0")
+    "FORGE BUILT-IN · v0.18.0")
 pod_css = """
 <style id="ct-forge-game-ux">
 .ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
@@ -516,7 +516,7 @@ source=source.replace('</head>',hand_css+'</head>')
 # Forge owns spell resolution; the browser only renders the authoritative stack.
 stack_old='<button class="ct10-stack" data-action="viewStack">⚡ '+chr(36)+'{esc(g.stack.at(-1).name)} · '+chr(36)+'{g.stack.length} on stack</button>'
 assert source.count(stack_old)==1, "Stack markup changed"
-stack_new='<aside class="ct-native-stack" aria-label="Forge spell stack"><strong>⚡ Stack · '+chr(36)+'{g.stack.length}</strong><ol>'+chr(36)+'{g.stack.slice().reverse().map((spell,i)=>`<li><b>'+chr(36)+'{i===0?"NEXT":i+1}</b><span>'+chr(36)+'{esc(spell.name||"Ability")}</span></li>`).join("")}</ol></aside>'
+stack_new='<details class="ct-native-stack ct-stack-compact" aria-label="Forge spell stack" '+chr(36)+'{window.ctArenaMotion?.stackExpanded?"open":""}><summary>⚡ '+chr(36)+'{g.stack.length} on stack · <span>'+chr(36)+'{esc(g.stack.at(-1)?.name||"Ability")}</span>⌄</summary><ol>'+chr(36)+'{g.stack.slice().reverse().map((spell,i)=>`<li><b>'+chr(36)+'{i===0?"NEXT":i+1}</b><span>'+chr(36)+'{esc(spell.name||"Ability")}</span></li>`).join("")}</ol></details>'
 source=source.replace(stack_old,stack_new)
 assert source.count("commandZone:cardZone(p.commandZone), priority:!!p.priority")==1
 source=source.replace("commandZone:cardZone(p.commandZone), priority:!!p.priority",
@@ -573,6 +573,11 @@ source=source.replace('</body></html>', '<script>\n'+catalog_js+'\n</script></bo
 gestures_js = (Path(__file__).resolve().parent.parent / 'web' / 'forge-gestures.js').read_text()
 assert 'window.ctDirectCombat' in gestures_js
 source=source.replace('</body></html>', '<script>\n'+gestures_js+'\n</script></body></html>')
+# Foreground Zones, non-blocking hold-to-read, Forge-confirmed animation.
+for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js'):
+    feature_js=(Path(__file__).resolve().parent.parent / 'web' / feature).read_text()
+    assert 'window.ct' in feature_js, 'Experience module export missing: '+feature
+    source=source.replace('</body></html>', '<script>\n'+feature_js+'\n</script></body></html>')
 # The sideload app has its full Forge catalog locally; no server dependency.
 source=source.replace('Online discoveries can be saved to decks but are not playable until their rules are implemented.',
                       'Search the complete Forge card database included with Command Table. No extra download required.')
@@ -589,8 +594,11 @@ function ctReceiveForgeState(state) {
   if(app.view==='game' && signature===ctForgeLastSignature) return;
   ctForgeLastSignature=signature;
   const alreadyPlaying=app.view==='game';
-  const previousPhase=String(app.game?.phaseDetail||'');
+  const before=app.game;
+  const previousPhase=String(before?.phaseDetail||'');
   applyAuthoritativeGame(state);
+  // The animation layer reads ONLY two confirmed Forge projections.
+  window.ctArenaMotion?.onState?.(before,app.game);
   const declaration=/COMBAT_DECLARE_(ATTACKERS|BLOCKERS)/.test(String(app.game?.phaseDetail||''));
   if(declaration && !/COMBAT_DECLARE_(ATTACKERS|BLOCKERS)/.test(previousPhase)){
     app.sideInspect=null;
@@ -1148,6 +1156,67 @@ unknown_inspect="esc(c.text||c.type||'')"
 assert source.count(unknown_inspect)==1, 'Card inspector text renderer changed'
 source=source.replace(unknown_inspect,
   "esc(app.nativeMatch&&!c.implemented?'Card text is loading; Forge handles the rules.':(c.text||c.type||''))")
+
+# v0.18: one-tap casting when Forge explicitly offers a hand card, or
+# when timing and conservative visible mana permit an attempt. Forge still
+# rejects illegal casts and handles all actual mana costs and targets.
+instant="'castById':'selectHand'"
+assert source.count(instant)==1, 'Hand tap action mapping changed'
+source=source.replace(
+  "window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?'castById':'selectHand'",
+  "(window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])||"+
+  "(ctNativeTiming(c).allowed&&ctNativeAffordable(c,me,g)))?'castById':'selectHand'")
+assert source.count("window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?\n     String(me.handForgeIds[i]):String(i)")==1, 'Hand index/value render changed'
+source=source.replace(
+  "window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?\n     String(me.handForgeIds[i]):String(i)",
+  "(window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])||"+
+  "(ctNativeTiming(c).allowed&&ctNativeAffordable(c,me,g)))?\n     String(me.handForgeIds[i]):String(i)")
+# Native request flow already swallows click-through after accepted cast.
+# The hold-to-inspect gesture explicitly suppresses its synthetic click.
+ux_css="""<style id="ct-arena-flow-v018">
+.ct-native-stack.ct-stack-compact{right:2%!important;top:18%!important;
+ width:clamp(140px,20vw,265px)!important;max-height:40dvh!important;
+ padding:0!important;overflow:auto!important;z-index:10!important;
+ background:#112631dc!important}
+.ct-native-stack.ct-stack-compact summary{display:flex;gap:6px;align-items:center;
+ padding:9px 11px;cursor:pointer;list-style:none;color:#e7f4eb;
+ font-size:11px;font-weight:750;white-space:nowrap;overflow:hidden}
+.ct-native-stack.ct-stack-compact summary::-webkit-details-marker{display:none}
+.ct-native-stack.ct-stack-compact summary span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ct-native-stack.ct-stack-compact ol{padding:0 7px 9px!important;max-height:29dvh;overflow:auto}
+#ct-forge-priority-buttons{box-shadow:0 5px 19px #0008!important}
+#ct-forge-priority-buttons button{touch-action:manipulation}
+.ct10-stage .ct10-hand-slot .game-card.available{outline:2px solid #64d8ef!important;box-shadow:0 0 13px #40bedea3!important}
+.ct10-stage .ct10-lane .game-card.ct-forge-legal-target{cursor:pointer}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',ux_css+'</head>')
+
+# Forge auto mana is on by default for Arena-like casting, but optional.
+# Only an ENABLED "Auto" button from Forge may trigger a payment.
+assert source.count('window.CommandTableAction = action;')==1
+source=source.replace('window.CommandTableAction = action;',
+ """window.CommandTableAction = action;
+try{window.ctAutoMana=localStorage.getItem('ct-auto-mana')!=='off';}
+catch(_){window.ctAutoMana=true;}""")
+auto_button='<button class="secondary full" data-action="viewHistory">Match history</button>'
+assert source.count(auto_button)==1
+source=source.replace(auto_button,
+  '<button class="secondary full" data-action="toggleAutoMana">Auto-tap mana: '+
+  chr(36)+'{window.ctAutoMana?"On":"Off"}</button>'+auto_button)
+native_allow="'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame'"
+assert source.count(native_allow)==1
+source=source.replace(native_allow,
+  "'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame','toggleAutoMana'")
+zone_case="case 'toggleZones':app.zonesOpen=!app.zonesOpen;render();break;"
+assert source.count(zone_case)==1
+source=source.replace(zone_case,
+  """case 'toggleAutoMana':{
+    window.ctAutoMana=!window.ctAutoMana;
+    try{localStorage.setItem('ct-auto-mana',window.ctAutoMana?'on':'off');}catch(_){}
+    render();break;
+  }
+  """+zone_case)
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)

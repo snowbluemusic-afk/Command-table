@@ -274,6 +274,7 @@
   let buttonState={label1:'OK',label2:'Cancel',enable1:false,enable2:false};
   let openingMessage='';
   let busy=false;
+  let autoManaIssued=false;
   async function decide(ok){
     if(busy)return;
     busy=true;
@@ -396,6 +397,15 @@
         if(Object.prototype.hasOwnProperty.call(p,key))buttonState[key]=p[key];
       }
       paintDecision();
+      // Forge InputPayMana offers its Auto control only if its own
+      // mana-payment solver can complete this cost. Never guess mana here.
+      const auto=/^auto$/i.test(String(buttonState.label1).trim());
+      if(!auto)autoManaIssued=false;
+      if(auto && buttonState.enable1 && window.ctAutoMana!==false &&
+         !autoManaIssued && window.app?.nativeMatch && !busy){
+        autoManaIssued=true;
+        Promise.resolve().then(()=>{if(!busy&&window.ctAutoMana!==false)void decide(true);});
+      }
     }
     if(payload?.type==='game.state'){paintDecision();queueCombatLinks();}
     return typeof firstReply==='function'?firstReply(value):undefined;

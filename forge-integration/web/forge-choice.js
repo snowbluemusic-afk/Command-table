@@ -7,6 +7,7 @@
   let current = null;
   let selected = [];
   let inFlight = false;
+  const forcedChoicesSubmitted=new Set();
   const view = document.createElement('section');
   view.id = 'ct-forge-decision-sheet';
   view.setAttribute('role', 'dialog');
@@ -310,7 +311,19 @@
         }
       }
       inFlight=false;
-      paint();
+      // Only one mandatory choice exists and Forge has not offered Skip:
+      // no user decision is lost by returning the one possible answer.
+      // Do NOT auto-answer yes/no, modal options, targeting, mana colours
+      // or optional choices that could conceal a meaningful decision.
+      const forced=current && current.mode==='single' &&
+        current.min===1 && current.max===1 &&
+        current.options?.length===1 && !current.allowSkip && !current.confirm;
+      if(forced && !forcedChoicesSubmitted.has(current.id)){
+        forcedChoicesSubmitted.add(current.id);
+        selected=[0];
+        void answer(false);
+      }else paint();
+      if(forcedChoicesSubmitted.size>140)forcedChoicesSubmitted.clear();
       return;
     }
     if(event && event.type==='game.choice.clear') {
