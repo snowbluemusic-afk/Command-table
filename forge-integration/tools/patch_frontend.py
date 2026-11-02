@@ -1637,6 +1637,18 @@ source=source.replace(modal_anchor,
  }
 """+modal_anchor)
 
+# v0.29 - unified UI notifications and lower-left player Zones positioning.
+for script_name in ('sol-pod-layout-v029.js','sol-pod-notifications-v029.js'):
+    script=(Path(__file__).resolve().parent.parent/'web'/script_name).read_text()
+    assert source.count('</body>')==1
+    source=source.replace('</body>','<script>\n'+script+'\n</script></body>')
+# The visual listener re-attaches to any fresh card-art status element after
+# a Forge GameView re-render; it never sends gameplay commands.
+render_hook="root.innerHTML=shell(view);syncNativeOrientation();scheduleAuto();if(app.view==='game')window.ctMatchLoading?.ready();if(app.nativeMatch&&app.autoPilot)ctWatchForgeMatch();}"
+assert source.count(render_hook)==1, 'Native render hook changed'
+source=source.replace(render_hook,
+    "root.innerHTML=shell(view);syncNativeOrientation();scheduleAuto();if(app.view==='game')window.ctMatchLoading?.ready();if(app.nativeMatch&&app.autoPilot)ctWatchForgeMatch();window.solPodSyncNotices?.();}")
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
