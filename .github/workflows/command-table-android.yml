@@ -49,6 +49,7 @@ jobs:
           node tests/verify-sol-pod-ui-v028.cjs 2>&1 | tee recovery-logs/sol-pod-ui-v028.txt
           node tests/verify-sol-pod-v029.cjs 2>&1 | tee recovery-logs/sol-pod-v029.txt
           node tests/verify-sol-pod-v030.cjs 2>&1 | tee recovery-logs/sol-pod-v030.txt
+          node tests/verify-sol-pod-v031.cjs 2>&1 | tee recovery-logs/sol-pod-v031.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Fetch pinned Forge engine and Android source
         run: |
@@ -84,7 +85,7 @@ jobs:
           python3 - <<'PY'
           import pathlib, re, subprocess
           doc=pathlib.Path('/tmp/forge/forge-gui-android/assets/command-table.html').read_text()
-          checks=['ctHydrateForgeState','ctFocusActiveOpponent','solPodPermanentRows','solPodRoster','sol-pod-board-v027','sol-pod-ui-v028','sol-pod-layout-v029','sol-pod-notifications-v029','sol-pod-hub-v030','solPodHub','solPodNotice','zoomBoardRow','confirmDeleteDeck','SOL POD','game.prompt','ct-forge-priority-buttons','window.ctForgeCards',
+          checks=['ctHydrateForgeState','ctFocusActiveOpponent','solPodPermanentRows','solPodRoster','sol-pod-board-v027','sol-pod-ui-v028','sol-pod-layout-v029','sol-pod-notifications-v029','sol-pod-hub-v030','sol-pod-ux-v031','ct-forge-decision-sheet','solPodHub','solPodNotice','zoomBoardRow','confirmDeleteDeck','SOL POD','game.prompt','ct-forge-priority-buttons','window.ctForgeCards',
                   'if(app.nativeMatch && app.view','ctNativeActionValue(act,v)']
           for check in checks:
               assert check in doc, 'Native integration missing: '+check
