@@ -1296,9 +1296,10 @@ assert n4==1, 'Native watch mode option changed'
 source=re.sub(r"(app\.nativeMatch=false;)(\s*announce\('Forge match start timed out)",
               r"\1window.ctMatchLoading?.hide();\2",source)
 # Catch errors when a deck is rejected rather than leaving the loading veil visible.
-source,n5=re.subn(r'\.catch\(error=>announce\(([^;\n]*?Forge could not start this game:[^\n]*?)\)\);',
-  r'.catch(error=>{window.ctMatchLoading?.hide();announce(\1);});',source)
-assert n5==1, 'Forge start catch changed'
+error_catch=".catch(error=>{app.nativeMatch=false;announce("
+assert source.count(error_catch)==1, 'Forge startup error handler changed'
+source=source.replace(error_catch,
+  ".catch(error=>{app.nativeMatch=false;window.ctMatchLoading?.hide();announce(")
 poller=r"""
 let ctForgeWatchPolling=false;
 async function ctWatchForgeMatch(){
