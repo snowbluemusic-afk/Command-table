@@ -1166,9 +1166,9 @@ source=source.replace(
   "window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?'castById':'selectHand'",
   "(window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])||"+
   "(ctNativeTiming(c).allowed&&ctNativeAffordable(c,me,g)))?'castById':'selectHand'")
-assert source.count("window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?\n      String(me.handForgeIds[i]):String(i)")==1, 'Hand index/value render changed'
+assert source.count("window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?\n     String(me.handForgeIds[i]):String(i)")==1, 'Hand index/value render changed'
 source=source.replace(
-  "window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?\n      String(me.handForgeIds[i]):String(i)",
+  "window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?\n     String(me.handForgeIds[i]):String(i)",
   "(window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])||"+
   "(ctNativeTiming(c).allowed&&ctNativeAffordable(c,me,g)))?\n     String(me.handForgeIds[i]):String(i)")
 # Native request flow already swallows click-through after accepted cast.
