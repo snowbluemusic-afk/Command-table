@@ -123,11 +123,13 @@
           ': '+(error?.message||String(error)));
       }finally{
         busy=false;queued--;
-        window.dispatchEvent(new Event('ct-combat-queue-updated'));
+        if(typeof window.dispatchEvent==='function'&&typeof window.Event==='function')
+          window.dispatchEvent(new window.Event('ct-combat-queue-updated'));
       }
     };
     commandQueue=commandQueue.catch(()=>{}).then(task);
-    window.dispatchEvent(new Event('ct-combat-queue-updated'));
+    if(typeof window.dispatchEvent==='function'&&typeof window.Event==='function')
+          window.dispatchEvent(new window.Event('ct-combat-queue-updated'));
     return commandQueue;
   };
   // Candidate highlights are advisory; a transient empty Selection from
