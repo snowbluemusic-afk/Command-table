@@ -1705,6 +1705,33 @@ v31=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-ux-v031.js').read_tex
 assert 'sol-pod-ux-v031' in v31 and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+v31+'\n</script></body>')
 
+
+# v0.32: move the Hand toggle beside Zones and let card taps only inspect cards.
+# Keep the compact hand count passive rather than overlaying playable zones.
+old_hand_toggle='<button data-action="toggleHandZoom" aria-label="Expand or collapse hand" aria-pressed="'+chr(36)+'{!!app.handZoom}">YOUR HAND <b>'+chr(36)+'{me.hand.length}</b> '+chr(36)+'{app.handZoom?"✕ CLOSE HAND":"⤢ ENLARGE HAND"}</button>'
+assert source.count(old_hand_toggle)==1, 'v0.31 hand ribbon changed'
+source=source.replace(old_hand_toggle,
+ '<span class="sol-hand-count">YOUR HAND <b>'+chr(36)+'{me.hand.length}</b></span>')
+hand_wrap='<div class="ct10-hand-wrap">'
+assert source.count(hand_wrap)==1, 'Hand layout anchor changed'
+source=source.replace(hand_wrap,
+ '<button type="button" class="sol-hand-toggle" data-action="toggleHandZoom" aria-pressed="'+chr(36)+'{!!app.handZoom}">'+chr(36)+'{app.handZoom?"✕ Hide hand":"▤ Enlarge hand"}</button>\n  '+hand_wrap)
+tutorial_old='Tap YOUR HAND to enlarge your cards.'
+assert source.count(tutorial_old)==1, 'How to Play hand directions changed'
+source=source.replace(tutorial_old,
+ 'Use Enlarge hand beside Zones to browse cards. Press Hide hand to return to the board.')
+block_tutorial='select the incoming attacker first, then one of your untapped eligible creatures.'
+assert source.count(block_tutorial)==1, 'How to Play blocker directions changed'
+source=source.replace(block_tutorial,
+ 'select your untapped blocker first, then tap the attacking creature it will block.')
+block_intro='select the incoming attacker then a legal untapped blocker'
+if source.count(block_intro)==1:
+ source=source.replace(block_intro,
+  'select one of your untapped blockers then the attacking creature')
+v32=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-ux-v032.js').read_text()
+assert 'sol-pod-ux-v032' in v32 and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+v32+'\n</script></body>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
