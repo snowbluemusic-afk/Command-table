@@ -577,7 +577,7 @@ gestures_js = (Path(__file__).resolve().parent.parent / 'web' / 'forge-gestures.
 assert 'window.ctDirectCombat' in gestures_js
 source=source.replace('</body></html>', '<script>\n'+gestures_js+'\n</script></body></html>')
 # Foreground Zones, non-blocking hold-to-read, Forge-confirmed animation.
-for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js'):
+for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js','forge-graveyard.js'):
     feature_js=(Path(__file__).resolve().parent.parent / 'web' / feature).read_text()
     assert 'window.ct' in feature_js, 'Experience module export missing: '+feature
     source=source.replace('</body></html>', '<script>\n'+feature_js+'\n</script></body></html>')
@@ -1231,6 +1231,26 @@ ribbon="Tap to inspect · Drag to cast"
 assert source.count(ribbon)==1, 'Hand ribbon template changed'
 source=source.replace(ribbon,
   '${app.nativeMatch&&window.ctForgePriority?.isBottoming?"Tap cards to bottom · Press OK":"Tap to inspect · Open to cast"}')
+
+# v0.22: The public graveyard/exile zones were only counters. Add readable
+# cards without executing any game action or changing Forge's rules.
+grave_anchor='<div>♜ Graveyard <b>'+chr(36)+'{me.graveyard.length}</b></div>'
+exile_anchor='<div>◇ Exile <b>'+chr(36)+'{me.exile.length}</b></div>'
+assert source.count(grave_anchor)==1 and source.count(exile_anchor)==1, 'Zones drawer changed'
+source=source.replace(grave_anchor,
+    '<button type="button" class="ct-zone-entry" data-ct-zone-view="graveyard" aria-label="Browse your graveyard">♜ Graveyard <b>'+chr(36)+'{me.graveyard.length}</b></button>')
+source=source.replace(exile_anchor,
+    '<button type="button" class="ct-zone-entry" data-ct-zone-view="exile" aria-label="Browse your exile">◇ Exile <b>'+chr(36)+'{me.exile.length}</b></button>')
+source=source.replace('</head>',"""<style id="ct-zone-readable">
+.ct10-zone-drawer .ct-zone-entry{display:flex;justify-content:space-between;gap:10px;width:100%;border:1px solid #bd9e694f;background:#28434b85;border-radius:9px;color:#fbe8c8;padding:10px 8px;cursor:pointer;font:650 12px system-ui;touch-action:manipulation}
+.ct10-zone-drawer .ct-zone-entry:active{background:#486572}
+</style></head>""")
+# A mandatory discard also requires hand taps to reach Forge. The native
+# prompt and Selection own the exact number of cards and confirmation.
+old_hint=chr(36)+'{app.nativeMatch&&window.ctForgePriority?.isBottoming?"Tap cards to bottom · Press OK":"Tap to inspect · Open to cast"}'
+new_hint=chr(36)+'{app.nativeMatch&&window.ctForgePriority?.isHandChoice?(window.ctForgePriority?.handInstruction||"Tap cards to select · Press OK"):"Tap to inspect · Open to cast"}'
+assert source.count(old_hint)==1, 'Native hand ribbon changed'
+source=source.replace(old_hint,new_hint)
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)

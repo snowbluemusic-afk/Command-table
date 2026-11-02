@@ -6,10 +6,11 @@ const patch=read('forge-integration/tools/patch_frontend.py');
 const choice=read('forge-integration/web/forge-choice.js');
 const priority=read('forge-integration/web/forge-selection.js');
 const zones=read('forge-integration/web/forge-zones.js');
+const graveyard=read('forge-integration/web/forge-graveyard.js');
 const hold=read('forge-integration/web/forge-card-hold.js');
 const motion=read('forge-integration/web/forge-motion.js');
 
-for(const [name,text] of Object.entries({zones,hold,motion,choice,priority})){
+for(const [name,text] of Object.entries({zones,graveyard,hold,motion,choice,priority})){
   assert.doesNotThrow(()=>new Function(text),name+' must parse as JavaScript');
 }
 assert(zones.includes("document.body.append(portal)") &&
@@ -31,7 +32,7 @@ assert(motion.includes("previous?.native||!next?.native") &&
        motion.includes("reduced-motion") &&
        motion.includes("window.ctArenaMotion"),
   'Animations must reflect committed Forge GameViews only and respect accessibility');
-assert(patch.includes("for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js')") &&
+assert(patch.includes("for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js','forge-graveyard.js')") &&
        patch.includes("window.ctArenaMotion?.onState?.(before,app.game)") &&
        patch.includes("ct-native-stack ct-stack-compact") &&
        patch.includes("window.ctArenaMotion?.stackExpanded"),
@@ -59,4 +60,11 @@ assert(priority.includes("autoManaIssued") &&
 assert(patch.includes("window.ctNativeToast = ctNativeToast;") &&
        patch.includes("window.ctReceiveForgeState = ctReceiveForgeState;"),
   'Centered casting must receive native feedback and updated authoritative game state');
-console.log('PASS: v0.18 Zones foreground, card hold, casting, stack, FX, safe choice handling and phase controls');
+assert(graveyard.includes('window.ctZoneBrowser=') &&
+       graveyard.includes("data-ct-zone-view") &&
+       graveyard.includes("window.app?.game?.players") &&
+       graveyard.includes("ctCardArtUrl") &&
+       patch.includes("data-ct-zone-view=") &&
+       patch.includes("'forge-graveyard.js'"),
+  'Forge graveyards must be browsable as a read-only overlay from Zones');
+console.log('PASS: v0.22 browsable graveyard/exile, Forge choice UX and game panels');

@@ -354,11 +354,12 @@ assert(forgeInput.includes('current instanceof InputPassPriority priority') &&
        overlay.includes('bridge.castCard(wanted)'),
   'A cast must require the priority input and an actual Forge spell/land selection');
 assert(frontend.includes("const g=app.game,name=app.nativeMatch?app.sideInspect") &&
-       frontend.includes("Tap cards to bottom · Press OK") &&
+       frontend.includes("Tap cards to select · Press OK") &&
        frontend.includes("isSelectedCard?.(me.handForgeIds?.[i])"),
   'Mulligan choices must show and native stack inspector must close');
 assert(selectionScript.includes("get isBottoming()") &&
-       castingScript.includes("window.ctForgePriority?.isBottoming") &&
+       selectionScript.includes("get isHandChoice()") &&
+       castingScript.includes("window.ctForgePriority?.isHandChoice") &&
        castingScript.includes("action:'cardId',value:card.id"),
   'Mulligan card taps must reach Forge without Cast');
 console.log('PASS: native mulligan selection, inspector dismissal and Forge integration');

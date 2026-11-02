@@ -413,12 +413,31 @@
   window.ctForgePriority={
     reset:()=>{openingMessage='';buttonState.enable1=false;buttonState.enable2=false;paintDecision();},
     refresh:paintDecision,
-    // Forge owns keep/mulligan/return decisions. Change tap behaviour only
-    // for the prompt asking for cards on the bottom of the library.
+    // Distinguish Forge's mandatory hand-card choices from the ordinary
+    // castable-card highlights shown during priority. Do not let the UI
+    // mistake a discard for a request to cast.
     get isBottoming(){
       return window.app?.game?.phase==='mulligan' &&
         /\b(?:return|put)\b.*\bbottom\b.*\b(?:library|deck)\b/i
           .test(String(openingMessage||''));
+    },
+    get isHandChoice(){
+      const player=window.app?.game?.players?.[0];
+      if(!player || window.app?.view!=='game')return false;
+      const handIds=new Set((player.handForgeIds||[]).map(Number));
+      const matching=(selection.cards||[]).some(c=>handIds.has(Number(c.id)) && !c.actionable);
+      const prompt=[openingMessage,promptMessage].filter(Boolean).join(' ');
+      const explicit=/\bdiscard\b|\bbottom\b.*\blibrary\b|(?:choose|select|return|put)\b.*\b(?:cards?|hand)\b/i.test(prompt);
+      const mandatory=Number(selection.min)>0 && Number(selection.max)>0;
+      const choiceOpen=document.getElementById('ct-forge-decision-sheet')?.style.display==='flex';
+      return !choiceOpen && (this.isBottoming || (matching && (mandatory || explicit)));
+    },
+    get handInstruction(){
+      const prompt=[promptMessage,openingMessage].find(s=>/discard|bottom|choose|select/i.test(String(s||'')))||'';
+      const needed=Number(selection.min||0),chosen=(selection.chosen||[]).length;
+      if(needed>0)return (/\bdiscard\b/i.test(prompt)?'Discard':'Choose')+' '+needed+
+        ' card'+(needed===1?'':'s')+' · '+chosen+' selected · Press OK';
+      return this.isBottoming?'Tap cards to bottom · Press OK':'Tap glowing cards to select · Press OK';
     }
   };
 

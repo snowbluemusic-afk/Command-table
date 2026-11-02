@@ -97,7 +97,7 @@ function createHarness(reject=false){
   assert.equal(h.requests[1].method,'game.snapshot');
   const mulligan=createHarness();
   mulligan.win.app.game.phase='mulligan';
-  mulligan.win.ctForgePriority={isBottoming:true,refresh:()=>{}};
+  mulligan.win.ctForgePriority={isHandChoice:true,refresh:()=>{}};
   const tapped=mulligan.tap('hand');
   await Promise.resolve();
   assert(tapped.stopped,'Mulligan selection must suppress the preview');
@@ -105,6 +105,20 @@ function createHarness(reject=false){
   assert.deepEqual(JSON.parse(JSON.stringify(mulligan.requests[0])),
     {method:'game.command',payload:{action:'cardId',value:42}},
     'Mulligan card choice must use Forge selectCard, not castById');
+  const discard=createHarness();
+  discard.win.ctForgePriority={isHandChoice:true,refresh:()=>{}};
+  const discardTap=discard.tap('hand');
+  await Promise.resolve();
+  assert(discardTap.stopped,'Discard selection must suppress casting');
+  assert.equal(discard.overlay().dataset.open,'false',
+    'Faithless Looting discard must not show Cast');
+  assert.deepEqual(JSON.parse(JSON.stringify(discard.requests[0])),
+    {method:'game.command',payload:{action:'cardId',value:42}},
+    'Discard must select one exact Forge hand card instance');
+  discard.tap('hand');
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(discard.requests.filter(x=>x.method==='game.command').length,2,
+    'Rapid discard taps must queue both Forge selections rather than drop one');
   const cancelled=createHarness();
   cancelled.tap('hand');
   cancelled.buttons().cancel.onclick();
