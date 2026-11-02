@@ -24,6 +24,7 @@
   hint.style.cssText='position:fixed;z-index:220001;left:50%;top:13%;transform:translateX(-50%);background:#112932f0;color:#ffe6af;border:1px solid #c9ab76;border-radius:9px;padding:7px 12px;font:700 12px system-ui;pointer-events:none;display:none;max-width:60vw;text-align:center';
   document.body.append(hint);
   let drag=null, suppressClick=null, busy=false;
+  let selectedBlockTarget=null;
   let queued=0;
   let commandQueue=Promise.resolve();
   let suppressUntil=0;
@@ -40,11 +41,10 @@
     if(typeof window.ctNativeToast==='function')window.ctNativeToast(msg);
     else if(typeof window.announce==='function')window.announce(msg);
   };
-  const notify=(text,x,y)=>{
-    hint.textContent=text;
-    hint.style.display='block';
-    hint.style.left=Math.max(120,Math.min(innerWidth-120,x))+'px';
-    hint.style.top=Math.max(30,Math.min(innerHeight-70,y-65))+'px';
+  const notify=(text)=>{
+    // Fixed right-side guidance rather than a message following the finger.
+    if(window.solPodNotice)window.solPodNotice(text,'combat');
+    else {hint.textContent=text;hint.style.display='block';}
   };
   const clear=()=>{
     drag=null;
@@ -190,53 +190,89 @@
     event.stopImmediatePropagation();
     suppressClick=null;
   },true);
-  // Direct taps never open a card inspector during a declaration step.
-  // A tap on an attacker selects which attacker to block; a subsequent
-  // tap on a blocker assigns it to THAT attacker, matching Forge InputBlock.
+  // Two-tap blocker flow: pick the incoming attacker, then pick your own
+  // blocker. One atomic combat.block request goes to Forge. The earlier
+  // tap -> cardId -> cardId path lost taps while busy and could target
+  // the wrong attacker; never issue those two requests separately.
   document.addEventListener('click',event=>{
-    if(busy||!window.app?.nativeMatch||window.app?.view!=='game'||window.app?.modal)return;
+    if(!window.app?.nativeMatch||window.app?.view!=='game'||window.app?.modal)return;
     const kind=mode();
-    if(!kind)return;
+    if(!kind){selectedBlockTarget=null;return;}
     const own=event.target.closest('.ct10-lane-own.ct10-creatures .game-card[data-value]');
     const opponent=event.target.closest('.ct10-lane-opp.ct10-creatures .game-card[data-value]');
     const player=event.target.closest('[data-ct-forge-player-id]');
+    if(kind==='block'){
+      const attacks=window.app?.game?.combat||[];
+      if(opponent){
+        const id=idFromCard(opponent);
+        const matching=attacks.find(c=>Number(c.cardId)===id);
+        if(!matching)return;
+        event.preventDefault();event.stopImmediatePropagation();
+        selectedBlockTarget=id;
+        document.querySelectorAll('.ct-block-target-selected').forEach(el=>el.classList.remove('ct-block-target-selected'));
+        opponent.classList.add('ct-block-target-selected');
+        feedback('Selected incoming attacker. Tap one of your creatures to assign its block.');
+        return;
+      }
+      if(own){
+        const id=idFromCard(own);
+        if(!isOwnCreature(id))return;
+        event.preventDefault();event.stopImmediatePropagation();
+        if(busy || queued){feedback('Applying previous block. Your next selection will be accepted afterwards.');}
+        const chosen=attacks.some(c=>Number(c.cardId)===selectedBlockTarget)
+          ?selectedBlockTarget:attacks.length===1?Number(attacks[0].cardId):null;
+        if(!chosen){
+          feedback('Choose which attacking creature to block first, then tap your blocker.');
+          return;
+        }
+        void selectSourceAndTarget(id,{kind:'card',id:chosen},'block');
+        return;
+      }
+      return;
+    }
+    // Attack taps still use Forge's natural selectPlayer / selectCard route.
+    // Serialize quick taps rather than dropping a second tap while busy.
     let command=null;
-    if(kind==='attack'&&player) {
+    if(player){
       const playerId=Number(player.getAttribute('data-ct-forge-player-id'));
       const ownId=Number(window.app?.game?.players?.[0]?.forgeId);
       if(Number.isInteger(playerId)&&playerId>0&&playerId!==ownId)
         command={action:'selectPlayer',value:playerId};
-    } else if(kind==='attack'&&own&&isOwnCreature(idFromCard(own))) {
-      command={action:'cardId',value:idFromCard(own)};
-    } else if(kind==='block'&&opponent) {
-      const cardId=idFromCard(opponent);
-      if(window.app?.game?.combat?.some(c=>Number(c.cardId)===cardId))
-        command={action:'cardId',value:cardId};
-    } else if(kind==='block'&&own&&isOwnCreature(idFromCard(own))) {
+    }else if(own && isOwnCreature(idFromCard(own))){
       command={action:'cardId',value:idFromCard(own)};
     }
     if(!command)return;
     event.preventDefault();event.stopImmediatePropagation();
-    busy=true;
-    void window.CommandTableNative.request('game.command',command)
-      .then(async()=>{
+    queued++;
+    commandQueue=commandQueue.catch(()=>{}).then(async()=>{
+      busy=true;
+      try{
+        await window.CommandTableNative.request('game.command',command);
         const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
-        if(snapshot?.game&&typeof window.ctReceiveForgeState==='function')
-          window.ctReceiveForgeState(snapshot.game);
-      })
-      .catch(error=>feedback('Forge rejected your selection: '+(error?.message||String(error))))
-      .finally(()=>{busy=false;});
+        if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
+      }catch(error){
+        feedback('Forge rejected your attack selection: '+(error?.message||String(error)));
+      }finally{
+        queued--;busy=false;
+        if(typeof window.dispatchEvent==='function'&&typeof window.Event==='function')
+          window.dispatchEvent(new window.Event('ct-combat-queue-updated'));
+      }
+    });
   },true);
+  window.addEventListener?.('ct-combat-queue-updated',()=>{
+    if(mode()!=='block'){selectedBlockTarget=null;}
+  });
   const style=document.createElement('style');
   style.id='ct-direct-combat-style';
   style.textContent=`
     .ct-direct-drag-hover{outline:4px solid #ffca69!important;box-shadow:0 0 20px #f1bd5fb5!important}
+    .ct-block-target-selected{outline:3px solid #f5c06d!important;box-shadow:0 0 16px #f6b257!important}
     .ct10-lane-own.ct10-creatures .game-card{touch-action:none}
     [data-ct-forge-player-id].ct-forge-legal-player{outline:3px solid #60d5f8!important;box-shadow:0 0 18px #48c9f890!important}
     @media (orientation:landscape) and (max-height:550px){
       #ct-direct-combat-hint{font-size:11px;top:8%}
     }`;
   document.head.append(style);
-  window.ctDirectCombat={reset:clear,get active(){return !!drag||busy||queued>0;},
-    get pending(){return queued;},whenIdle:()=>commandQueue.catch(()=>{})};
+  window.ctDirectCombat={reset:()=>{clear();selectedBlockTarget=null;},get active(){return !!drag||busy||queued>0;},
+    get selectedAttackerId(){return selectedBlockTarget;},get pending(){return queued;},whenIdle:()=>commandQueue.catch(()=>{})};
 })();
