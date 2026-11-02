@@ -1529,7 +1529,7 @@ source=source.replace(act," case 'toggleSolRoster':app.solRosterOpen=!app.solRos
  " case 'toggleHandZoom':app.handZoom=!app.handZoom;app.modal='';render();break;")
 guard_marker="'toggleHandZoom','inspectBoardPermanent','toggleZones','leaveFinishedGame','toggleAutoMana'"
 assert source.count(guard_marker)==1
-source=source.replace(guard_marker,guard_marker[:-1]+",'toggleSolRoster'")
+source=source.replace(guard_marker,guard_marker+",'toggleSolRoster'")
 old_inspection="app.inspectOwner=owner;app.selectedCard=perm.name;\n   if(!matchMedia('(orientation:landscape)').matches)app.modal='inspect';"
 assert source.count(old_inspection)==1
 source=source.replace(old_inspection,
