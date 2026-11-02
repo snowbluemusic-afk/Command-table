@@ -53,12 +53,23 @@
   const current=token;
   function check(){
    if(!active||current!==token||(typeof app==='undefined'||app.view!=='game'))return;
-   const imgs=[...document.querySelectorAll('.ct10-stage .game-card img')];
-   const pending=imgs.filter(img=>!img.complete).length;
-   if(pending)message.textContent='Loading card artwork · '+pending+' remaining';
+   const game=app.game;
+   const hand=game?.players?.[0]?.hand||[];
+   const opening=game?.phase==='mulligan'||game?.turn===0;
+   // Do not expose the interim 0-card state while the native engine shuffles.
+   // A Forge Play/Draw or Mulligan prompt takes priority: it must be reachable
+   // rather than hidden behind this non-interactive startup screen.
+   const requiresInput=!!window.ctForgePriority?.hasActionableDecision ||
+     window.ctForgeChoice?.hasPending===true;
+   if(requiresInput||hand.length>0||(!opening&&game?.native&&game?.players?.length)){
+     hide();return;
+   }
    const elapsed=Date.now()-startTime;
-   if(elapsed>=650&&(!pending||elapsed>=3300)){hide();return;}
-   setTimeout(check,130);
+   message.textContent=elapsed>8000?
+     'Forge is preparing your opening hand. The game will appear when ready…':
+     'Shuffling decks and preparing your opening hand…';
+   // No 3-second timeout: the real Forge game state controls readiness.
+   setTimeout(check,180);
   }
   requestAnimationFrame(()=>setTimeout(check,100));
  }
