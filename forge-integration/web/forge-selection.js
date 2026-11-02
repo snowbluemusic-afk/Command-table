@@ -162,7 +162,11 @@
     const choiceActive=choiceSheet?.style.display==='flex';
     // The advanced options drawer is optional during combat and must not
     // obscure the battlefield while players assign attackers or blockers.
-    panel.style.display=playing&&all.length&&!choiceActive&&!window.app?.sideInspect?'block':'none';
+    // Forge glows are the primary selection affordance. Do not show a second
+    // overlapping list for ordinary card/player targets; retain the drawer
+    // for non-board targets (e.g. stack or other nonvisual choices).
+    const visualTargetsOnly=all.length>0&&all.every(item=>item.kind==='card'||item.kind==='player');
+    panel.style.display=playing&&all.length&&!choiceActive&&!window.app?.sideInspect&&!visualTargetsOnly?'block':'none';
     queueCombatLinks();
     if(!playing||!all.length)return;
     const chosen=(selection.chosen||[]).length;
@@ -208,7 +212,8 @@
       if(changed) {
         const combat=String(window.app?.game?.phaseDetail||'').toUpperCase().includes('COMBAT');
         // Keep combat on the battlefield, not a large auto-expanded option list.
-        expanded=candidates().length>0 && !combat && candidates().length<=4;
+        expanded=candidates().length>0 && !combat && candidates().length<=4 &&
+          candidates().some(item=>item.kind!=='card'&&item.kind!=='player');
         // A legal-target selection supersedes an unrelated card preview.
         // Keep the hand and battlefield visible rather than stacking panels.
         if(candidates().length && window.app?.sideInspect) {
