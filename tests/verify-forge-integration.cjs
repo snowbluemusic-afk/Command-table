@@ -11,6 +11,8 @@ const deckRules = read('forge-integration/src/main/java/forge/commandtable/Comma
 const match = read('forge-integration/src/main/java/forge/commandtable/CommandTableMatchLauncher.java');
 const frontend = read('forge-integration/tools/patch_frontend.py');
 const workflow = read('.github/workflows/command-table-android.yml');
+const selectionScript = read('forge-integration/web/forge-selection.js');
+const castingScript = read('forge-integration/web/forge-simple-cast.js');
 
 const literal = n => "entryName.indexOf('" + '\\'.repeat(n) + "')";
 assert(bootstrap.includes(literal(2)),
@@ -351,4 +353,12 @@ assert(forgeInput.includes('current instanceof InputPassPriority priority') &&
        forgeInput.includes('You cannot cast yet.') &&
        overlay.includes('bridge.castCard(wanted)'),
   'A cast must require the priority input and an actual Forge spell/land selection');
-console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
+assert(frontend.includes("const g=app.game,name=app.nativeMatch?app.sideInspect") &&
+       frontend.includes("Tap cards to bottom · Press OK") &&
+       frontend.includes("isSelectedCard?.(me.handForgeIds?.[i])"),
+  'Mulligan choices must show and native stack inspector must close');
+assert(selectionScript.includes("get isBottoming()") &&
+       castingScript.includes("window.ctForgePriority?.isBottoming") &&
+       castingScript.includes("action:'cardId',value:card.id"),
+  'Mulligan card taps must reach Forge without Cast');
+console.log('PASS: native mulligan selection, inspector dismissal and Forge integration');

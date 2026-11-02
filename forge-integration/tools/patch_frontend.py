@@ -1216,6 +1216,22 @@ source=source.replace(zone_case,
   }
   """+zone_case)
 
+# v0.21: Select mulligan cards in Forge and keep the stack inspector dismissible.
+inspector_fallback="const g=app.game,name=app.sideInspect||g.stack.at(-1)?.name;"
+assert source.count(inspector_fallback)==1, 'Inspector template changed'
+source=source.replace(inspector_fallback,
+  "const g=app.game,name=app.nativeMatch?app.sideInspect:(app.sideInspect||g.stack.at(-1)?.name);")
+# When the mulligan controller reports chosen card IDs, highlight those
+# exact cards in hand. Do not fall back to the simulator's app.selected.
+hand_selection="selected:app.selected===i,available:"
+assert source.count(hand_selection)==1, 'Hand selection template changed'
+source=source.replace(hand_selection,
+  "selected:app.nativeMatch?!!window.ctForgeSelection?.isSelectedCard?.(me.handForgeIds?.[i]):app.selected===i,available:")
+ribbon="Tap to inspect · Drag to cast"
+assert source.count(ribbon)==1, 'Hand ribbon template changed'
+source=source.replace(ribbon,
+  '${app.nativeMatch&&window.ctForgePriority?.isBottoming?"Tap cards to bottom · Press OK":"Tap to inspect · Open to cast"}')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')

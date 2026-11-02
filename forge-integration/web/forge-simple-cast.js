@@ -57,7 +57,7 @@
   backdrop.setAttribute('aria-modal','true');
   backdrop.setAttribute('aria-label','Card preview and cast');
   document.body.append(backdrop);
-  let displayed=null,busy=false;
+  let displayed=null,busy=false,mulliganBusy=false;
   const say=(s)=>window.ctNativeToast?.(s) || window.announce?.(s);
   const currentPlayer=()=>window.app?.game?.players?.[0];
   const getFromHand=(index)=>{
@@ -195,6 +195,26 @@
       const card=getFromHand(index);
       if(!card)return;
       event.preventDefault();event.stopImmediatePropagation();
+      if(window.ctForgePriority?.isBottoming){
+        // Mulligan bottom-of-library is a Forge card selection, not a spell.
+        // Select by stable ID (two identical cards are different instances).
+        if(!mulliganBusy){
+          mulliganBusy=true;
+          void (async()=>{
+            try{
+              await window.CommandTableNative.request('game.command',{
+                action:'cardId',value:card.id
+              });
+              const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
+              if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
+              window.ctForgePriority?.refresh?.();
+            }catch(error){
+              say('Forge could not select this mulligan card: '+(error?.message||String(error)));
+            }finally{mulliganBusy=false;}
+          })();
+        }
+        return;
+      }
       open(card);return;
     }
     const command=event.target.closest('.ct-commander-zone-card [data-action="castCommander"],'+
