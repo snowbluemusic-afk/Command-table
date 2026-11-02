@@ -25,6 +25,53 @@
   let expanded=false;
   let working=false;
   let promptMessage='';
+  // Connect confirmed attacker/blocker pairs from Forge's CombatView.
+  // This non-interactive visual never makes a combat/rules decision.
+  const combatSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  combatSvg.id='ct-forge-combat-links';
+  combatSvg.setAttribute('aria-hidden','true');
+  combatSvg.style.cssText='position:fixed;inset:0;width:100vw;height:100dvh;z-index:20000;pointer-events:none;overflow:visible';
+  document.body.append(combatSvg);
+  let linkFrame=0;
+  function paintCombatLinks(){
+    combatSvg.replaceChildren();
+    const game=window.app?.game;
+    if(!window.app?.nativeMatch||window.app?.view!=='game'||
+       game?.phase!=='combat'||!Array.isArray(game?.combat))return;
+    const byCardId=new Map();
+    for(const element of document.querySelectorAll('[data-action="inspectBoardPermanent"][data-value]')){
+      const value=String(element.getAttribute('data-value')||'');
+      const id=value.split(':').at(-1);
+      if(id&&!byCardId.has(id))byCardId.set(id,element);
+    }
+    const center=element=>{
+      if(!element)return null;
+      const r=element.getBoundingClientRect();
+      return r.width&&r.height?{x:r.left+r.width/2,y:r.top+r.height/2}:null;
+    };
+    for(const combat of game.combat){
+      const attacker=center(byCardId.get(String(combat.cardId)));
+      if(!attacker)continue;
+      for(const blockerId of combat.blockerIds||[]){
+        const blocker=center(byCardId.get(String(blockerId)));
+        if(!blocker)continue;
+        const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+        const bend=Math.max(18,Math.min(55,Math.abs(blocker.y-attacker.y)*.24));
+        path.setAttribute('d',`M ${attacker.x} ${attacker.y} Q ${(attacker.x+blocker.x)/2} ${Math.min(attacker.y,blocker.y)-bend} ${blocker.x} ${blocker.y}`);
+        path.setAttribute('fill','none');
+        path.setAttribute('stroke','#ffd06d');
+        path.setAttribute('stroke-width','3');
+        path.setAttribute('stroke-linecap','round');
+        path.setAttribute('opacity','.95');
+        path.style.filter='drop-shadow(0 0 5px #ffc45d)';
+        combatSvg.append(path);
+      }
+    }
+  }
+  function queueCombatLinks(){
+    if(linkFrame)return;
+    linkFrame=requestAnimationFrame(()=>{linkFrame=0;paintCombatLinks();});
+  }
 
   function candidates() {
     const all=[...(selection.cards||[]),...(selection.targets||[])];
@@ -90,7 +137,8 @@
     const playing=(()=>{try{return !!app.nativeMatch && app.view==='game' && app.game?.winner===null;}catch(_){return false;}})();
     const choiceSheet=document.getElementById('ct-forge-decision-sheet');
     const choiceActive=choiceSheet?.style.display==='flex';
-    panel.style.display=playing&&all.length&&!choiceActive?'block':'none';
+    panel.style.display=playing&&all.length&&!choiceActive&&!window.app?.sideInspect?'block':'none';
+    queueCombatLinks();
     if(!playing||!all.length)return;
     const chosen=(selection.chosen||[]).length;
     const phaseDetail=String(window.app?.game?.phaseDetail||'').toUpperCase();
@@ -100,7 +148,7 @@
     title.textContent=(combatLabel||promptMessage||'Forge legal choices').slice(0,95)+
       ' · '+all.length+' option'+(all.length===1?'':'s')+
       (chosen?' · '+chosen+' selected':'');
-    expander.textContent=expanded?'Hide options':'Show options';
+    expander.textContent=expanded?'Hide options':'Other choices';
     choices.style.display=expanded?'flex':'none';
     choices.replaceChildren();
     if(expanded) for (const item of all) {
@@ -128,7 +176,8 @@
       selection=next;
       if(changed) {
         const combat=String(window.app?.game?.phaseDetail||'').toUpperCase().includes('COMBAT');
-        expanded=candidates().length>0 && (combat || candidates().length<=4);
+        // Keep combat on the battlefield, not a large auto-expanded option list.
+        expanded=candidates().length>0 && !combat && candidates().length<=4;
         // A legal-target selection supersedes an unrelated card preview.
         // Keep the hand and battlefield visible rather than stacking panels.
         if(candidates().length && window.app?.sideInspect) {
@@ -252,9 +301,19 @@
       detail.includes('attacker')?'Declare attackers':
       detail.includes('damage')?'Combat damage':
       phases[game?.phase]||game?.phase||'Priority';
+    const inAttack=/ATTACKERS/.test(String(game?.phaseDetail||'').toUpperCase());
+    const inBlock=/BLOCKERS/.test(String(game?.phaseDetail||'').toUpperCase());
+    const confirmedAttackers=Array.isArray(game?.combat)?game.combat.length:0;
+    const confirmedBlockers=Array.isArray(game?.combat)?
+      new Set(game.combat.flatMap(attack=>attack.blockerIds||[])).size:0;
+    const selected=(selection.chosen||[]).length;
+    const combatCount=inAttack?Math.max(confirmedAttackers,selected):
+      inBlock?Math.max(confirmedBlockers,selected):0;
     decisionText.textContent=pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
-      : 'Turn '+(game?.turn||1)+' · '+phaseText+
+      : inAttack?'Choose attackers · tap glowing creatures':
+        inBlock?'Choose blockers · tap glowing creatures':
+        'Turn '+(game?.turn||1)+' · '+phaseText+
         ' · '+(game?.players?.[0]?.priority?'Your priority':'Respond / advance');
     buttons.replaceChildren();
     for(const [label,enabled,ok] of [
@@ -267,13 +326,16 @@
       const ordinary=/^(ok|done|continue)$/i.test(original.trim());
       const phase=window.app?.game?.phase;
       const stack=window.app?.game?.stack||[];
-      const inAttack=/ATTACKERS/.test(String(game?.phaseDetail||'').toUpperCase());
-      const inBlock=/BLOCKERS/.test(String(game?.phaseDetail||'').toUpperCase());
+      // Forge controls whether either action is enabled; only labels change.
       b.textContent=!ok && /^undo$/i.test(original.trim()) && inAttack?'Undo attacker':
         !ok && /^undo$/i.test(original.trim()) && inBlock?'Undo block':
+        ok && !pregame && ordinary && inAttack
+          ? (combatCount?'Attack with '+combatCount:'No attacks'):
+        ok && !pregame && ordinary && inBlock
+          ? (combatCount?combatCount+' blocker'+(combatCount===1?'':'s'):'No blocks'):
         ok && !pregame && ordinary
-        ? (stack.length?'Resolve':window.app?.game?.active===0?'Next':'Pass')
-        :original;
+          ? (stack.length?'Resolve':window.app?.game?.active===0?'Next':'Pass')
+          :original;
       b.setAttribute('aria-label',original+' — '+b.textContent);
       b.disabled=!enabled||busy;
       b.style.cssText=[
@@ -299,7 +361,7 @@
       }
       paintDecision();
     }
-    if(payload?.type==='game.state')paintDecision();
+    if(payload?.type==='game.state'){paintDecision();queueCombatLinks();}
     return typeof firstReply==='function'?firstReply(value):undefined;
   };
   window.ctForgePriority={
@@ -312,11 +374,12 @@
     new MutationObserver(()=>{
       if(selection.cards?.length||selection.targets?.length)highlight();
       paintDecision(); // Close behind full-screen card inspector / hand browser.
+      queueCombatLinks();
     })
       .observe(appRoot,{childList:true,subtree:false});
   }
   window.ctForgeSelection={
-    reset:()=>{selection={cards:[],targets:[],chosen:[]};expanded=false;promptMessage='';update();},
+    reset:()=>{selection={cards:[],targets:[],chosen:[]};expanded=false;promptMessage='';update();queueCombatLinks();},
     refresh:()=>{update();},
     isLegalCard:(id)=>Number.isInteger(Number(id))&&
       candidates().some(c=>c.kind==='card'&&Number(c.id)===Number(id)),
