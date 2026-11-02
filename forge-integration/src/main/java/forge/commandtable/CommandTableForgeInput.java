@@ -5,6 +5,7 @@ import forge.game.card.CardView;
 import forge.game.player.PlayerView;
 import forge.game.spellability.StackItemView;
 import forge.gamemodes.match.HostedMatch;
+import forge.gamemodes.match.input.InputPassPriority;
 import forge.gui.FThreads;
 import forge.player.PlayerControllerHuman;
 
@@ -48,15 +49,32 @@ public final class CommandTableForgeInput {
     public void castCard(int cardId) {
         FThreads.invokeInEdtAndWait(() -> {
             CardView card = findCard(cardId);
-            if (card == null) {
-                throw new IllegalArgumentException("This card is no longer in your hand or command zone");
-            }
-            if (!human().selectCard(card, Collections.emptyList(), null)) {
+            if (card == null)
+                throw new IllegalArgumentException("That card has moved out of your hand or command zone");
+
+            // A card may be visible while Forge expects mulligan, mana,
+            // target, combat or the opponent's priority. Only the current
+            // priority input is authorized to start a new spell/land play.
+            final var current = human().getInputProxy().getInput();
+            if (!(current instanceof InputPassPriority priority))
                 throw new IllegalStateException(
-                    "Forge cannot play this card right now. Check priority, available mana and timing.");
-            }
+                    "You cannot cast yet. Forge is waiting for " +
+                    (current == null ? "a game decision" :
+                        current.getClass().getSimpleName().replace("Input", "")));
+
+            if (!human().selectCard(card, Collections.emptyList(), null))
+                throw new IllegalStateException(
+                    "Forge rejected this card. Check available mana, your turn and spell timing.");
+
+            // Forge InputPassPriority intentionally returns true even when
+            // the ability picker was cancelled. Avoid an erroneous success.
+            final var chosen = priority.getChosenSa();
+            if (chosen == null || chosen.isEmpty())
+                throw new IllegalStateException(
+                    "No spell or land play was selected. Forge has not cast this card.");
         });
     }
+
     public void selectPlayer(int playerId) {
         FThreads.invokeInEdtAndWait(() -> {
             GameView view = view();
