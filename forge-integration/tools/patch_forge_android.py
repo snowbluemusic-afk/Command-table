@@ -106,7 +106,7 @@ manifest_code=manifest_code.replace('android:roundIcon="@mipmap/ic_launcher_roun
                                     'android:roundIcon="@drawable/sol_pod_launcher"')
 icon=ct/'forge-integration/branding/sol_pod_launcher.xml'
 assert icon.is_file(), 'Sol Pod launcher icon missing'
-icon_dest=android/'src/main/res/drawable/sol_pod_launcher.xml'
+icon_dest=android/'res/drawable/sol_pod_launcher.xml'
 icon_dest.parent.mkdir(parents=True,exist_ok=True)
 shutil.copyfile(icon,icon_dest)
 manifest.write_text(manifest_code)
