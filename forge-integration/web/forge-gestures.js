@@ -67,54 +67,39 @@
     }
     return null;
   };
+  // One gesture is one atomic Forge command. Forge's InputAttack/InputBlock
+  // expects defender-before-attacker and attacker-before-blocker respectively.
   const selectSourceAndTarget=async (sourceId,target,dragMode)=>{
     if(busy)return;
     busy=true;
-    const base=window.ctForgeSelection?.version??0;
-    let stop=null, timeout=null;
-    let targetChosen=false;
-    const eligible=items=>Array.isArray(items)&&items.some(item=>
-      item.kind===target.kind&&Number(item.id)===target.id);
-    const ready=new Promise(resolve=>{
-      stop=event=>{
-        const payload=event?.detail||{};
-        if(Number(payload.version)<=base)return;
-        if(eligible(payload.targets)||eligible(payload.cards))resolve(true);
-      };
-      window.addEventListener('ct-forge-selection',stop);
-      timeout=setTimeout(()=>resolve(false),1300);
-    });
     try {
-      await window.CommandTableNative.request('game.command',{action:'cardId',value:sourceId});
-      if(await ready) {
-        await window.CommandTableNative.request('game.command',{
-          action:target.kind==='player'?'selectPlayer':'cardId',value:target.id
-        });
-        targetChosen=true;
-        const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
-        if(snapshot?.game&&typeof window.ctReceiveForgeState==='function')
-          window.ctReceiveForgeState(snapshot.game);
-      } else {
-        feedback(dragMode==='attack'?'Attacker selected. Choose the glowing defending player.':
-          'Blocker selected. Choose the glowing attacker.');
-      }
-    } catch(error) {
-      feedback('Forge could not apply this combat choice: '+(error?.message||String(error)));
-    } finally {
-      if(stop)window.removeEventListener('ct-forge-selection',stop);
-      if(timeout!==null)clearTimeout(timeout);
-      busy=false;
-    }
-    return targetChosen;
+      const action=dragMode==='attack'?'combat.attack':'combat.block';
+      const value=dragMode==='attack'
+        ? {attackerId:sourceId,defenderId:target.id}
+        : {attackerId:target.id,blockerId:sourceId};
+      await window.CommandTableNative.request('game.command',{action,value});
+      const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
+      if(snapshot?.game&&typeof window.ctReceiveForgeState==='function')
+        window.ctReceiveForgeState(snapshot.game);
+    }catch(error){
+      feedback('Forge could not apply this '+(dragMode==='attack'?'attack':'block')+
+        ': '+(error?.message||String(error)));
+    }finally{busy=false;}
   };
+  // Candidate highlights are advisory; a transient empty Selection from
+  // Forge is NOT proof that a creature cannot attack or block.
+  function isOwnCreature(id){
+    return window.app?.game?.players?.[0]?.battlefield?.some(c=>
+      Number(c.forgeId)===Number(id)&&c.creature===true)===true;
+  }
   document.addEventListener('pointerdown',event=>{
     if(busy||event.button!==0||!window.app?.nativeMatch||window.app?.view!=='game'||
-       window.app?.game?.winner!==null||window.app?.modal||window.app?.sideInspect)return;
+       window.app?.game?.winner!==null||window.app?.modal)return;
     const kind=mode();
     if(!kind)return;
     const card=event.target.closest('.ct10-lane-own.ct10-creatures .game-card[data-value]');
     const id=idFromCard(card);
-    if(id==null||!window.ctForgeSelection?.isLegalCard?.(id))return;
+    if(id==null||!isOwnCreature(id))return;
     drag={pointerId:event.pointerId,sourceId:id,el:card,x:event.clientX,y:event.clientY,kind,moving:false};
   },true);
   document.addEventListener('pointermove',event=>{
@@ -156,21 +141,42 @@
     event.stopImmediatePropagation();
     suppressClick=null;
   },true);
-  // Tapping a glowing player in combat chooses that player in Forge rather
-  // than opening the legacy inspect-player screen. Works in 1v1 and pods.
+  // Direct taps never open a card inspector during a declaration step.
+  // A tap on an attacker selects which attacker to block; a subsequent
+  // tap on a blocker assigns it to THAT attacker, matching Forge InputBlock.
   document.addEventListener('click',event=>{
     if(busy||!window.app?.nativeMatch||window.app?.view!=='game'||window.app?.modal)return;
-    const marker=event.target.closest('[data-ct-forge-player-id]');
-    const playerId=Number(marker?.getAttribute('data-ct-forge-player-id'));
-    if(!marker||!window.ctForgeSelection?.isLegalPlayer?.(playerId))return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
+    const kind=mode();
+    if(!kind)return;
+    const own=event.target.closest('.ct10-lane-own.ct10-creatures .game-card[data-value]');
+    const opponent=event.target.closest('.ct10-lane-opp.ct10-creatures .game-card[data-value]');
+    const player=event.target.closest('[data-ct-forge-player-id]');
+    let command=null;
+    if(kind==='attack'&&player) {
+      const playerId=Number(player.getAttribute('data-ct-forge-player-id'));
+      const ownId=Number(window.app?.game?.players?.[0]?.forgeId);
+      if(Number.isInteger(playerId)&&playerId>0&&playerId!==ownId)
+        command={action:'selectPlayer',value:playerId};
+    } else if(kind==='attack'&&own&&isOwnCreature(idFromCard(own))) {
+      command={action:'cardId',value:idFromCard(own)};
+    } else if(kind==='block'&&opponent) {
+      const cardId=idFromCard(opponent);
+      if(window.app?.game?.combat?.some(c=>Number(c.cardId)===cardId))
+        command={action:'cardId',value:cardId};
+    } else if(kind==='block'&&own&&isOwnCreature(idFromCard(own))) {
+      command={action:'cardId',value:idFromCard(own)};
+    }
+    if(!command)return;
+    event.preventDefault();event.stopImmediatePropagation();
     busy=true;
-    void window.CommandTableNative.request('game.command',{
-      action:'selectPlayer',value:playerId
-    }).catch(error=>{
-      feedback('Forge rejected the defending player: '+(error?.message||String(error)));
-    }).finally(()=>{busy=false;});
+    void window.CommandTableNative.request('game.command',command)
+      .then(async()=>{
+        const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
+        if(snapshot?.game&&typeof window.ctReceiveForgeState==='function')
+          window.ctReceiveForgeState(snapshot.game);
+      })
+      .catch(error=>feedback('Forge rejected your selection: '+(error?.message||String(error))))
+      .finally(()=>{busy=false;});
   },true);
   const style=document.createElement('style');
   style.id='ct-direct-combat-style';
