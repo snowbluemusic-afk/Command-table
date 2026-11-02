@@ -569,6 +569,10 @@ source=source.replace('</body></html>', '<script>\n'+selection_js+'\n</script></
 catalog_js = (Path(__file__).resolve().parent.parent / 'web' / 'forge-catalog.js').read_text()
 assert 'CommandTableCatalog' in catalog_js
 source=source.replace('</body></html>', '<script>\n'+catalog_js+'\n</script></body></html>')
+# v0.16 gesture layer loads after the authoritative Forge selection bridge.
+gestures_js = (Path(__file__).resolve().parent.parent / 'web' / 'forge-gestures.js').read_text()
+assert 'window.ctDirectCombat' in gestures_js
+source=source.replace('</body></html>', '<script>\n'+gestures_js+'\n</script></body></html>')
 # The sideload app has its full Forge catalog locally; no server dependency.
 source=source.replace('Online discoveries can be saved to decks but are not playable until their rules are implemented.',
                       'Search the complete Forge card database included with Command Table. No extra download required.')
@@ -1087,6 +1091,27 @@ old_selected="selected:mine&&app.attackers.includes(x.uid)"
 assert source.count(old_selected)==1
 source=source.replace(old_selected,
   "selected:app.nativeMatch?!!window.ctForgeSelection?.isSelectedCard?.(x.forgeId):mine&&app.attackers.includes(x.uid)")
+
+# v0.16: make opponent badges and pod seats Forge targeting surfaces.
+import re
+dollar=chr(36)
+for class_name in ('ct10-opponent-badge','ct-pod-seat'):
+    pattern=r'(<div class="'+class_name+r' [^"]+)(">)'
+    assert len(re.findall(pattern,source))==1, 'Player marker not found: '+class_name
+    source=re.sub(pattern,r'\1 data-ct-forge-player-id="'+dollar+r'{p.forgeId}"\2',source,count=1)
+# A player-target action must never fall through to the training simulator.
+native_set="'permanent','cardId','castCommander','castById'"
+assert source.count(native_set)==1, 'Native command allowlist changed'
+source=source.replace(native_set,
+    "'permanent','cardId','selectPlayer','castCommander','castById'")
+assert source.count('</head>')==1
+source=source.replace('</head>',"""<style id="ct-legal-defender-v0160">
+.ct10-opponent-badge.ct-forge-legal-player,
+.ct-pod-seat.ct-forge-legal-player{
+ border:2px solid #66d7fa!important;
+ box-shadow:0 0 17px #50d0fdac!important;
+ cursor:pointer}
+</style></head>""")
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
