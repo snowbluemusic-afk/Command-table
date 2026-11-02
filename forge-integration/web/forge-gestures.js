@@ -154,6 +154,22 @@
       event.preventDefault();event.stopImmediatePropagation();suppressClick=null;
     }
   },true);
+  // Tapping a glowing player in combat chooses that player in Forge rather
+  // than opening the legacy inspect-player screen. Works in 1v1 and pods.
+  document.addEventListener('click',event=>{
+    if(busy||!window.app?.nativeMatch||window.app?.view!=='game'||window.app?.modal)return;
+    const marker=event.target.closest('[data-ct-forge-player-id]');
+    const playerId=Number(marker?.getAttribute('data-ct-forge-player-id'));
+    if(!marker||!window.ctForgeSelection?.isLegalPlayer?.(playerId))return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    busy=true;
+    void window.CommandTableNative.request('game.command',{
+      action:'selectPlayer',value:playerId
+    }).catch(error=>{
+      feedback('Forge rejected the defending player: '+(error?.message||String(error)));
+    }).finally(()=>{busy=false;});
+  },true);
   const style=document.createElement('style');
   style.id='ct-direct-combat-style';
   style.textContent=`
