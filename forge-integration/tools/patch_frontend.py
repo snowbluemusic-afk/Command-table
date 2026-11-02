@@ -1431,6 +1431,71 @@ source=source.replace('</head>','''<style id="sol-pod-brand">
 .brand strong{letter-spacing:1.4px}
 </style></head>''')
 
+
+# v0.27: Sol Pod three-zone battlefield. This runs after legacy layout patches.
+pod_helpers=r"""
+function solPodPermanentRows(p,idx,type){
+ const perms=(p.battlefield||[]).filter(x=>{
+  const c=card(x.name),kind=String(c?.type||'');
+  const creature=x.creature===undefined?isCreature(c):x.creature;
+  const land=x.land===undefined?/\bLand\b/i.test(kind):x.land;
+  return type==='creatures'?creature:type==='lands'?land:!creature&&!land;
+ });
+ const labels={creatures:'CREATURES',support:'ARTIFACTS & ENCHANTMENTS',lands:'LANDS'};
+ const icons={creatures:'⚔',support:'✧',lands:'◈'};
+ return '<div class="sol-board-row '+(idx===0?'sol-own':'sol-opp')+' sol-'+type+'">'+
+  '<div class="sol-zone-label"><span>'+icons[type]+'</span><strong>'+labels[type]+
+  ' <small>('+perms.length+')</small></strong></div>'+immersiveLane(p,idx,type)+'</div>';
+}
+function solPodRoster(g,focus){
+ return '<nav class="sol-roster" aria-label="Pod players">'+g.players.map((p,i)=>{
+  const active=Number(g.active)===i,selected=focus===i;
+  const label=i===0?'You':p.name||('AI '+i);
+  const action=i===0?'inspectPlayer':'focusPlayer';
+  return '<button type="button" data-action="'+action+'" data-value="'+i+'" '+
+   'class="'+(active?'sol-roster-active ':'')+(selected?'sol-roster-focused ':'')+'" '+
+   'aria-label="'+esc(label)+(active?' — active turn':'')+'" '+(p.dead?'disabled':'')+'>'+
+   '<img data-art-name="'+esc(p.commander)+'" src="'+esc(artUrl(card(p.commander),"art_crop"))+
+   '" alt="" onerror="this.style.display=\'none\'">'+
+   '<strong>'+esc(label)+'</strong><span class="sol-roster-life">♥ '+p.life+'</span></button>';
+ }).join('')+'</nav>';
+}
+"""
+assert source.count("function gameView(){")==1
+source=source.replace("function gameView(){",pod_helpers+"\nfunction gameView(){")
+stage_fragment='<div class="ct-stage ct10-stage '
+assert source.count(stage_fragment)==1
+source=source.replace(stage_fragment,'<div class="ct-stage ct10-stage sol-battlefield ')
+scene_fragment='<div class="ct10-scene" data-dropzone="battlefield">'
+assert source.count(scene_fragment)==1
+brand_marker='<div class="sol-game-brand">'+brand_svg+'<strong>SOL POD</strong></div>'
+source=source.replace(scene_fragment,scene_fragment+brand_marker)
+for which,owner,seat in [('opp','enemy','focus'),('own','me','0')]:
+ for kind in ('creatures','support','lands'):
+  original='<div class="ct10-'+which+'-'+kind+'">'+chr(36)+'{immersiveLane('+owner+','+seat+",'"+kind+"')}</div>"
+  new=chr(36)+'{solPodPermanentRows('+owner+','+seat+",'"+kind+"')}"
+  assert source.count(original)==1,'Cannot find battle lane '+which+' '+kind
+  source=source.replace(original,new)
+focus_badge='<div class="ct10-focused-opponent">'+chr(36)+'{immersiveOppBadge(enemy,focus)}</div>'
+assert source.count(focus_badge)==1
+source=source.replace(focus_badge,focus_badge+chr(36)+'{solPodRoster(g,focus)}')
+zone_toggle='</button>\n  <aside class="ct10-zone-drawer">'
+assert source.count(zone_toggle)==1,'Zones drawer structure changed'
+zone_buttons=r"""</button>
+  <div class="sol-zone-shortcuts">
+   <button type="button" data-action="openHand"><span>♧ Hand</span><b>@@D@@{me.hand.length}</b></button>
+   <button type="button" data-action="toggleZones"><span>▤ Library</span><b>@@D@@{me.library.length}</b></button>
+   <button type="button" data-ct-zone-view="graveyard"><span>♜ Graveyard</span><b>@@D@@{me.graveyard.length}</b></button>
+   <button type="button" data-ct-zone-view="exile"><span>✧ Exile</span><b>@@D@@{me.exile.length}</b></button>
+   <button type="button" data-action="inspectCommander"><span>♛ Command</span><b>1</b></button>
+  </div>
+  <aside class="ct10-zone-drawer">""".replace('@@D@@',chr(36))
+source=source.replace(zone_toggle,zone_buttons)
+pod_style=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-battlefield.js').read_text()
+assert 'window.solPodBattlefield' in pod_style
+assert source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+pod_style+'\n</script></body>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
