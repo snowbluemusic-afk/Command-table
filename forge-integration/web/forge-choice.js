@@ -7,6 +7,7 @@
   let current = null;
   let selected = [];
   let inFlight = false;
+  let answerGeneration=0;
   const forcedChoicesSubmitted=new Set();
   const view = document.createElement('section');
   view.id = 'ct-forge-decision-sheet';
@@ -15,14 +16,14 @@
   view.setAttribute('aria-modal', 'true');
   view.style.cssText = [
     'display:none','position:fixed','inset:0','z-index:2147483000',
-    'background:transparent','pointer-events:none',
-    'justify-content:flex-end','align-items:center','padding:9px 16px',
+    'background:#010713d9','pointer-events:auto',
+    'justify-content:center','align-items:center','padding:clamp(8px,2vh,18px)',
     'box-sizing:border-box','font-family:system-ui,-apple-system,sans-serif'
   ].join(';');
   const sheet = document.createElement('div');
   sheet.style.cssText = [
-    'background:#17252cf9','color:#f2e8d8','width:min(37vw,460px)',
-    'max-width:460px','max-height:74dvh','overflow:auto','border:1px solid #bda17d',
+    'background:#17252cf9','color:#f2e8d8','width:min(94vw,1000px)',
+    'max-width:1000px','max-height:93dvh','overflow:auto','border:2px solid #d3ac73',
     'border-radius:15px','box-shadow:0 12px 30px #000b','padding:12px',
     'pointer-events:auto',
     'box-sizing:border-box'
@@ -34,9 +35,14 @@
   const responsive = document.createElement('style');
   responsive.id='ct-forge-choice-layout';
   responsive.textContent=[
-    '@media(orientation:portrait){#ct-forge-decision-sheet{align-items:flex-end!important;justify-content:center!important;padding:6px!important}',
-    '#ct-forge-decision-sheet>div{width:100%!important;max-width:640px!important;max-height:64dvh!important}}',
-    '@media(orientation:landscape) and (max-height:520px){#ct-forge-decision-sheet>div{max-height:79dvh!important;width:min(34vw,420px)!important}}'
+    '@media(orientation:portrait){#ct-forge-decision-sheet{align-items:center!important;justify-content:center!important;padding:6px!important}',
+    '#ct-forge-decision-sheet>div{width:94vw!important;max-width:94vw!important;max-height:92dvh!important}}',
+    '@media(orientation:landscape){#ct-forge-decision-sheet{align-items:center!important;justify-content:center!important;padding:8px!important}',
+    '#ct-forge-decision-sheet>div{max-height:92dvh!important;width:min(94vw,1000px)!important;max-width:1000px!important}}',
+    '#ct-forge-decision-sheet button:focus-visible{outline:3px solid #ffe1a2!important}',
+    '#ct-forge-decision-sheet [data-ct-choice-list]{scrollbar-width:thin;overscroll-behavior:contain}',
+    '@media(orientation:landscape) and (max-height:460px){#ct-forge-decision-sheet>div{padding:8px!important}',
+    '#ct-forge-decision-sheet [data-ct-choice-list]{max-height:52dvh!important}}'
   ].join('');
   document.head.append(responsive);
 
@@ -112,8 +118,16 @@
       }
     }
     const submittingId=current.id;
+    const requestNumber=++answerGeneration;
     inFlight=true;
     paint();
+    const watchdog=setTimeout(()=>{
+      if(!inFlight||current?.id!==submittingId||requestNumber!==answerGeneration)return;
+      inFlight=false;
+      current.error='Forge has not confirmed this choice yet. Refresh its status before trying again.';
+      paint();
+      void window.CommandTableNative.request('engine.status').catch(()=>{});
+    },14000);
     try {
       const response = await window.CommandTableNative.request('choice.answer', {
         choiceId:submittingId,
@@ -123,6 +137,7 @@
         cancelled,
         remember:false
       });
+      if(requestNumber!==answerGeneration)return;
       if (!response || response.accepted !== true) throw new Error('Choice was no longer active');
       // The Forge match thread may issue its NEXT discard/target prompt before
       // this HTTP-style bridge request completes. Never clear a newer choice.
@@ -144,11 +159,12 @@
           void window.CommandTableNative.request('engine.status').catch(()=>{});
       },350);
     } catch (e) {
+      if(requestNumber!==answerGeneration)return;
       inFlight=false;
       if(current?.id!==submittingId)return; // A newer valid choice owns UI.
       showError('Forge could not accept this choice: '+(e?.message||String(e)));
       paint();
-    }
+    } finally{clearTimeout(watchdog);}
   }
   function showError(message) {
     if (!current) return;
@@ -176,7 +192,8 @@
           ? 'Select the legal option you want.'
           : 'Enter your decision.';
     sheet.append(el('p',desc,'font-size:12px;color:#acb8bc;margin:0 0 12px'));
-    const list=el('div',null,'display:grid;gap:7px;max-height:42dvh;overflow:auto');
+    const list=el('div',null,'display:grid;gap:10px;max-height:55dvh;overflow:auto;padding:4px 2px;min-width:0');
+    list.dataset.ctChoiceList='1';
     const opts=Array.isArray(current.options)?current.options:[];
     if (current.mode==='allocation') {
       const total=Number(current.amount||0);
@@ -247,7 +264,7 @@
             encodeURIComponent(simpleName)+'&format=image&version=art_crop');
           image.alt='';
           image.loading='lazy';
-          image.style.cssText='width:54px;height:51px;object-fit:cover;border-radius:7px;flex:0 0 54px;background:#1d3438';
+          image.style.cssText='width:clamp(62px,10vw,100px);height:clamp(62px,18dvh,115px);object-fit:cover;border-radius:7px;flex:0 0 clamp(62px,10vw,100px);background:#1d3438';
           image.onerror=()=>{image.style.display='none';};
           const title=el('span',(chosen&&!isOrder()?'✓ ':'')+label,
             'min-width:0;flex:1;overflow-wrap:anywhere');
@@ -284,6 +301,10 @@
       ok.disabled=inFlight;
     }
     footer.append(ok);
+    if(inFlight || !!current.error){
+      const refresh=action('↻ Refresh Forge status',()=>{void window.CommandTableNative.request('engine.status').catch(e=>showError('Unable to refresh: '+(e?.message||String(e))));});
+      footer.append(refresh);
+    }
     if((current.min===0 && current.mode!=='allocation') ||
        current.mode==='text' || current.mode==='integer' || current.allowSkip) {
       const skip=action('Cancel / Skip',()=>answer(true));
@@ -298,7 +319,14 @@
     let event;
     try {event=typeof payload==='string'?JSON.parse(payload):payload;}catch(e){}
     if(event && event.type==='game.choice') {
-      current=event.payload||null;
+      const incoming=event.payload||null;
+      if(incoming?.id===current?.id){
+        // Engine status can replay an unanswered choice. Keep the player's
+        // existing order/selection rather than replacing it mid-interaction.
+        if(!inFlight)paint();
+        return;
+      }
+      current=incoming;
       selected=current?.mode==='order'
         ? (current.options||[]).map((_,i)=>i) : [];
       if(current) {
@@ -327,6 +355,8 @@
       return;
     }
     if(event && event.type==='game.choice.clear') {
+      const closingId=event.payload?.choiceId||event.payload?.id;
+      if(closingId&&current?.id&&String(closingId)!==String(current.id))return;
       current=null;selected=[];inFlight=false;view.style.display='none';
       return;
     }
@@ -334,5 +364,6 @@
   };
   window.ctForgeChoice = {close:()=>{
     current=null;selected=[];inFlight=false;view.style.display='none';
-  }};
+  },get hasPending(){return !!current;},get isApplying(){return inFlight;},
+  refresh:()=>window.CommandTableNative.request('engine.status')};
 })();
