@@ -127,21 +127,50 @@
       if(busy||!displayed)return;
       busy=true;confirm.disabled=true;confirm.textContent='Casting…';
       const choice=displayed;
-      // Reveal the battlefield before Forge publishes targeting, payment or
-      // modal prompts. A successful card tap is not a bypass of priority.
-      hide();
-      if(window.app){window.app.sideInspect=null;window.app.modal='';}
-      window.render?.();
-      try{
-        await window.CommandTableNative.request('game.command',{
+      const isCurrent=choice.source==='hand'
+        ? getFromHand(choice.index)?.id===choice.id
+        : getCommander()?.id===choice.id;
+      if(!isCurrent){
+        busy=false;
+        open(choice,'The card has moved. Please choose it again.');
+        return;
+      }
+      let request,watchdog;
+      try {
+        // Submit the actual Forge command FIRST. Previously, calling render()
+        // before sending it could throw or replace the page and make Cast
+        // appear to do nothing without ever reaching the Android bridge.
+        request=window.CommandTableNative.request('game.command',{
           action:'castById',value:choice.id
         });
-        const snapshot=await window.CommandTableNative.request('game.snapshot');
-        if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
+        hide();
+        if(window.app){window.app.sideInspect=null;window.app.modal='';}
+        try{window.render?.();}catch(renderError){
+          window.ctNativeToast?.('Card sent to Forge; refreshing board failed: '+
+            (renderError?.message||String(renderError)));
+        }
+        watchdog=setTimeout(()=>{
+          window.ctNativeToast?.('Forge is still processing '+choice.name+
+            '. Check for a mana, target or ability choice.');
+        },7000);
+        await request;
+        window.ctNativeToast?.('Forge selected '+choice.name+
+          '. Complete any mana or target choices; players can respond.');
+        // Snapshot refresh is best-effort. A transient snapshot error MUST
+        // NOT be misreported as a failed cast after Forge accepted the command.
+        try {
+          const snapshot=await window.CommandTableNative.request('game.snapshot');
+          if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
+        }catch(refreshError){
+          window.ctNativeToast?.('Forge accepted the card. Waiting for the next game update.');
+        }
       }catch(failure){
         const message='Forge could not cast this card: '+(failure?.message||String(failure));
         open(choice,message);
-        say(message);
+        window.ctNativeToast?.(message);
+        window.announce?.(message);
+      }finally{
+        if(watchdog)clearTimeout(watchdog);
       }
     };
     actions.append(confirm,cancel);

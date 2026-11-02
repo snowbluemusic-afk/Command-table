@@ -8,6 +8,8 @@ import forge.gamemodes.match.HostedMatch;
 import forge.gui.interfaces.IGuiGame;
 import forge.player.GamePlayerUtil;
 import forge.player.LobbyPlayerHuman;
+import forge.model.FModel;
+import forge.localinstance.properties.ForgePreferences.FPref;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -53,6 +55,11 @@ public final class CommandTableMatchLauncher {
         // its launch page. Keep real Commander rules and AI intact.
         GameRules rules = new GameRules(GameType.Commander);
         rules.setWarnAboutAICards(false);
+        // Forge's InputPassPriority.getActionable() returns NO highlights
+        // unless this preference is enabled. We run a custom UI and need
+        // its authoritative playable-card IDs at every priority window.
+        // Set before launching the match, not after the first prompt.
+        FModel.getPreferences().setPref(FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true);
         match.startMatch(rules, Collections.emptySet(), players, human, ui);
         return match;
     }

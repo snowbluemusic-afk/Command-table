@@ -48,7 +48,7 @@ function createHarness(reject=false){
       }
     }
   };
-  vm.runInNewContext(source,{document:doc,window:win,console},{timeout:1000});
+  vm.runInNewContext(source,{document:doc,window:win,console,setTimeout,clearTimeout},{timeout:1000});
   const overlay=()=>doc.body.children.find(x=>x.id==='ct-cast-preview');
   const find=(root,predicate)=>{
     if(predicate(root))return root;
@@ -111,6 +111,17 @@ function createHarness(reject=false){
   assert.equal(failure.overlay().dataset.open,'true',
     'A rejected cast must display an error and allow retry');
   assert.match(failure.buttons().error.textContent,/No priority or mana/);
+  assert(source.indexOf("request=window.CommandTableNative.request('game.command'") <
+       source.indexOf("try{window.render?.();}"),
+    'A card must reach the Android bridge BEFORE any render that could throw');
+  assert(source.includes('Forge is still processing') &&
+       source.includes('Forge could not cast this card:'),
+    'Slow or rejected Forge casts must never be silent');
+  assert(source.includes("action:'castById',value:choice.id"),
+    'Casting must use the exact Forge card instance');
+  assert(source.includes('ctNativeToast'),
+    'Cast acknowledgements should be visible to the player');
   assert(source.includes('Forge checks timing, mana, targets'));
+
   console.log('PASS: centred preview, full text, cancel, duplicate IDs, commander and failed cast');
 })().catch(error=>{console.error(error);process.exitCode=1;});

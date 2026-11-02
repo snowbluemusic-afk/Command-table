@@ -342,4 +342,13 @@ assert(selectionUi.includes("const combatCount=inAttack?confirmedAttackers:inBlo
        selectionUi.includes("Remove all attackers") &&
        selectionUi.includes("if(inBlock&&!ok)continue"),
   'Combat counts/confirmations must reflect Forge CombatView, not current target selection');
+assert(matchLauncher.includes('FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true') &&
+       matchLauncher.indexOf('FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true') <
+         matchLauncher.indexOf('match.startMatch(rules,'),
+  'Forge must enable authoritative playable-card highlighting BEFORE match startup');
+assert(forgeInput.includes('current instanceof InputPassPriority priority') &&
+       forgeInput.includes('priority.getChosenSa()') &&
+       forgeInput.includes('You cannot cast yet.') &&
+       overlay.includes('bridge.castCard(wanted)'),
+  'A cast must require the priority input and an actual Forge spell/land selection');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
