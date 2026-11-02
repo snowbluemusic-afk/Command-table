@@ -388,6 +388,18 @@ public final class CommandTableOverlay {
                     if(!found)throw new IllegalArgumentException("This card is no longer in your hand or command zone");
                     break;
                 }
+                case "combat.attack": {
+                    JSONObject pair=p.optJSONObject("value");
+                    if(pair==null) throw new IllegalArgumentException("Choose one attacker and one defending player");
+                    bridge.attackWith(pair.getInt("attackerId"),pair.getInt("defenderId"));
+                    break;
+                }
+                case "combat.block": {
+                    JSONObject pair=p.optJSONObject("value");
+                    if(pair==null) throw new IllegalArgumentException("Choose an attacker and a blocker");
+                    bridge.blockWith(pair.getInt("attackerId"),pair.getInt("blockerId"));
+                    break;
+                }
                 case "permanent":case "cardId":
                     bridge.selectCard(Integer.parseInt(String.valueOf(value)));break;
                 case "selectPlayer":
