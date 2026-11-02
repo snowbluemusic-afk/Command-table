@@ -1511,7 +1511,7 @@ phase='<div class="sol-turn-detail">'+chr(36)+'{esc(active.name)} · '+chr(36)+'
 source=source.replace(focus_title,
  '<div class="ct10-focused-opponent">'+chr(36)+'{immersiveOppBadge(enemy,focus)}'+phase+'</div>')
 cycle_start='  '+chr(36)+'{!overview&&opponents.length>1?'
-cycle_end='</div>'+chr(96)+':'+chr(39)+'}'
+cycle_end='</div>'+chr(96)+':'+chr(39)*2+'}'
 idx=source.find(cycle_start)
 assert idx>=0,'Carousel marker missing'
 end=source.find(cycle_end,idx)
