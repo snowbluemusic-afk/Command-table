@@ -6,6 +6,7 @@ on:
       - 'android/**'
       - 'forge-integration/**'
       - 'tests/**'
+      - 'ci/**'
       - '.github/workflows/command-table-android.yml'
   pull_request:
     branches: [main]
@@ -13,6 +14,7 @@ on:
       - 'android/**'
       - 'forge-integration/**'
       - 'tests/**'
+      - 'ci/**'
       - '.github/workflows/command-table-android.yml'
   workflow_dispatch:
 concurrency:
@@ -37,6 +39,7 @@ jobs:
       - name: Verify recovery integration contract before downloading Forge
         run: |
           mkdir -p recovery-logs
+          bash -n ci/android-smoke.sh
           node tests/verify-forge-integration.cjs 2>&1 | tee recovery-logs/preflight.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Fetch pinned Forge engine and Android source
@@ -151,7 +154,7 @@ jobs:
     name: Install and launch embedded Forge APK in emulator
     needs: embedded-forge-android
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
