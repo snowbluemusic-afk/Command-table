@@ -1320,6 +1320,65 @@ async function ctWatchForgeMatch(){
 assert source.count("function ctReceiveForgeState(state) {")==1
 source=source.replace("function ctReceiveForgeState(state) {",poller+"\nfunction ctReceiveForgeState(state) {")
 
+
+# v0.25: native match menus must dispatch navigation/help; never fall into
+# Forge's gameplay guard. All events are UI-only and cannot alter game rules.
+menu_allow="'viewHistory','helpCurrent','back'"
+assert source.count(menu_allow)==1, 'Native menu guard changed'
+source=source.replace(menu_allow,
+    "'viewHistory','allHelp','showTutorial','helpTopic','tutorialNext','tutorialBack','closeTutorial','dismissLesson','resetTips','helpCurrent','back'")
+# The modal's history was reading the JS training simulation's empty log
+# (native GameViews intentionally contain no JS move log).
+history_expr="(app.game?.log||[]).map(t=>"
+assert source.count(history_expr)==1, 'Match history template changed'
+source=source.replace(history_expr,
+    "(app.nativeMatch?(window.ctForgeMatchHistory||[]):(app.game?.log||[])).map(t=>")
+# Only events actually visible in Forge's authoritative GameView are recorded.
+# We do not infer spells, targets, rules or outcomes from the browser.
+history_runtime=r"""
+window.ctForgeMatchHistory=window.ctForgeMatchHistory||[];
+function ctRecordNativeHistory(previous,current){
+ if(!current?.native)return;
+ const history=window.ctForgeMatchHistory;
+ const log=text=>{if(history[0]!==text)history.unshift(text);if(history.length>70)history.length=70;};
+ if(!previous?.native){
+  log('Commander match started');
+  return;
+ }
+ if(current.turn!==previous.turn||current.active!==previous.active){
+  log('Turn '+current.turn+' · '+(current.players?.[current.active]?.name||'Player')+' active');
+ }
+ for(let i=0;i<(current.players?.length||0);i++){
+  const now=current.players[i],before=previous.players?.[i];
+  if(!before)continue;
+  if(now.life!==before.life)log(now.name+' · Life '+before.life+' → '+now.life);
+  const old=new Set((before.battlefield||[]).map(c=>String(c.forgeId)));
+  for(const card of now.battlefield||[]){
+   if(!old.has(String(card.forgeId)))log(now.name+' · '+card.name+' entered battlefield');
+  }
+ }
+ const earlier=new Set((previous.stack||[]).map(c=>String(c.id)));
+ for(const item of current.stack||[])if(!earlier.has(String(item.id))){
+  log('Stack · '+String(item.name||'Ability'));
+ }
+}
+"""
+assert source.count('function ctReceiveForgeState(state) {')==1
+source=source.replace('function ctReceiveForgeState(state) {',
+                      history_runtime+'\nfunction ctReceiveForgeState(state) {')
+state_marker='  applyAuthoritativeGame(state);\n  // The animation layer'
+assert source.count(state_marker)==1, 'State history insertion changed'
+source=source.replace(state_marker,
+                      '  applyAuthoritativeGame(state);\n  ctRecordNativeHistory(before,app.game);\n  // The animation layer')
+start_marker="window.ctMatchLoading?.show();app.notice='Starting Forge Commander match…';render();"
+assert source.count(start_marker)==1, 'Startup history reset changed'
+source=source.replace(start_marker,
+   "window.ctForgeMatchHistory=[];window.ctMatchLoading?.show();app.notice='Starting Forge Commander match…';render();")
+# Focused landscape menus should not claim the Forge session is saved by the
+# old training simulator. Help and modal dismissals must remain interactive.
+source=source.replace('Matches save automatically on this device.',
+                      'Forge is managing this match. You can return to the table at any time.')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
