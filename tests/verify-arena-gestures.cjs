@@ -82,7 +82,7 @@ async function tick(){await new Promise(resolve=>setImmediate(resolve));}
     h.emit('pointermove',h.event(210,190));
     h.emit('pointerup',h.event(210,190));
     await tick();
-    assert.deepEqual(h.requests.filter(x=>x.type==='game.command').map(x=>x.payload),
+    assert.deepEqual(JSON.parse(JSON.stringify(h.requests.filter(x=>x.type==='game.command').map(x=>x.payload))),
       [{action:'cardId',value:101},{action:'selectPlayer',value:2}]);
   }
   {
@@ -92,7 +92,7 @@ async function tick(){await new Promise(resolve=>setImmediate(resolve));}
     h.emit('pointermove',h.event(230,180));
     h.emit('pointerup',h.event(230,180));
     await tick();
-    assert.deepEqual(h.requests.filter(x=>x.type==='game.command').map(x=>x.payload),
+    assert.deepEqual(JSON.parse(JSON.stringify(h.requests.filter(x=>x.type==='game.command').map(x=>x.payload))),
       [{action:'cardId',value:103},{action:'cardId',value:201}]);
   }
   {
