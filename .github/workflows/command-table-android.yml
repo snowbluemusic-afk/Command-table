@@ -44,6 +44,7 @@ jobs:
           node tests/verify-arena-experience.cjs 2>&1 | tee recovery-logs/arena-experience.txt
           node tests/verify-simple-cast.cjs 2>&1 | tee recovery-logs/simple-cast.txt
           node tests/verify-forge-integration.cjs 2>&1 | tee recovery-logs/preflight.txt
+          node tests/verify-sol-pod-focus.cjs 2>&1 | tee recovery-logs/sol-pod-focus.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Fetch pinned Forge engine and Android source
         run: |
@@ -79,7 +80,7 @@ jobs:
           python3 - <<'PY'
           import pathlib, re, subprocess
           doc=pathlib.Path('/tmp/forge/forge-gui-android/assets/command-table.html').read_text()
-          checks=['ctHydrateForgeState','game.prompt','ct-forge-priority-buttons','window.ctForgeCards',
+          checks=['ctHydrateForgeState','ctFocusActiveOpponent','SOL POD','game.prompt','ct-forge-priority-buttons','window.ctForgeCards',
                   'if(app.nativeMatch && app.view','ctNativeActionValue(act,v)']
           for check in checks:
               assert check in doc, 'Native integration missing: '+check

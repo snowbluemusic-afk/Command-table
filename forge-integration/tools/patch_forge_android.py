@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a Forge-based Android app with Command Table as the primary UI."""
+"""Embed Sol Pod and the Forge rules engine in a single Android app."""
 from pathlib import Path
 import sys, shutil, re
 
@@ -97,6 +97,18 @@ bootstrap_activity = ('        <activity android:name=".CommandTableBootstrap" '
 manifest_code=manifest_code.replace('        <activity\n            android:name=".CommandTableMain"',
                                   bootstrap_activity + '        <activity\n            android:name=".CommandTableMain"')
 assert 'android:name=".CommandTableBootstrap"' in manifest_code
+# Rebrand the actual launcher resources, not only a title inside the WebView.
+assert manifest_code.count('android:icon="@mipmap/ic_launcher"')==1
+assert manifest_code.count('android:roundIcon="@mipmap/ic_launcher_round"')==1
+manifest_code=manifest_code.replace('android:icon="@mipmap/ic_launcher"',
+                                    'android:icon="@drawable/sol_pod_launcher"')
+manifest_code=manifest_code.replace('android:roundIcon="@mipmap/ic_launcher_round"',
+                                    'android:roundIcon="@drawable/sol_pod_launcher"')
+icon=ct/'forge-integration/branding/sol_pod_launcher.xml'
+assert icon.is_file(), 'Sol Pod launcher icon missing'
+icon_dest=android/'res/drawable/sol_pod_launcher.xml'
+icon_dest.parent.mkdir(parents=True,exist_ok=True)
+shutil.copyfile(icon,icon_dest)
 manifest.write_text(manifest_code)
 
 pom=android/'pom.xml'
@@ -106,8 +118,8 @@ pom_code=pom_code.replace('<app.id.dev>forge.app.dev</app.id.dev>',
                           '<app.id.dev>com.commandtable.play</app.id.dev>')
 assert '<manifestApplicationLabel>Forge (dev)</manifestApplicationLabel>' in pom_code
 pom.write_text(pom_code.replace('<manifestApplicationLabel>Forge (dev)</manifestApplicationLabel>',
-                               '<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'))
+                               '<manifestApplicationLabel>Sol Pod</manifestApplicationLabel>'))
 
 asset=android/'assets/command-table.html'
 asset.parent.mkdir(parents=True,exist_ok=True)
-print('Forge Android patch applied. Command Table host installed. Patch frontend separately.')
+print('Forge Android patch applied. Sol Pod launcher and icon installed. Patch frontend separately.')

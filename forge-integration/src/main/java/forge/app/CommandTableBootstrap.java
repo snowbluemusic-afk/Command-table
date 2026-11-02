@@ -44,7 +44,7 @@ public final class CommandTableBootstrap extends Activity {
         status.setGravity(Gravity.CENTER);
         status.setTextColor(Color.rgb(223, 234, 235));
         status.setTextSize(19);
-        status.setText("Command Table\nPreparing your Commander library...");
+        status.setText("Sol Pod\nPreparing your Commander library...");
         layout.addView(status, new LinearLayout.LayoutParams(-1, -2));
         setContentView(layout);
 
@@ -73,7 +73,7 @@ public final class CommandTableBootstrap extends Activity {
                 .getPackageInfo(getPackageName(), 0).versionName;
             if (!marker.isFile() || !version.equals(Files.readString(marker.toPath()).trim())
                     || !new File(res, "cardsfolder/cardsfolder.zip").isFile()) {
-                message("Command Table\nInstalling the complete card and rules library.\nThis happens once.");
+                message("Sol Pod\nInstalling the complete card and rules library.\nThis happens once.");
                 if (marker.exists() && !marker.delete()) throw new IOException("Cannot reset marker");
                 unpackResources(folder);
                 writeText(new File(folder, "version.txt"), version);
@@ -90,7 +90,7 @@ public final class CommandTableBootstrap extends Activity {
                 finish();
             });
         } catch (Exception error) {
-            message("Command Table setup could not finish:\n"
+            message("Sol Pod setup could not finish:\n"
                     + (error.getMessage() == null ? error.toString() : error.getMessage())
                     + "\n\nClose and reopen the app. If this repeats, report the error shown.");
             android.util.Log.e("CommandTable", "Embedded Forge resource installation failed", error);

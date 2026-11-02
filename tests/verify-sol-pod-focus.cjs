@@ -1,0 +1,47 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const patch=fs.readFileSync('forge-integration/tools/patch_frontend.py','utf8');
+const helper=patch.match(/pod_focus_helper=r"""\n([\s\S]*?)\n"""/)?.[1];
+assert(helper,'Sol Pod turn-follow helper must be injected into the native Forge state receiver');
+assert(patch.includes('ctFocusActiveOpponent(before,app.game);'),
+  'Every authoritative Forge state must update the active opponent focus');
+assert(patch.includes("app.focusPlayer=active;"),'Active AI should control the focused table seat');
+const app={focusPlayer:1,tableMode:'focus',sideInspect:'An open card'};
+const ctx={app};
+vm.createContext(ctx);
+vm.runInContext(helper,ctx);
+const players=[{name:'You'},{name:'AI 1'},{name:'AI 2'},{name:'AI 3'}];
+const state=(active,turn,ps=players)=>({native:true,players:ps,active,turn});
+ctx.ctFocusActiveOpponent(null,state(1,1));
+assert.equal(app.focusPlayer,1,'first turn AI 1 at top');
+ctx.ctFocusActiveOpponent(state(1,1),state(2,2));
+assert.equal(app.focusPlayer,2,'AI 2 replaces AI 1 on its turn');
+assert.equal(app.tableMode,'focus');
+assert.equal(app.sideInspect,null,'previous player card inspector is cleared');
+app.focusPlayer=1; // User chooses to inspect AI 1 while AI 2 is playing.
+ctx.ctFocusActiveOpponent(state(2,2),state(2,2));
+assert.equal(app.focusPlayer,1,'manual inspection remains during a turn');
+ctx.ctFocusActiveOpponent(state(2,2),state(3,3));
+assert.equal(app.focusPlayer,3,'AI 3 replaces manually selected AI 1 on next turn');
+ctx.ctFocusActiveOpponent(state(3,3),state(0,4));
+assert.equal(app.focusPlayer,3,'own turn retains last opponent for viewing');
+ctx.ctFocusActiveOpponent(state(0,4),state(1,5));
+assert.equal(app.focusPlayer,1,'AI 1 reappears on its next turn');
+app.focusPlayer=2;
+ctx.ctFocusActiveOpponent(state(2,5),state(2,6));
+assert.equal(app.focusPlayer,2,'new turn keeps active player');
+app.focusPlayer=2;
+ctx.ctFocusActiveOpponent(state(0,7),state(0,7),);
+assert.equal(app.focusPlayer,2,'same-seat refresh does not hijack manual focus');
+const svg=fs.readFileSync('forge-integration/branding/sol-pod-mark.svg','utf8');
+const icon=fs.readFileSync('forge-integration/branding/sol_pod_launcher.xml','utf8');
+const android=fs.readFileSync('forge-integration/tools/patch_forge_android.py','utf8');
+assert(svg.includes('viewBox="0 0 108 108"')&&svg.includes('arcane card emblem'));
+assert(icon.includes('<vector')&&icon.includes('android:pathData'));
+assert(android.includes('<manifestApplicationLabel>Sol Pod</manifestApplicationLabel>'));
+assert(android.includes('android:icon="@drawable/sol_pod_launcher"'));
+assert(android.includes("'<app.id.dev>com.commandtable.play</app.id.dev>'"),
+  'Preserve installed package name for deck storage compatibility');
+console.log('PASS: Sol Pod native AI seat switching, manual browsing and launcher branding');

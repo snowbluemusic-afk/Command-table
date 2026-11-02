@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="Sol Pod, sun and arcane card emblem">
+  <defs>
+    <radialGradient id="sol-glow" cx="50%" cy="41%" r="72%">
+      <stop offset="0%" stop-color="#543369"/>
+      <stop offset="60%" stop-color="#261937"/>
+      <stop offset="100%" stop-color="#100e22"/>
+    </radialGradient>
+    <linearGradient id="sol-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff0af"/>
+      <stop offset="50%" stop-color="#f6c46a"/>
+      <stop offset="100%" stop-color="#af702e"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="104" height="104" rx="24" fill="url(#sol-glow)" stroke="#ac8051" stroke-width="2"/>
+  <g fill="url(#sol-gold)">
+    <path d="M54 8 L60 21 L48 21 Z M54 100 L48 87 L60 87 Z M8 54 L21 48 L21 60 Z M100 54 L87 60 L87 48 Z"/>
+    <path d="M21 21 L35 26 L27 34 Z M87 21 L81 35 L73 27 Z M21 87 L27 73 L35 81 Z M87 87 L73 81 L81 73 Z"/>
+  </g>
+  <circle cx="54" cy="54" r="33" fill="none" stroke="#e6b563" stroke-width="3.3"/>
+  <circle cx="54" cy="54" r="27" fill="none" stroke="#b89757" stroke-opacity=".58" stroke-width="1"/>
+  <g transform="rotate(-12 54 54)">
+    <rect x="37.5" y="28" width="33" height="52" rx="5.5" fill="#0f1227" stroke="#f8d187" stroke-width="3.5"/>
+    <rect x="43" y="34" width="22" height="32" rx="2.5" fill="#342346" stroke="#c7a66b" stroke-width="1"/>
+    <path d="M54 36 L58.5 47 L67 51 L58.5 55 L54 65 L49.5 55 L41 51 L49.5 47 Z" fill="url(#sol-gold)"/>
+    <path d="M45 72 L63 72" stroke="#e7bc79" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
+</svg>

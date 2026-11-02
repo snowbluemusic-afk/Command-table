@@ -35,7 +35,7 @@
  screen.setAttribute('role','status');
  screen.setAttribute('aria-live','polite');
  screen.innerHTML='<div class="ct-loading-content"><div class="ct-loading-deck" aria-hidden="true"></div>'+
-  '<div class="ct-loading-title">Preparing the battlefield</div>'+
+  '<div class="ct-loading-title">Sol Pod · Preparing the battlefield</div>'+
   '<div class="ct-loading-message">Shuffling decks and loading card artwork…</div>'+
   '<div class="ct-loading-track" aria-hidden="true"></div></div>';
  document.body.append(screen);
