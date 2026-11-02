@@ -53,6 +53,52 @@ public final class CommandTableForgeInput {
             throw new IllegalArgumentException("Player not found: " + playerId);
         });
     }
+    /**
+     * Forge InputAttack requires defender BEFORE creature. A single UI gesture
+     * should select only that attacker, not invoke its Alpha Strike shortcut.
+     */
+    public void attackWith(int attackerId, int defenderId) {
+        FThreads.invokeInEdtAndWait(() -> {
+            requirePhase("COMBAT_DECLARE_ATTACKERS");
+            PlayerView defender = findPlayer(defenderId);
+            if (defender == null || defender == view().getPlayers().get(0))
+                throw new IllegalArgumentException("Choose an opposing defending player");
+            CardView attacker = findCard(attackerId);
+            if (attacker == null)
+                throw new IllegalArgumentException("Attacking creature is not on the battlefield");
+            human().selectPlayer(defender, null);
+            if (!human().selectCard(attacker, Collections.emptyList(), null))
+                throw new IllegalArgumentException("Forge rejected this attacker");
+        });
+    }
+
+    /**
+     * Forge InputBlock requires the incoming attacker BEFORE the blocker.
+     * This permits different defenders for each attack and multiple blocks.
+     */
+    public void blockWith(int attackerId, int blockerId) {
+        FThreads.invokeInEdtAndWait(() -> {
+            requirePhase("COMBAT_DECLARE_BLOCKERS");
+            CardView attacker = findCard(attackerId);
+            CardView blocker = findCard(blockerId);
+            if (attacker == null || blocker == null)
+                throw new IllegalArgumentException("The attacker or blocker is no longer visible");
+            if (!human().selectCard(attacker, Collections.emptyList(), null))
+                throw new IllegalArgumentException("Forge rejected the selected attacker");
+            if (!human().selectCard(blocker, Collections.emptyList(), null))
+                throw new IllegalArgumentException("Forge rejected the blocker assignment");
+        });
+    }
+
+    private void requirePhase(String expected) {
+        if (!expected.equals(String.valueOf(view().getPhase())))
+            throw new IllegalStateException("Combat step changed before your selection");
+    }
+    private PlayerView findPlayer(int playerId) {
+        for (PlayerView p : view().getPlayers()) if (p.getId()==playerId) return p;
+        return null;
+    }
+
     public void selectStack(int stackId) {
         FThreads.invokeInEdtAndWait(() -> {
             for (StackItemView item : view().getStack()) {
