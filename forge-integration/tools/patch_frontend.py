@@ -1681,6 +1681,30 @@ assert 'window.solPodHub' in hub
 assert source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+hub+'\n</script></body>')
 
+
+# v0.31 — no more accidental hand expansion or tutorial combat bubble.
+fan_toggle='<div class="ct10-hand-fan" data-action="toggleHandZoom">'
+assert source.count(fan_toggle)==1, 'Hand fan toggle moved'
+source=source.replace(fan_toggle,'<div class="ct10-hand-fan">')
+hand_title=chr(36)+'{app.handZoom?"−":"⤢"}'
+assert source.count(hand_title)==1
+source=source.replace(hand_title,
+  chr(36)+'{app.handZoom?"✕ CLOSE HAND":"⤢ ENLARGE HAND"}')
+# The initial mulligan phase does not imply the opening hand has arrived.
+# Avoid expanding an empty hand over Forge's Play/Draw choice.
+old_mulligan='g.phase==="mulligan"?"ct10-hand-mulligan":""'
+assert source.count(old_mulligan)==1
+source=source.replace(old_mulligan,
+  'g.phase==="mulligan"&&me.hand.length>0?"ct10-hand-mulligan":""')
+old_combat=chr(36)+'{ctNativeCombatGuide(g)}'
+assert source.count(old_combat)==1
+# Actual Forge combat lines/priority remain; the generic combat explanation
+# is redundant and was obscuring the upper-left AI battlefield.
+source=source.replace(old_combat,'')
+v31=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-ux-v031.js').read_text()
+assert 'sol-pod-ux-v031' in v31 and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+v31+'\n</script></body>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
