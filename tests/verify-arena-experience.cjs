@@ -49,4 +49,11 @@ assert(priority.includes("if(inBlock&&!ok)continue") &&
        priority.includes("No blocks") &&
        priority.includes("Attack all"),
   'Single primary combat confirmation with correctly labelled optional attack-all');
+assert(priority.includes("autoManaIssued") &&
+       priority.includes("buttonState.enable1") &&
+       priority.includes("window.ctAutoMana!==false") &&
+       patch.includes("data-action=\\"toggleAutoMana\\"")===false &&
+       patch.includes('data-action="toggleAutoMana"') &&
+       patch.includes("ct-auto-mana"),
+  'Forge-enabled Auto mana payments must be opt-out, persisted and never auto-pass');
 console.log('PASS: v0.18 Zones foreground, card hold, casting, stack, FX, safe choice handling and phase controls');
