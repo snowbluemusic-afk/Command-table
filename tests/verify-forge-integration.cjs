@@ -300,7 +300,7 @@ assert(selectionUi.includes("ct-forge-combat-links") &&
        selectionUi.includes("game.combat") &&
        selectionUi.includes("combat.blockerIds") &&
        selectionUi.includes("pointer-events:none") &&
-       selectionUi.includes("ct10-lane [data-action=\\\"cardId\\\"]"),
+       selectionUi.includes('ct10-lane [data-action="cardId"]'),
   'Combat connections must be driven by Forge blocker IDs and leave card taps unobstructed');
 assert(selectionUi.includes("!combat && candidates().length<=4") &&
        selectionUi.includes("Attack with ") &&
