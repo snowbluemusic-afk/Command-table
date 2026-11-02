@@ -22,6 +22,7 @@
   panel.append(header,choices);
   document.body.append(panel);
   let selection={cards:[],targets:[],chosen:[]};
+  let selectionVersion=0;
   let expanded=false;
   let working=false;
   let promptMessage='';
@@ -112,6 +113,12 @@
           element.style.outlineOffset='2px';
         }
       }
+      const playerIds=new Set((selection.targets||[])
+        .filter(item=>item.kind==='player').map(item=>String(item.id)));
+      document.querySelectorAll('[data-ct-forge-player-id]').forEach(element=>{
+        const legal=playerIds.has(String(element.getAttribute('data-ct-forge-player-id')));
+        element.classList.toggle('ct-forge-legal-player',legal);
+      });
     }catch(_){}
   }
   async function select(item) {
@@ -174,6 +181,10 @@
       const changed=JSON.stringify([selection.cards,selection.targets])!==
         JSON.stringify([next.cards,next.targets]);
       selection=next;
+      selectionVersion++;
+      window.dispatchEvent(new CustomEvent('ct-forge-selection',{
+        detail:{...next,version:selectionVersion}
+      }));
       if(changed) {
         const combat=String(window.app?.game?.phaseDetail||'').toUpperCase().includes('COMBAT');
         // Keep combat on the battlefield, not a large auto-expanded option list.
@@ -383,6 +394,10 @@
     refresh:()=>{update();},
     isLegalCard:(id)=>Number.isInteger(Number(id))&&
       candidates().some(c=>c.kind==='card'&&Number(c.id)===Number(id)),
+    isLegalPlayer:(id)=>Number.isInteger(Number(id)) &&
+      (selection.targets||[]).some(c=>c.kind==='player'&&Number(c.id)===Number(id)),
+    get version(){return selectionVersion;},
+    get legalTargets(){return selection.targets||[];},
     isSelectedCard:(id)=>Number.isInteger(Number(id))&&
       (selection.chosen||[]).some(c=>Number(c)===Number(id)),
     get legalCards(){return candidates().filter(c=>c.kind==='card');},
