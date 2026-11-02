@@ -28,7 +28,7 @@
   portal.setAttribute('aria-label','Your commander zones');
   portal.setAttribute('aria-modal','true');
   document.body.append(portal);
-  let railToggle=null, drag=null;
+  let railToggle=null, drag=null, suppressPortalClick=false;
   const close=()=>{
     if(window.app?.zonesOpen)window.CommandTableAction?.('toggleZones');
   };
@@ -65,6 +65,7 @@
     position();
   }
   portal.addEventListener('click',event=>{
+    if(suppressPortalClick){suppressPortalClick=false;event.preventDefault();event.stopImmediatePropagation();return;}
     if(event.target===portal){event.preventDefault();close();return;}
     const item=event.target.closest('[data-action]');
     if(item){event.preventDefault();window.CommandTableAction?.(item.dataset.action,item.dataset.value||'');}
@@ -79,6 +80,8 @@
     if(!drag)return;
     const start=drag;drag=null;
     if(Math.hypot(event.clientX-start.x,event.clientY-start.y)<45)return;
+    suppressPortalClick=true;
+    setTimeout(()=>{suppressPortalClick=false;},240);
     event.preventDefault();event.stopPropagation();
     window.CommandTableNative?.request?.('game.command',{action:'castCommander',value:null})
       .then(()=>window.CommandTableNative?.request?.('game.snapshot'))
