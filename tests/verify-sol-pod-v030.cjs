@@ -18,7 +18,7 @@ const checks=[
  ['Mandatory choice remains controlled by Forge',hub.includes('Do not dismiss mandatory decisions')],
  ['Notices can be dismissed without losing choice state',hub.includes('window.solPodDismissNotices?.()')],
  ['Forge choice stays alongside priority controls',hub.includes('#ct-forge-decision-sheet>div')&&hub.includes('#ct-forge-priority-buttons')],
- ['Multiple blockers can be queued',gestures.includes('selectedBlockTarget')&&gestures.includes("selectSourceAndTarget(id,{kind:'card',id:chosen},'block')")&&gestures.includes('commandQueue=commandQueue.catch(()=>{}).then(task)')],
+ ['Multiple blockers can be queued',gestures.includes('selectedBlocker')&&gestures.includes("selectSourceAndTarget(blockerId,{kind:'card',id},'block')")&&gestures.includes('commandQueue=commandQueue.catch(()=>{}).then(task)')],
  ['No stale arrows in current tutorial',!html.includes('Use arrows on the right to cycle opponents')],
  ['Updated Forge commander tutorial',html.includes('Skycloud Expanse')&&html.includes('Forge runs the full Commander rules')],
  ['Current blocking instructions',html.includes('select the incoming attacker first')||html.includes('select the incoming attacker then')],

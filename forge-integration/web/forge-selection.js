@@ -172,7 +172,7 @@
     const chosen=(selection.chosen||[]).length;
     const phaseDetail=String(window.app?.game?.phaseDetail||'').toUpperCase();
     const combatLabel=/ATTACKERS/.test(phaseDetail)?'⚔ Choose attacking creatures':
-      /BLOCKERS/.test(phaseDetail)?'🛡 Choose blocking creatures / attacker':
+      /BLOCKERS/.test(phaseDetail)?'🛡 Tap your blocker, then the attacker':
       /COMBAT/.test(phaseDetail)?'⚔ Combat choices':null;
     title.textContent=(combatLabel||promptMessage||'Forge legal choices').slice(0,95)+
       ' · '+all.length+' option'+(all.length===1?'':'s')+
@@ -393,7 +393,7 @@
       : pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
       : inAttack?'Choose attackers · tap glowing creatures':
-        inBlock?('Choose blockers · '+combatCount+' confirmed'+
+        inBlock?('Tap blocker → attacker · '+combatCount+' confirmed'+
           (blockerNames.length?' · '+blockerNames.join(', '):'')+
           (pendingAssignments?' · '+pendingAssignments+' processing…':'')):
         'Turn '+(game?.turn||1)+' · '+phaseText+
