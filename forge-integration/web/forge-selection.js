@@ -393,6 +393,12 @@
           (pendingAssignments?' · '+pendingAssignments+' processing…':'')):
         'Turn '+(game?.turn||1)+' · '+phaseText+
         ' · '+(game?.players?.[0]?.priority?'Your priority':'Respond / advance');
+    const manaPayment=/^auto$/i.test(String(buttonState.label1).trim()) &&
+      /^cancel$/i.test(String(buttonState.label2).trim());
+    if(manaPayment && !buttonState.enable1 && !handChoice){
+      decisionText.textContent='Pay mana: tap an untapped land or mana-producing artifact on your battlefield. '+
+        'Auto becomes available when Forge finds a valid payment.';
+    }
     buttons.replaceChildren();
     for(const [label,enabled,ok] of [
       [buttonState.label1,buttonState.enable1,true],
@@ -434,10 +440,10 @@
       b.onclick=()=>decide(ok);
       buttons.append(b);
     }
-    if(handChoice && !buttonState.enable1){
+    if((handChoice || manaPayment) && !buttonState.enable1){
       const refresh=document.createElement('button');
       refresh.type='button';
-      refresh.textContent=syncBusy?'Syncing…':'Refresh choices';
+      refresh.textContent=syncBusy?'Syncing…':(manaPayment?'Refresh mana':'Refresh choices');
       refresh.style.cssText='flex:1;min-height:36px;padding:6px 8px;'+
         'border-radius:9px;border:1px solid #8598a0;background:#294751;'+
         'color:#f1e8d7;font:700 12px system-ui';
@@ -476,6 +482,8 @@
     refresh:paintDecision,
     syncChoices,
     get canConfirm(){return !!buttonState.enable1&&!busy;},
+    get isManaPayment(){return /^auto$/i.test(String(buttonState.label1).trim())&&
+      /^cancel$/i.test(String(buttonState.label2).trim())&&window.app?.nativeMatch===true;},
     confirm:()=>decide(true),
     // Distinguish Forge's mandatory hand-card choices from the ordinary
     // castable-card highlights shown during priority. Do not let the UI

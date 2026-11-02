@@ -731,7 +731,7 @@ assert source.count(" case 'permanent':")==1
 source=source.replace(" case 'permanent':",inspect_case)
 old_target="action:app.nativeMatch?'permanent':(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?x.uid:(app.pendingCast&&targetable?target:mine?x.uid:c.name)"
 assert source.count(old_target)==1, 'Battlefield card mapping changed'
-new_target="""action:app.nativeMatch?(window.ctForgeSelection?.isLegalCard?.(x.forgeId)?'cardId':'inspectBoardPermanent'):(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?(window.ctForgeSelection?.isLegalCard?.(x.forgeId)?String(x.forgeId):idx+':'+x.uid):(app.pendingCast&&targetable?target:mine?x.uid:c.name)"""
+new_target="""action:app.nativeMatch?((window.ctForgeSelection?.isLegalCard?.(x.forgeId)||(idx===0&&window.ctForgePriority?.isManaPayment&&!x.tapped&&(x.land||/Artifact/i.test(String(card(x.name)?.type||'')))))?'cardId':'inspectBoardPermanent'):(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?((window.ctForgeSelection?.isLegalCard?.(x.forgeId)||(idx===0&&window.ctForgePriority?.isManaPayment&&!x.tapped&&(x.land||/Artifact/i.test(String(card(x.name)?.type||'')))))?String(x.forgeId):idx+':'+x.uid):(app.pendingCast&&targetable?target:mine?x.uid:c.name)"""
 source=source.replace(old_target,new_target)
 # The player sees the card on first tap; interacting with the permanent
 # is a separate, deliberate action through its authoritative Forge ID.
@@ -1636,6 +1636,25 @@ source=source.replace(modal_anchor,
    }).join(''):'<p>No permanents in this row.</p>')+'</div></div>';
  }
 """+modal_anchor)
+
+# v0.29 - unified UI notifications and lower-left player Zones positioning.
+for script_name in ('sol-pod-layout-v029.js','sol-pod-notifications-v029.js'):
+    script=(Path(__file__).resolve().parent.parent/'web'/script_name).read_text()
+    assert source.count('</body>')==1
+    source=source.replace('</body>','<script>\n'+script+'\n</script></body>')
+# The visual listener re-attaches to any fresh card-art status element after
+# a Forge GameView re-render; it never sends gameplay commands.
+render_hook="root.innerHTML=shell(view);syncNativeOrientation();scheduleAuto();if(app.view==='game')window.ctMatchLoading?.ready();if(app.nativeMatch&&app.autoPilot)ctWatchForgeMatch();}"
+assert source.count(render_hook)==1, 'Native render hook changed'
+source=source.replace(render_hook,
+    "root.innerHTML=shell(view);syncNativeOrientation();scheduleAuto();if(app.view==='game')window.ctMatchLoading?.ready();if(app.nativeMatch&&app.autoPilot)ctWatchForgeMatch();window.solPodSyncNotices?.();}")
+
+# Native in-game notices belong in the single dismissible right rail; suppress
+# the old full-shell notice without affecting import/deck-editor feedback.
+announce_marker="function announce(message){app.notice=message;render();}"
+assert source.count(announce_marker)==1
+source=source.replace(announce_marker,
+ "function announce(message){if(app.nativeMatch&&window.solPodNotice){window.solPodNotice(message,/error|failed|cannot|rejected/i.test(String(message))?'error':'info');return;}app.notice=message;render();}")
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
