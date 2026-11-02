@@ -22,6 +22,7 @@
   panel.append(header,choices);
   document.body.append(panel);
   let selection={cards:[],targets:[],chosen:[]};
+  let selectionVersion=0;
   let expanded=false;
   let working=false;
   let promptMessage='';
@@ -52,6 +53,22 @@
     for(const combat of game.combat){
       const attacker=center(byCardId.get(String(combat.cardId)));
       if(!attacker)continue;
+      const defenderElement=[...document.querySelectorAll('[data-ct-forge-player-id]')]
+        .find(el=>String(el.getAttribute('data-ct-forge-player-id'))===String(combat.defenderId));
+      const defender=center(defenderElement);
+      // Dashed orange: attack target. Solid gold: confirmed blocker pair.
+      // Both reflect CombatView; drawing cannot change attack legality.
+      if(defender){
+        const attackLine=document.createElementNS('http://www.w3.org/2000/svg','path');
+        attackLine.setAttribute('d',`M ${attacker.x} ${attacker.y} Q ${(attacker.x+defender.x)/2} ${(attacker.y+defender.y)/2-28} ${defender.x} ${defender.y}`);
+        attackLine.setAttribute('fill','none');
+        attackLine.setAttribute('stroke','#ff9d59');
+        attackLine.setAttribute('stroke-width','2.5');
+        attackLine.setAttribute('stroke-dasharray','7 5');
+        attackLine.setAttribute('stroke-linecap','round');
+        attackLine.setAttribute('opacity','.86');
+        combatSvg.append(attackLine);
+      }
       for(const blockerId of combat.blockerIds||[]){
         const blocker=center(byCardId.get(String(blockerId)));
         if(!blocker)continue;
@@ -112,6 +129,12 @@
           element.style.outlineOffset='2px';
         }
       }
+      const playerIds=new Set((selection.targets||[])
+        .filter(item=>item.kind==='player').map(item=>String(item.id)));
+      document.querySelectorAll('[data-ct-forge-player-id]').forEach(element=>{
+        const legal=playerIds.has(String(element.getAttribute('data-ct-forge-player-id')));
+        element.classList.toggle('ct-forge-legal-player',legal);
+      });
     }catch(_){}
   }
   async function select(item) {
@@ -171,9 +194,15 @@
     try{message=typeof value==='string'?JSON.parse(value):value;}catch(_){}
     if(message?.type==='game.selection'){
       const next=message.payload||{cards:[],targets:[],chosen:[]};
-      const changed=JSON.stringify([selection.cards,selection.targets])!==
-        JSON.stringify([next.cards,next.targets]);
+      // Chosen attackers/blockers can change while the legal target set
+      // stays identical. Repaint on chosen changes too, so Undo is visible.
+      const changed=JSON.stringify([selection.cards,selection.targets,selection.chosen])!==
+        JSON.stringify([next.cards,next.targets,next.chosen]);
       selection=next;
+      selectionVersion++;
+      window.dispatchEvent(new CustomEvent('ct-forge-selection',{
+        detail:{...next,version:selectionVersion}
+      }));
       if(changed) {
         const combat=String(window.app?.game?.phaseDetail||'').toUpperCase().includes('COMBAT');
         // Keep combat on the battlefield, not a large auto-expanded option list.
@@ -383,6 +412,10 @@
     refresh:()=>{update();},
     isLegalCard:(id)=>Number.isInteger(Number(id))&&
       candidates().some(c=>c.kind==='card'&&Number(c.id)===Number(id)),
+    isLegalPlayer:(id)=>Number.isInteger(Number(id)) &&
+      (selection.targets||[]).some(c=>c.kind==='player'&&Number(c.id)===Number(id)),
+    get version(){return selectionVersion;},
+    get legalTargets(){return selection.targets||[];},
     isSelectedCard:(id)=>Number.isInteger(Number(id))&&
       (selection.chosen||[]).some(c=>Number(c)===Number(id)),
     get legalCards(){return candidates().filter(c=>c.kind==='card');},

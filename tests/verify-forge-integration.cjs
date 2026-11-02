@@ -136,6 +136,7 @@ assert(overlay.includes('android.util.Log.e("CommandTable", "GameView projection
   'Capture complete Android stack traces for genuine startup failures');
 
 const selectionUi = read('forge-integration/web/forge-selection.js');
+const gestureUi = read('forge-integration/web/forge-gestures.js');
 assert(projectionSource.includes('game.getPlayers().size() >= 2;') &&
        !projectionSource.includes('game.getPlayers().size() < 2 || game.getPlayerTurn() == null'),
   'Forge must publish a pregame snapshot before the first turn is chosen');
@@ -237,7 +238,7 @@ assert(frontend.includes('function ctNativeTiming(c)') &&
   'Do not offer non-flash sorcery-speed casting during opponent turns');
 assert(frontend.includes("case 'inspectBoardPermanent'") &&
        frontend.includes('ctNativeToast(\'This card is no longer') &&
-       frontend.includes("action:'selectHand',value:index") &&
+       frontend.includes("action:'castById',value:stableId") &&
        frontend.includes('else beginCastFromDrag(d.commander,d.index)'),
   'Native drag must use Forge card selection, and permanent taps must open preview');
 assert(frontend.includes("'toggleHandZoom','inspectBoardPermanent','toggleZones'") &&
@@ -308,4 +309,23 @@ assert(selectionUi.includes("!combat && candidates().length<=4") &&
        selectionUi.includes("No blocks") &&
        selectionUi.includes("Undo blocker")===false,
   'Arena-like combat actions must use a compact optional tray and phase-specific confirmation');
+assert(frontend.includes('forge-gestures.js') &&
+       frontend.includes('data-ct-forge-player-id=') &&
+       frontend.includes("'permanent','cardId','selectPlayer','castCommander'") &&
+       frontend.includes("me?.handForgeIds?.[index]"),
+  'Native arena gestures and stable hand/commander drag IDs must be bundled');
+assert(gestureUi.includes('ct-direct-combat-gesture') &&
+       gestureUi.includes('ctDirectCombat') &&
+       gestureUi.includes("sourceId") &&
+       gestureUi.includes("dragMode") &&
+       gestureUi.includes("ct-forge-selection") &&
+       gestureUi.includes('game.combat') &&
+       gestureUi.includes('selectSourceAndTarget') &&
+       gestureUi.includes("event.stopImmediatePropagation()"),
+  'Drag attackers and blockers must be confirmed by Forge and suppress synthetic taps');
+assert(selectionUi.includes('selectionVersion++') &&
+       selectionUi.includes("isLegalPlayer:(id)") &&
+       selectionUi.includes("ct-forge-selection") &&
+       selectionUi.includes("ct-forge-legal-player"),
+  'Selection must publish versioned legal players and targets to gesture controller');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');

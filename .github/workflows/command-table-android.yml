@@ -9,7 +9,7 @@ on:
       - 'ci/**'
       - '.github/workflows/command-table-android.yml'
   pull_request:
-    branches: [main]
+    branches: [main, fix-commander-cast-combat-guidance-v0150]
     paths:
       - 'android/**'
       - 'forge-integration/**'
@@ -40,6 +40,7 @@ jobs:
         run: |
           mkdir -p recovery-logs
           bash -n ci/android-smoke.sh
+          node tests/verify-arena-gestures.cjs 2>&1 | tee recovery-logs/arena-gestures.txt
           node tests/verify-forge-integration.cjs 2>&1 | tee recovery-logs/preflight.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Fetch pinned Forge engine and Android source

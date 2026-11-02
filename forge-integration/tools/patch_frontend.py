@@ -569,6 +569,10 @@ source=source.replace('</body></html>', '<script>\n'+selection_js+'\n</script></
 catalog_js = (Path(__file__).resolve().parent.parent / 'web' / 'forge-catalog.js').read_text()
 assert 'CommandTableCatalog' in catalog_js
 source=source.replace('</body></html>', '<script>\n'+catalog_js+'\n</script></body></html>')
+# v0.16 gesture layer loads after the authoritative Forge selection bridge.
+gestures_js = (Path(__file__).resolve().parent.parent / 'web' / 'forge-gestures.js').read_text()
+assert 'window.ctDirectCombat' in gestures_js
+source=source.replace('</body></html>', '<script>\n'+gestures_js+'\n</script></body></html>')
 # The sideload app has its full Forge catalog locally; no server dependency.
 source=source.replace('Online discoveries can be saved to decks but are not playable until their rules are implemented.',
                       'Search the complete Forge card database included with Command Table. No extra download required.')
@@ -720,8 +724,15 @@ assert source.count(old_drop)==1, 'Native drag handler changed'
 new_drop="""if(e.clientY < innerHeight-155&&d.y-e.clientY>42){
   if(app.nativeMatch){
     const index=d.commander?-1:d.index;
-    if(!Number.isInteger(index))return;
-    void CommandTableNative.request('game.command',{action:'selectHand',value:index})
+    const me=app.game?.players?.[0];
+    const stableId=d.commander
+      ? (me?.commandZone?.find(c=>c.commander)?.id ?? me?.commandZone?.[0]?.id)
+      : me?.handForgeIds?.[index];
+    if(!Number.isInteger(Number(stableId))) {
+      ctNativeToast('Card is no longer in your hand or command zone');
+      return;
+    }
+    void CommandTableNative.request('game.command',{action:'castById',value:stableId})
       .then(async()=>{
         try{const snap=await CommandTableNative.request('game.snapshot');
           if(snap?.game)ctReceiveForgeState(snap.game);}catch(_){}
@@ -984,12 +995,12 @@ function ctNativeCombatGuide(g){
  if(attackersStage){
    title=g.active===0?'Declare attackers':'Opponent declaring attackers';
    hint=g.active===0
-     ? 'Tap a glowing creature to attack. Use Undo to reverse a choice; Next confirms or skips combat.'
+     ? 'Tap a glowing creature or drag it to an opponent. Undo retracts; Next confirms.'
      : 'Opponents choose attackers. Watch the highlighted cards and attack targets.';
  }else if(blockersStage){
    title=defending?'Defend — declare blockers':'Declare blockers';
    hint=defending
-     ? 'Tap a glowing legal defender, then choose the attacker Forge offers. Use Undo to change a block, or Next when finished.'
+     ? 'Tap a glowing blocker then an attacker, or drag between them. Undo changes blocks; Next confirms.'
      : 'The defending player chooses blockers. Your attacking creatures are shown below.';
  }else if(damageStage){
    title='Combat damage';
@@ -1087,6 +1098,31 @@ old_selected="selected:mine&&app.attackers.includes(x.uid)"
 assert source.count(old_selected)==1
 source=source.replace(old_selected,
   "selected:app.nativeMatch?!!window.ctForgeSelection?.isSelectedCard?.(x.forgeId):mine&&app.attackers.includes(x.uid)")
+
+# v0.16: make opponent badges and pod seats Forge targeting surfaces.
+import re
+dollar=chr(36)
+for class_name in ('ct10-opponent-badge','ct-pod-seat'):
+    pattern=r'(<div class="'+class_name+r' [^"]+)(">)'
+    assert len(re.findall(pattern,source))==1, 'Player marker not found: '+class_name
+    source=re.sub(pattern,r'\1 data-ct-forge-player-id="'+dollar+r'{p.forgeId}"\2',source,count=1)
+# The defender may be the human player, not only one of the opponents.
+assert source.count('<div class="ct10-own-player">')==1
+source=source.replace('<div class="ct10-own-player">',
+    '<div class="ct10-own-player" data-ct-forge-player-id="'+dollar+'{me.forgeId}">')
+# A player-target action must never fall through to the training simulator.
+native_set="'permanent','cardId','castCommander','castById'"
+assert source.count(native_set)==1, 'Native command allowlist changed'
+source=source.replace(native_set,
+    "'permanent','cardId','selectPlayer','castCommander','castById'")
+assert source.count('</head>')==1
+source=source.replace('</head>',"""<style id="ct-legal-defender-v0160">
+.ct10-opponent-badge.ct-forge-legal-player,
+.ct-pod-seat.ct-forge-legal-player{
+ border:2px solid #66d7fa!important;
+ box-shadow:0 0 17px #50d0fdac!important;
+ cursor:pointer}
+</style></head>""")
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
