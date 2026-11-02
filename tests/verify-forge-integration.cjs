@@ -250,7 +250,7 @@ assert(frontend.includes('ct10-opp-lands') &&
        frontend.includes('ct10-zone-drawer'),
   'Cards must be grouped by lands, creatures and other permanents');
 assert(selectionUi.includes('ct-forge-phase-rail') &&
-       selectionUi.includes("stack.length?'Resolve'") &&
+       selectionUi.includes("stack.length?'Pass priority'") &&
        selectionUi.includes('isLegalCard:(id)'),
   'Forge priority controls must show phase progression and authoritative card availability');
 assert(choiceUi.includes("const submittingId=current.id") &&
