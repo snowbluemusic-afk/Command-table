@@ -1293,10 +1293,8 @@ source=source.replace("autoPilot:false, autoPaused:false,",
 source,n4=re.subn(r'<button class="secondary full" data-action="toggleAutoPilot">.*?</button>',
   '<p class="ct-watch-mode-note">Watch mode is selected before the match; changing controllers requires a new match.</p>',source)
 assert n4==1, 'Native watch mode option changed'
-timeout="app.nativeMatch=false;\n     announce('Forge match start timed out"
-assert source.count(timeout)==1
-source=source.replace(timeout,
-                      "app.nativeMatch=false;window.ctMatchLoading?.hide();\n     announce('Forge match start timed out")
+source=re.sub(r"(app\.nativeMatch=false;)(\s*announce\('Forge match start timed out)",
+              r"\1window.ctMatchLoading?.hide();\2",source)
 # Catch errors when a deck is rejected rather than leaving the loading veil visible.
 source,n5=re.subn(r'\.catch\(error=>announce\(([^;\n]*?Forge could not start this game:[^\n]*?)\)\);',
   r'.catch(error=>{window.ctMatchLoading?.hide();announce(\1);});',source)
