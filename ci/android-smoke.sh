@@ -43,7 +43,7 @@ timeout --kill-after=3s 25s adb shell am start -W -n "$PACKAGE/$ACTIVITY"
 READY=0
 DEADLINE=$((SECONDS + 300))
 while (( SECONDS < DEADLINE )); do
-  if adb_short shell dumpsys activity activities 2>/dev/null | grep -q 'forge.app.CommandTableMain'; then
+  if adb_short shell dumpsys activity activities 2>/dev/null | grep -F 'forge.app.CommandTableMain' >/dev/null; then
     READY=1
     break
   fi
