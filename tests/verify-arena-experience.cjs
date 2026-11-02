@@ -32,7 +32,7 @@ assert(motion.includes("previous?.native||!next?.native") &&
        motion.includes("reduced-motion") &&
        motion.includes("window.ctArenaMotion"),
   'Animations must reflect committed Forge GameViews only and respect accessibility');
-assert(patch.includes("for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js')") &&
+assert(patch.includes("for feature in ('forge-zones.js','forge-card-hold.js','forge-motion.js','forge-graveyard.js')") &&
        patch.includes("window.ctArenaMotion?.onState?.(before,app.game)") &&
        patch.includes("ct-native-stack ct-stack-compact") &&
        patch.includes("window.ctArenaMotion?.stackExpanded"),
