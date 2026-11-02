@@ -321,7 +321,7 @@ assert(gestureUi.includes('ct-direct-combat-gesture') &&
        gestureUi.includes("dragMode") &&
        gestureUi.includes("combat.attack") &&
        gestureUi.includes("combat.block") &&
-       gestureUi.includes('game.combat') &&
+       gestureUi.includes('window.app?.game?.combat') &&
        gestureUi.includes('selectSourceAndTarget') &&
        gestureUi.includes("event.stopImmediatePropagation()"),
   'Drag attackers and blockers must be confirmed by Forge and suppress synthetic taps');
