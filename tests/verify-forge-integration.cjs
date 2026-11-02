@@ -76,8 +76,9 @@ assert(projection.includes('m.put("token", c.isToken())'),
   'Forge must include token flag in authoritative state');
 
 const forgeHostPatch = read('forge-integration/tools/patch_forge_android.py');
-assert(forgeHostPatch.includes('<manifestApplicationLabel>Command Table Forge</manifestApplicationLabel>'),
-  'Installed Forge app must have a distinct launcher label from old Command Table');
+assert(forgeHostPatch.includes('<manifestApplicationLabel>Sol Pod</manifestApplicationLabel>') &&
+       forgeHostPatch.includes('sol_pod_launcher.xml'),
+  'Installed app must have Sol Pod label and dedicated launcher icon');
 assert(frontend.includes('FORGE BUILT-IN · v0.15.0'),
   'New in-app header must identify bundled Forge build');
 assert(!frontend.includes('Play full rules in Forge'),
