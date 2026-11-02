@@ -482,6 +482,8 @@
     refresh:paintDecision,
     syncChoices,
     get canConfirm(){return !!buttonState.enable1&&!busy;},
+    get hasActionableDecision(){return !!window.app?.nativeMatch &&
+      (buttonState.enable1||buttonState.enable2) && !busy;},
     get isManaPayment(){return /^auto$/i.test(String(buttonState.label1).trim())&&
       /^cancel$/i.test(String(buttonState.label2).trim())&&window.app?.nativeMatch===true;},
     confirm:()=>decide(true),
