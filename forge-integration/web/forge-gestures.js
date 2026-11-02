@@ -60,7 +60,7 @@
       return {kind:'player',id,element:player};
     }
     if(kind==='block'){
-      const card=el.closest('.ct10-lane-opp .game-card[data-value],.ct-pod-mini-board .game-card[data-value]');
+      const card=el.closest('.ct10-lane-opp.ct10-creatures .game-card[data-value],.ct-pod-mini-board .game-card[data-value]');
       const id=idFromCard(card);
       if(id==null||!window.app?.game?.combat?.some(c=>Number(c.cardId)===id))return null;
       return {kind:'card',id,element:card};
@@ -112,7 +112,7 @@
        window.app?.game?.winner!==null||window.app?.modal||window.app?.sideInspect)return;
     const kind=mode();
     if(!kind)return;
-    const card=event.target.closest('.ct10-lane-own .game-card[data-value]');
+    const card=event.target.closest('.ct10-lane-own.ct10-creatures .game-card[data-value]');
     const id=idFromCard(card);
     if(id==null||!window.ctForgeSelection?.isLegalCard?.(id))return;
     drag={pointerId:event.pointerId,sourceId:id,el:card,x:event.clientX,y:event.clientY,kind,moving:false};
@@ -176,7 +176,7 @@
   style.id='ct-direct-combat-style';
   style.textContent=`
     .ct-direct-drag-hover{outline:4px solid #ffca69!important;box-shadow:0 0 20px #f1bd5fb5!important}
-    .ct10-lane-own .game-card.ct-forge-legal-target{touch-action:none}
+    .ct10-lane-own.ct10-creatures .game-card.ct-forge-legal-target{touch-action:none}
     [data-ct-forge-player-id].ct-forge-legal-player{outline:3px solid #60d5f8!important;box-shadow:0 0 18px #48c9f890!important}
     @media (orientation:landscape) and (max-height:550px){
       #ct-direct-combat-hint{font-size:11px;top:8%}
