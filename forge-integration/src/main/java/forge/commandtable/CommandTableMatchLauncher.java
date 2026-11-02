@@ -29,6 +29,13 @@ public final class CommandTableMatchLauncher {
 
     public static HostedMatch start(Deck humanDeck, List<Deck> aiDecks, IGuiGame ui,
                                     Consumer<HostedMatch> onCreated) {
+        return start(humanDeck, aiDecks, ui, onCreated, false);
+    }
+
+    /** In watch mode Forge creates a real AI controller for the player's deck.
+     * The web client observes snapshots; it never simulates spells or priority. */
+    public static HostedMatch start(Deck humanDeck, List<Deck> aiDecks, IGuiGame ui,
+                                    Consumer<HostedMatch> onCreated, boolean watchMode) {
         if (humanDeck == null || ui == null || aiDecks == null) {
             throw new IllegalArgumentException("Human deck, AI decks and UI are required");
         }
@@ -40,7 +47,7 @@ public final class CommandTableMatchLauncher {
 
         List<RegisteredPlayer> players = new ArrayList<>();
         RegisteredPlayer human = RegisteredPlayer.forCommander(humanDeck)
-            .setPlayer(new LobbyPlayerHuman("You"));
+            .setPlayer(watchMode ? GamePlayerUtil.createAiPlayer("You") : new LobbyPlayerHuman("You"));
         players.add(human);
         for (int i = 0; i < aiDecks.size(); i++) {
             RegisteredPlayer ai = RegisteredPlayer.forCommander(aiDecks.get(i))
@@ -60,7 +67,9 @@ public final class CommandTableMatchLauncher {
         // its authoritative playable-card IDs at every priority window.
         // Set before launching the match, not after the first prompt.
         FModel.getPreferences().setPref(FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true);
-        match.startMatch(rules, Collections.emptySet(), players, human, ui);
+        // A zero-human Forge match is its native spectator path: AIs control every seat.
+        // No synthetic player actions are issued by Command Table.
+        match.startMatch(rules, Collections.emptySet(), players, watchMode ? null : human, ui);
         return match;
     }
 
