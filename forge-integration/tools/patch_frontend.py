@@ -1158,6 +1158,14 @@ assert source.count(unknown_inspect)==1, 'Card inspector text renderer changed'
 source=source.replace(unknown_inspect,
   "esc(app.nativeMatch&&!c.implemented?'Card text is loading; Forge handles the rules.':(c.text||c.type||''))")
 
+# Keep casting to ONE explicit path for this stability release. Remove
+# hand/command-zone drag-to-cast affordances from the generated HTML.
+# The combat drag gestures remain unaffected.
+hand_drag="dragIndex:g.autoPilot?undefined:i"
+assert source.count(hand_drag)==1, 'Hand markup drag reference changed'
+source=source.replace(hand_drag,"dragIndex:undefined")
+assert source.count('data-drag-commander="true"')==1
+source=source.replace('data-drag-commander="true"','')
 # v0.19: no one-tap cast. Card taps always open the centered preview;
 # only its Cast button submits an authoritative Forge card ID.
 assert source.count(quick_hand)==1
