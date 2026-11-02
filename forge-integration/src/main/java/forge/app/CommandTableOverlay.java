@@ -366,7 +366,7 @@ public final class CommandTableOverlay {
                     PlayerView human=view.getPlayers().get(0);
                     if(human.getCommand()==null || human.getCommand().isEmpty())
                         throw new IllegalArgumentException("Commander is not in the command zone");
-                    bridge.selectCard(human.getCommand().get(0).getId());
+                    bridge.castCard(human.getCommand().get(0).getId());
                     break;
                 }
                 case "castById": {
@@ -378,11 +378,11 @@ public final class CommandTableOverlay {
                     PlayerView human=view.getPlayers().get(0);
                     boolean found=false;
                     for(forge.game.card.CardView c:human.getHand()) {
-                        if(c.getId()==wanted) {bridge.selectCard(wanted);found=true;break;}
+                        if(c.getId()==wanted) {bridge.castCard(wanted);found=true;break;}
                     }
                     if(!found && human.getCommand()!=null) {
                         for(forge.game.card.CardView c:human.getCommand()) {
-                            if(c.getId()==wanted) {bridge.selectCard(wanted);found=true;break;}
+                            if(c.getId()==wanted) {bridge.castCard(wanted);found=true;break;}
                         }
                     }
                     if(!found)throw new IllegalArgumentException("This card is no longer in your hand or command zone");

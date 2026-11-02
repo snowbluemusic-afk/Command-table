@@ -36,10 +36,11 @@ assert(patch.includes("for feature in ('forge-zones.js','forge-card-hold.js','fo
        patch.includes("ct-native-stack ct-stack-compact") &&
        patch.includes("window.ctArenaMotion?.stackExpanded"),
   'New experience modules, compact stack and projected transitions must be embedded');
-assert(patch.includes("ctNativeTiming(c).allowed&&ctNativeAffordable(c,me,g)") &&
-       patch.includes("String(me.handForgeIds[i]):String(i)") &&
-       patch.includes("Hand index/value render changed"),
-  'Cast by stable Forge IDs and only attempt timing/mana-eligible one-tap casts');
+assert(patch.includes("forge-simple-cast.js") &&
+       patch.includes("window.ctCardArtUrl = name => artUrl(card(name))") &&
+       patch.includes("restoring predictable tap-to-preview") &&
+       !patch.includes("Hand index/value render changed"),
+  'One-tap casting must be removed in favour of centred full-card preview');
 assert(choice.includes("current.options?.length===1") &&
        choice.includes("!current.allowSkip && !current.confirm") &&
        choice.includes("current.min===1 && current.max===1") &&

@@ -257,7 +257,7 @@ assert(choiceUi.includes("const submittingId=current.id") &&
        choiceUi.includes("if(current?.id===submittingId)") &&
        choiceUi.includes("request('engine.status')"),
   'Accepting a discard must not dismiss a newer Forge choice, and pending decisions must recover');
-assert(frontend.includes("['castSelected','playInspected','cardId','quitGame']") &&
+assert(frontend.includes("['castSelected','playInspected','castById','castCommander','cardId','quitGame']") &&
        frontend.includes('app.inspectForgeId=null;render();'),
   'Activating a permanent must close its inspector so Resolve is accessible');
 assert(frontend.includes("source.replace('<span>✦</span>','')"),
