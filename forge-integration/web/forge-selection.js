@@ -53,6 +53,22 @@
     for(const combat of game.combat){
       const attacker=center(byCardId.get(String(combat.cardId)));
       if(!attacker)continue;
+      const defenderElement=[...document.querySelectorAll('[data-ct-forge-player-id]')]
+        .find(el=>String(el.getAttribute('data-ct-forge-player-id'))===String(combat.defenderId));
+      const defender=center(defenderElement);
+      // Dashed orange: attack target. Solid gold: confirmed blocker pair.
+      // Both reflect CombatView; drawing cannot change attack legality.
+      if(defender){
+        const attackLine=document.createElementNS('http://www.w3.org/2000/svg','path');
+        attackLine.setAttribute('d',`M ${attacker.x} ${attacker.y} Q ${(attacker.x+defender.x)/2} ${(attacker.y+defender.y)/2-28} ${defender.x} ${defender.y}`);
+        attackLine.setAttribute('fill','none');
+        attackLine.setAttribute('stroke','#ff9d59');
+        attackLine.setAttribute('stroke-width','2.5');
+        attackLine.setAttribute('stroke-dasharray','7 5');
+        attackLine.setAttribute('stroke-linecap','round');
+        attackLine.setAttribute('opacity','.86');
+        combatSvg.append(attackLine);
+      }
       for(const blockerId of combat.blockerIds||[]){
         const blocker=center(byCardId.get(String(blockerId)));
         if(!blocker)continue;
