@@ -338,9 +338,21 @@ public final class CommandTableOverlay {
     }
 
     private static void command(String id, JSONObject p) {
-        CommandTableForgeInput bridge=input;
-        if(bridge==null){respond(id,false,null,"No active Forge match");return;}
         String action=p.optString("action","");
+        CommandTableForgeInput bridge=input;
+        if(bridge==null){
+            // Watch mode has no human input controller. It can still exit cleanly.
+            if("quitGame".equals(action) || "concede".equals(action)){
+                HostedMatch previous=match;
+                match=null;
+                pendingStart=null;
+                if(previous!=null)FThreads.invokeInEdtNowOrLater(previous::endCurrentGame);
+                respond(id,true,new JSONObject(),null);
+            } else {
+                respond(id,false,null,"Forge is piloting this deck. Start a manual match to choose cards.");
+            }
+            return;
+        }
         Object value=p.opt("value");
         try {
             switch(action) {
