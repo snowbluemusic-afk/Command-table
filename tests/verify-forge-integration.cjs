@@ -296,4 +296,16 @@ assert(frontend.includes("if(key==='sol ring')mana.push('C','C')") &&
        frontend.includes('arcane signet') &&
        frontend.includes("mana.indexOf('*')"),
   'Advisory casting highlights must account for known untapped mana rocks');
+assert(selectionUi.includes("ct-forge-combat-links") &&
+       selectionUi.includes("game.combat") &&
+       selectionUi.includes("combat.blockerIds") &&
+       selectionUi.includes("pointer-events:none") &&
+       selectionUi.includes("ct10-lane [data-action=\\\"cardId\\\"]"),
+  'Combat connections must be driven by Forge blocker IDs and leave card taps unobstructed');
+assert(selectionUi.includes("!combat && candidates().length<=4") &&
+       selectionUi.includes("Attack with ") &&
+       selectionUi.includes("No attacks") &&
+       selectionUi.includes("No blocks") &&
+       selectionUi.includes("Undo blocker")===false,
+  'Arena-like combat actions must use a compact optional tray and phase-specific confirmation');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');
