@@ -731,7 +731,7 @@ assert source.count(" case 'permanent':")==1
 source=source.replace(" case 'permanent':",inspect_case)
 old_target="action:app.nativeMatch?'permanent':(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?x.uid:(app.pendingCast&&targetable?target:mine?x.uid:c.name)"
 assert source.count(old_target)==1, 'Battlefield card mapping changed'
-new_target="""action:app.nativeMatch?(window.ctForgeSelection?.isLegalCard?.(x.forgeId)?'cardId':'inspectBoardPermanent'):(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?(window.ctForgeSelection?.isLegalCard?.(x.forgeId)?String(x.forgeId):idx+':'+x.uid):(app.pendingCast&&targetable?target:mine?x.uid:c.name)"""
+new_target="""action:app.nativeMatch?((window.ctForgeSelection?.isLegalCard?.(x.forgeId)||(idx===0&&window.ctForgePriority?.isManaPayment&&!x.tapped&&(x.land||/Artifact/i.test(String(card(x.name)?.type||'')))))?'cardId':'inspectBoardPermanent'):(app.pendingCast?(targetable?'chooseCastTarget':'inspect'):(mine?'permanent':'inspect')),value:app.nativeMatch?((window.ctForgeSelection?.isLegalCard?.(x.forgeId)||(idx===0&&window.ctForgePriority?.isManaPayment&&!x.tapped&&(x.land||/Artifact/i.test(String(card(x.name)?.type||'')))))?String(x.forgeId):idx+':'+x.uid):(app.pendingCast&&targetable?target:mine?x.uid:c.name)"""
 source=source.replace(old_target,new_target)
 # The player sees the card on first tap; interacting with the permanent
 # is a separate, deliberate action through its authoritative Forge ID.
