@@ -41,6 +41,22 @@ public final class CommandTableForgeInput {
             human().selectCard(card, Collections.emptyList(), null);
         });
     }
+    /**
+     * A Cast button must not report success if Forge rejected its selected
+     * card. InputPassPriority owns timing and all spell/land permissions.
+     */
+    public void castCard(int cardId) {
+        FThreads.invokeInEdtAndWait(() -> {
+            CardView card = findCard(cardId);
+            if (card == null) {
+                throw new IllegalArgumentException("This card is no longer in your hand or command zone");
+            }
+            if (!human().selectCard(card, Collections.emptyList(), null)) {
+                throw new IllegalStateException(
+                    "Forge cannot play this card right now. Check priority, available mana and timing.");
+            }
+        });
+    }
     public void selectPlayer(int playerId) {
         FThreads.invokeInEdtAndWait(() -> {
             GameView view = view();
