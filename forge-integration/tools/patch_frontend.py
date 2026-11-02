@@ -347,7 +347,7 @@ source=source.replace(
   'Imported cards will be validated against the complete Forge rules engine.')
 
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-                      "FORGE BUILT-IN · v0.15.0")
+                      "FORGE BUILT-IN · v0.18.0")
 # The setup page must not show warnings from the prototype's card cache.
 setup_check="check=d?validate(d):{valid:false}"
 source=source.replace(setup_check,
@@ -390,7 +390,7 @@ source=source.replace("function turnControls(g,active,self){",
 native_entry="if(app.nativeMatch && NATIVE_GAME_COMMANDS.has(act)) {"
 assert source.count(native_entry)==1
 source=source.replace(native_entry,
-    native_entry+"\n   if(['castSelected','playInspected','cardId','quitGame'].includes(act)){app.modal='';app.sideInspect=null;app.inspectOwner=null;app.inspectForgeId=null;render();}")
+    native_entry+"\n   if(['castSelected','playInspected','castById','castCommander','cardId','quitGame'].includes(act)){app.modal='';app.sideInspect=null;app.inspectOwner=null;app.inspectForgeId=null;render();}")
 assert source.count("⊞ Pod")==1
 source=source.replace("⊞ Pod","▦")
 assert source.count("overview?'Focus':'▦'")==1
@@ -401,7 +401,7 @@ assert source.count(menu_btn)>=1
 source=source.replace(menu_btn,
     '<button data-action="rotateMatch" aria-label="Rotate battlefield" title="Portrait / landscape">⤾</button>'+menu_btn)
 source=source.replace("TABLETOP ALPHA · 0.11.0",
-    "FORGE BUILT-IN · v0.15.0")
+    "FORGE BUILT-IN · v0.18.0")
 pod_css = """
 <style id="ct-forge-game-ux">
 .ct10-top-tools{gap:5px!important;flex-wrap:nowrap!important}
