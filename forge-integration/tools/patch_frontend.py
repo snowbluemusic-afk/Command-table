@@ -589,7 +589,13 @@ function ctReceiveForgeState(state) {
   if(app.view==='game' && signature===ctForgeLastSignature) return;
   ctForgeLastSignature=signature;
   const alreadyPlaying=app.view==='game';
+  const previousPhase=String(app.game?.phaseDetail||'');
   applyAuthoritativeGame(state);
+  const declaration=/COMBAT_DECLARE_(ATTACKERS|BLOCKERS)/.test(String(app.game?.phaseDetail||''));
+  if(declaration && !/COMBAT_DECLARE_(ATTACKERS|BLOCKERS)/.test(previousPhase)){
+    app.sideInspect=null;
+    if(['inspect','permanent'].includes(app.modal))app.modal='';
+  }
   if(!alreadyPlaying) {
     app.view='game';app.modal='';app.notice='';
     render();
@@ -1000,7 +1006,7 @@ function ctNativeCombatGuide(g){
  }else if(blockersStage){
    title=defending?'Defend — declare blockers':'Declare blockers';
    hint=defending
-     ? 'Tap a glowing blocker then an attacker, or drag between them. Undo changes blocks; Next confirms.'
+     ? 'Tap an attacking creature, then one or more blockers; alternatively drag blockers onto attackers.'
      : 'The defending player chooses blockers. Your attacking creatures are shown below.';
  }else if(damageStage){
    title='Combat damage';
@@ -1009,9 +1015,11 @@ function ctNativeCombatGuide(g){
    title=defending?'You are under attack':'Attack in progress';
    hint='Attacker → defender. Any blockers are shown beneath each attack.';
  }
+ // Avoid covering opponent creatures and lands during attack/block decisions.
+ // The small contextual Forge action dock provides the phase instruction.
+ if(attackersStage||blockersStage)return '';
  return '<aside class="ct-native-combat-guide" role="status" aria-label="Combat step">'+
-   '<header><span>⚔ '+esc(title)+'</span><small>'+legal.length+
-     ' legal card option'+(legal.length===1?'':'s')+'</small></header>'+
+   '<header><span>⚔ '+esc(title)+'</span></header>'+
    '<p>'+esc(hint)+'</p>'+
    (lines?'<div class="ct-combat-pairs">'+lines+'</div>':'')+
    '</aside>';
