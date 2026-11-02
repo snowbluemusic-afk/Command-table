@@ -1132,6 +1132,23 @@ source=source.replace('</head>',"""<style id="ct-legal-defender-v0160">
  cursor:pointer}
 </style></head>""")
 
+# v0.17 fast casting: when Forge exposes a hand card in its Selection,
+# a single tap plays it. Hand zoom remains available through Open Hand.
+# This never relies on approximate JS mana/legality calculations.
+quick_hand="smallCard(c,{action:'selectHand',value:String(i),dragIndex:"
+assert source.count(quick_hand)==1, 'Hand card renderer changed'
+source=source.replace(quick_hand,
+  """smallCard(c,{action:app.nativeMatch && window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?'castById':'selectHand',
+   value:app.nativeMatch && window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?
+     String(me.handForgeIds[i]):String(i),dragIndex:""")
+# The legacy training-card database can return a stale 'Not simulated'
+# message while the embedded Forge engine is already playing that card.
+# Avoid claiming a fully simulated Forge card is deck-building-only.
+unknown_inspect="esc(c.text||c.type||'')"
+assert source.count(unknown_inspect)==1, 'Card inspector text renderer changed'
+source=source.replace(unknown_inspect,
+  "esc(app.nativeMatch&&!c.implemented?'Card text is loading; Forge handles the rules.':(c.text||c.type||''))")
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
