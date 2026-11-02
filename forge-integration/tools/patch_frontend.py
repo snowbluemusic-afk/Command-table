@@ -1649,6 +1649,13 @@ assert source.count(render_hook)==1, 'Native render hook changed'
 source=source.replace(render_hook,
     "root.innerHTML=shell(view);syncNativeOrientation();scheduleAuto();if(app.view==='game')window.ctMatchLoading?.ready();if(app.nativeMatch&&app.autoPilot)ctWatchForgeMatch();window.solPodSyncNotices?.();}")
 
+# Native in-game notices belong in the single dismissible right rail; suppress
+# the old full-shell notice without affecting import/deck-editor feedback.
+announce_marker="function announce(message){app.notice=message;render();}"
+assert source.count(announce_marker)==1
+source=source.replace(announce_marker,
+ "function announce(message){if(app.nativeMatch&&window.solPodNotice){window.solPodNotice(message,/error|failed|cannot|rejected/i.test(String(message))?'error':'info');return;}app.notice=message;render();}")
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
