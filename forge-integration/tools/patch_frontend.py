@@ -1106,6 +1106,10 @@ for class_name in ('ct10-opponent-badge','ct-pod-seat'):
     pattern=r'(<div class="'+class_name+r' [^"]+)(">)'
     assert len(re.findall(pattern,source))==1, 'Player marker not found: '+class_name
     source=re.sub(pattern,r'\1 data-ct-forge-player-id="'+dollar+r'{p.forgeId}"\2',source,count=1)
+# The defender may be the human player, not only one of the opponents.
+assert source.count('<div class="ct10-own-player">')==1
+source=source.replace('<div class="ct10-own-player">',
+    '<div class="ct10-own-player" data-ct-forge-player-id="'+dollar+'{me.forgeId}">')
 # A player-target action must never fall through to the training simulator.
 native_set="'permanent','cardId','castCommander','castById'"
 assert source.count(native_set)==1, 'Native command allowlist changed'
