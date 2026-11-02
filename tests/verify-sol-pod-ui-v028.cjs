@@ -20,7 +20,7 @@ const checks=[
  ['row enlargement for AI and owner',p.includes('zoomBoardRow')&&p.includes('solBoardZoom')],
  ['priority uses real Forge buttons',skin.includes('#ct-forge-priority-buttons')],
  ['stack and message lanes',skin.includes('#ct-native-toast')&&skin.includes('.ct-native-stack')],
- ['integrated phase in player header',p.includes('sol-turn-detail')&&p.includes('phase_removed')],
+ ['integrated phase in player header',p.includes('sol-turn-detail')&&p.includes('source,n=re.subn')],
  ['delete option from deck library',p.includes('deleteDeckFromLibrary')&&p.includes('solDeckLibraryTile')],
  ['delete confirmation required',p.includes('confirmDeleteDeck')&&p.includes('cancelDeleteDeck')],
  ['prebuilt decks protected',p.includes('target.prebuilt')&&p.includes('d.prebuilt')],
