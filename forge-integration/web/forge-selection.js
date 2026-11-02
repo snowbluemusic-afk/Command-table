@@ -178,8 +178,10 @@
     try{message=typeof value==='string'?JSON.parse(value):value;}catch(_){}
     if(message?.type==='game.selection'){
       const next=message.payload||{cards:[],targets:[],chosen:[]};
-      const changed=JSON.stringify([selection.cards,selection.targets])!==
-        JSON.stringify([next.cards,next.targets]);
+      // Chosen attackers/blockers can change while the legal target set
+      // stays identical. Repaint on chosen changes too, so Undo is visible.
+      const changed=JSON.stringify([selection.cards,selection.targets,selection.chosen])!==
+        JSON.stringify([next.cards,next.targets,next.chosen]);
       selection=next;
       selectionVersion++;
       window.dispatchEvent(new CustomEvent('ct-forge-selection',{
