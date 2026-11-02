@@ -39,7 +39,7 @@
     if(!window.app?.nativeMatch||window.app?.view!=='game'||
        game?.phase!=='combat'||!Array.isArray(game?.combat))return;
     const byCardId=new Map();
-    for(const element of document.querySelectorAll('[data-action="inspectBoardPermanent"][data-value]')){
+    for(const element of document.querySelectorAll('[data-action="inspectBoardPermanent"][data-value],.ct10-lane [data-action="cardId"][data-value]')){
       const value=String(element.getAttribute('data-value')||'');
       const id=value.split(':').at(-1);
       if(id&&!byCardId.has(id))byCardId.set(id,element);
