@@ -56,4 +56,7 @@ assert(priority.includes("autoManaIssued") &&
        patch.includes('data-action="toggleAutoMana"') &&
        patch.includes("ct-auto-mana"),
   'Forge-enabled Auto mana payments must be opt-out, persisted and never auto-pass');
+assert(patch.includes("window.ctNativeToast = ctNativeToast;") &&
+       patch.includes("window.ctReceiveForgeState = ctReceiveForgeState;"),
+  'Centered casting must receive native feedback and updated authoritative game state');
 console.log('PASS: v0.18 Zones foreground, card hold, casting, stack, FX, safe choice handling and phase controls');
