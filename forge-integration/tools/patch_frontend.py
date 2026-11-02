@@ -589,7 +589,13 @@ function ctReceiveForgeState(state) {
   if(app.view==='game' && signature===ctForgeLastSignature) return;
   ctForgeLastSignature=signature;
   const alreadyPlaying=app.view==='game';
+  const previousPhase=String(app.game?.phaseDetail||'');
   applyAuthoritativeGame(state);
+  const declaration=/COMBAT_DECLARE_(ATTACKERS|BLOCKERS)/.test(String(app.game?.phaseDetail||''));
+  if(declaration && !/COMBAT_DECLARE_(ATTACKERS|BLOCKERS)/.test(previousPhase)){
+    app.sideInspect=null;
+    if(['inspect','permanent'].includes(app.modal))app.modal='';
+  }
   if(!alreadyPlaying) {
     app.view='game';app.modal='';app.notice='';
     render();
@@ -1000,7 +1006,7 @@ function ctNativeCombatGuide(g){
  }else if(blockersStage){
    title=defending?'Defend — declare blockers':'Declare blockers';
    hint=defending
-     ? 'Tap a glowing blocker then an attacker, or drag between them. Undo changes blocks; Next confirms.'
+     ? 'Tap an attacking creature, then one or more blockers; alternatively drag blockers onto attackers.'
      : 'The defending player chooses blockers. Your attacking creatures are shown below.';
  }else if(damageStage){
    title='Combat damage';
@@ -1009,9 +1015,11 @@ function ctNativeCombatGuide(g){
    title=defending?'You are under attack':'Attack in progress';
    hint='Attacker → defender. Any blockers are shown beneath each attack.';
  }
+ // Avoid covering opponent creatures and lands during attack/block decisions.
+ // The small contextual Forge action dock provides the phase instruction.
+ if(attackersStage||blockersStage)return '';
  return '<aside class="ct-native-combat-guide" role="status" aria-label="Combat step">'+
-   '<header><span>⚔ '+esc(title)+'</span><small>'+legal.length+
-     ' legal card option'+(legal.length===1?'':'s')+'</small></header>'+
+   '<header><span>⚔ '+esc(title)+'</span></header>'+
    '<p>'+esc(hint)+'</p>'+
    (lines?'<div class="ct-combat-pairs">'+lines+'</div>':'')+
    '</aside>';
@@ -1123,6 +1131,23 @@ source=source.replace('</head>',"""<style id="ct-legal-defender-v0160">
  box-shadow:0 0 17px #50d0fdac!important;
  cursor:pointer}
 </style></head>""")
+
+# v0.17 fast casting: when Forge exposes a hand card in its Selection,
+# a single tap plays it. Hand zoom remains available through Open Hand.
+# This never relies on approximate JS mana/legality calculations.
+quick_hand="smallCard(c,{action:'selectHand',value:String(i),dragIndex:"
+assert source.count(quick_hand)==1, 'Hand card renderer changed'
+source=source.replace(quick_hand,
+  """smallCard(c,{action:app.nativeMatch && window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?'castById':'selectHand',
+   value:app.nativeMatch && window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])?
+     String(me.handForgeIds[i]):String(i),dragIndex:""")
+# The legacy training-card database can return a stale 'Not simulated'
+# message while the embedded Forge engine is already playing that card.
+# Avoid claiming a fully simulated Forge card is deck-building-only.
+unknown_inspect="esc(c.text||c.type||'')"
+assert source.count(unknown_inspect)==1, 'Card inspector text renderer changed'
+source=source.replace(unknown_inspect,
+  "esc(app.nativeMatch&&!c.implemented?'Card text is loading; Forge handles the rules.':(c.text||c.type||''))")
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)

@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const read = path => fs.readFileSync(path, 'utf8');
 const bootstrap = read('forge-integration/src/main/java/forge/app/CommandTableBootstrap.java');
 const overlay = read('forge-integration/src/main/java/forge/app/CommandTableOverlay.java');
+const forgeInput = read('forge-integration/src/main/java/forge/commandtable/CommandTableForgeInput.java');
 const deckRules = read('forge-integration/src/main/java/forge/commandtable/CommandTableForgeDecks.java');
 const match = read('forge-integration/src/main/java/forge/commandtable/CommandTableMatchLauncher.java');
 const frontend = read('forge-integration/tools/patch_frontend.py');
@@ -304,7 +305,7 @@ assert(selectionUi.includes("ct-forge-combat-links") &&
        selectionUi.includes('ct10-lane [data-action="cardId"]'),
   'Combat connections must be driven by Forge blocker IDs and leave card taps unobstructed');
 assert(selectionUi.includes("!combat && candidates().length<=4") &&
-       selectionUi.includes("Attack with ") &&
+       selectionUi.includes("Confirm ") &&
        selectionUi.includes("No attacks") &&
        selectionUi.includes("No blocks") &&
        selectionUi.includes("Undo blocker")===false,
@@ -318,8 +319,9 @@ assert(gestureUi.includes('ct-direct-combat-gesture') &&
        gestureUi.includes('ctDirectCombat') &&
        gestureUi.includes("sourceId") &&
        gestureUi.includes("dragMode") &&
-       gestureUi.includes("ct-forge-selection") &&
-       gestureUi.includes('game.combat') &&
+       gestureUi.includes("combat.attack") &&
+       gestureUi.includes("combat.block") &&
+       gestureUi.includes('window.app?.game?.combat') &&
        gestureUi.includes('selectSourceAndTarget') &&
        gestureUi.includes("event.stopImmediatePropagation()"),
   'Drag attackers and blockers must be confirmed by Forge and suppress synthetic taps');
@@ -328,4 +330,16 @@ assert(selectionUi.includes('selectionVersion++') &&
        selectionUi.includes("ct-forge-selection") &&
        selectionUi.includes("ct-forge-legal-player"),
   'Selection must publish versioned legal players and targets to gesture controller');
+assert(forgeInput.includes('public void attackWith(int attackerId, int defenderId)') &&
+       forgeInput.includes('human().selectPlayer(defender, null)') &&
+       forgeInput.includes('public void blockWith(int attackerId, int blockerId)') &&
+       forgeInput.includes('human().selectCard(attacker, Collections.emptyList(), null)') &&
+       overlay.includes('case "combat.attack":') &&
+       overlay.includes('case "combat.block":'),
+  'Combat operations must use correct Forge InputAttack/InputBlock ordering');
+assert(selectionUi.includes("const combatCount=inAttack?confirmedAttackers:inBlock?confirmedBlockers:0") &&
+       selectionUi.includes("Attack all") &&
+       selectionUi.includes("Remove all attackers") &&
+       selectionUi.includes("if(inBlock&&!ok)continue"),
+  'Combat counts/confirmations must reflect Forge CombatView, not current target selection');
 console.log('PASS: offline resources, Java bootstrap syntax, stable WebView origin, Forge match/validation, and emulator gate');

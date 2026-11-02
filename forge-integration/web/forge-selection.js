@@ -160,6 +160,8 @@
     const playing=(()=>{try{return !!app.nativeMatch && app.view==='game' && app.game?.winner===null;}catch(_){return false;}})();
     const choiceSheet=document.getElementById('ct-forge-decision-sheet');
     const choiceActive=choiceSheet?.style.display==='flex';
+    // The advanced options drawer is optional during combat and must not
+    // obscure the battlefield while players assign attackers or blockers.
     panel.style.display=playing&&all.length&&!choiceActive&&!window.app?.sideInspect?'block':'none';
     queueCombatLinks();
     if(!playing||!all.length)return;
@@ -335,9 +337,9 @@
     const confirmedAttackers=Array.isArray(game?.combat)?game.combat.length:0;
     const confirmedBlockers=Array.isArray(game?.combat)?
       new Set(game.combat.flatMap(attack=>attack.blockerIds||[])).size:0;
-    const selected=(selection.chosen||[]).length;
-    const combatCount=inAttack?Math.max(confirmedAttackers,selected):
-      inBlock?Math.max(confirmedBlockers,selected):0;
+    // Selection.chosen is the *focused defender/attacker*, NOT a count of
+    // selected attacking or blocking creatures. Use CombatView exclusively.
+    const combatCount=inAttack?confirmedAttackers:inBlock?confirmedBlockers:0;
     decisionText.textContent=pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
       : inAttack?'Choose attackers · tap glowing creatures':
@@ -355,16 +357,21 @@
       const ordinary=/^(ok|done|continue)$/i.test(original.trim());
       const phase=window.app?.game?.phase;
       const stack=window.app?.game?.stack||[];
-      // Forge controls whether either action is enabled; only labels change.
-      b.textContent=!ok && /^undo$/i.test(original.trim()) && inAttack?'Undo attacker':
-        !ok && /^undo$/i.test(original.trim()) && inBlock?'Undo block':
+      // Forge's Cancel button in InputAttack is either "Alpha Strike"
+      // (declare every possible attacker) or "Call Back" (remove all).
+      // It is never per-creature undo. InputBlock has no second action.
+      const alpha=/alpha strike/i.test(original.trim());
+      const callback=/call back|callback/i.test(original.trim());
+      b.textContent=!ok && inAttack && alpha?'Attack all':
+        !ok && inAttack && callback?'Remove all attackers':
         ok && !pregame && ordinary && inAttack
-          ? (combatCount?'Attack with '+combatCount:'No attacks'):
+          ? (combatCount?'Confirm '+combatCount+' attacker'+(combatCount===1?'':'s'):'No attacks'):
         ok && !pregame && ordinary && inBlock
-          ? (combatCount?combatCount+' blocker'+(combatCount===1?'':'s'):'No blocks'):
+          ? (combatCount?'Confirm '+combatCount+' block'+(combatCount===1?'':'s'):'No blocks'):
         ok && !pregame && ordinary
-          ? (stack.length?'Resolve':window.app?.game?.active===0?'Next':'Pass')
-          :original;
+          ? (stack.length?'Pass priority':window.app?.game?.active===0?'Next phase':'Pass'):
+          original;
+      if(inBlock&&!ok)continue; // no "End Turn" or stale cancel in blocker step
       b.setAttribute('aria-label',original+' — '+b.textContent);
       b.disabled=!enabled||busy;
       b.style.cssText=[

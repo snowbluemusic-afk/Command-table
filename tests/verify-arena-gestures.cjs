@@ -7,7 +7,7 @@ const source=fs.readFileSync('forge-integration/web/forge-gestures.js','utf8');
 function buildHarness({phase,sourceId,targetKind,targetId,legal=true}) {
   const docEvents=new Map(),winEvents=new Map(),requests=[];
   const game={phaseDetail:phase,phase:'combat',winner:null,
-    players:[{forgeId:1},{forgeId:2}],combat:[{cardId:201,defenderId:1,blockerIds:[]}]};
+    players:[{forgeId:1,battlefield:[{forgeId:sourceId,creature:legal}]},{forgeId:2}],combat:[{cardId:201,defenderId:1,blockerIds:[]}]};
   const card={
     getAttribute:n=>n==='data-value'?'0:'+sourceId:null,
     closest:selector=>selector.includes('ct10-lane-own.ct10-creatures')?card:null,
@@ -52,12 +52,7 @@ function buildHarness({phase,sourceId,targetKind,targetId,legal=true}) {
       request:async(type,payload)=>{
         requests.push({type,payload});
         if(type==='game.snapshot')return {game:{}};
-        // A selection can arrive BEFORE the bridge command promise resolves.
-        // Source gesture must register the versioned event before this point.
-        if(type==='game.command'&&payload.value===sourceId){
-          win.dispatch('ct-forge-selection',{version:1,
-            cards:[],targets:[{kind:targetKind,id:targetId}]});
-        }
+        // The batch combat command handles both choices inside Forge.
         return {};
       }
     }
@@ -83,7 +78,7 @@ async function tick(){await new Promise(resolve=>setImmediate(resolve));}
     h.emit('pointerup',h.event(210,190));
     await tick();
     assert.deepEqual(JSON.parse(JSON.stringify(h.requests.filter(x=>x.type==='game.command').map(x=>x.payload))),
-      [{action:'cardId',value:101},{action:'selectPlayer',value:2}]);
+      [{action:'combat.attack',value:{attackerId:101,defenderId:2}}]);
   }
   {
     const h=buildHarness({phase:'COMBAT_DECLARE_BLOCKERS',sourceId:103,
@@ -93,7 +88,7 @@ async function tick(){await new Promise(resolve=>setImmediate(resolve));}
     h.emit('pointerup',h.event(230,180));
     await tick();
     assert.deepEqual(JSON.parse(JSON.stringify(h.requests.filter(x=>x.type==='game.command').map(x=>x.payload))),
-      [{action:'cardId',value:103},{action:'cardId',value:201}]);
+      [{action:'combat.block',value:{attackerId:201,blockerId:103}}]);
   }
   {
     const h=buildHarness({phase:'COMBAT_DECLARE_ATTACKERS',sourceId:101,
@@ -112,5 +107,26 @@ async function tick(){await new Promise(resolve=>setImmediate(resolve));}
     await tick();
     assert.equal(h.requests.length,0,'Never submit an illegal Forge source');
   }
-  console.log('PASS: Forge-verified attack and blocker gesture sequencing, tap fallback, illegal source rejection');
+  // Distinct attacker taps select different incoming attacks, then a creature
+  // tap assigns a block to the currently chosen attacker in Forge.
+  {
+    const h=buildHarness({phase:'COMBAT_DECLARE_BLOCKERS',sourceId:103,
+      targetKind:'card',targetId:201});
+    h.emit('click',{...h.event(230,180),target:h.attacker});
+    await tick();
+    h.emit('click',{...h.event(180,310),target:h.card});
+    await tick();
+    assert.deepEqual(JSON.parse(JSON.stringify(h.requests.filter(x=>x.type==='game.command').map(x=>x.payload))),
+      [{action:'cardId',value:201},{action:'cardId',value:103}]);
+  }
+  // Tap attackers individually: does not invoke Forge's Alpha Strike shortcut.
+  {
+    const h=buildHarness({phase:'COMBAT_DECLARE_ATTACKERS',sourceId:101,
+      targetKind:'player',targetId:2});
+    h.emit('click',h.event(180,310));
+    await tick();
+    assert.deepEqual(JSON.parse(JSON.stringify(h.requests.filter(x=>x.type==='game.command').map(x=>x.payload))),
+      [{action:'cardId',value:101}]);
+  }
+  console.log('PASS: individual Forge attacks, multi-target block order, direct taps, non-creature guard');
 })().catch(error=>{console.error(error);process.exitCode=1;});
