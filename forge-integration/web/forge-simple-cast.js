@@ -157,7 +157,8 @@
     // two copies of the same card must cast the correct Forge card instance.
     const hand=event.target.closest('.ct10-hand-slot .game-card[data-action],.ct10-hand-zoom .game-card[data-action]');
     if(hand){
-      let index=Number(hand.getAttribute('data-drag-index'));
+      const rawIndex=hand.getAttribute('data-drag-index');
+      let index=rawIndex!==null?Number(rawIndex):-1;
       if(!Number.isInteger(index)||index<0) {
         const slot=hand.closest('.ct10-hand-slot');
         index=slot?.parentElement?[...slot.parentElement.children].indexOf(slot):-1;
@@ -168,7 +169,8 @@
       open(card);return;
     }
     const command=event.target.closest('.ct-commander-zone-card [data-action="castCommander"],'+
-      '.ct-commander-zone-card [data-action="inspectCommander"]');
+      '.ct-commander-zone-card [data-action="inspectCommander"],'+
+      '.ct10-own-player [data-action="inspectCommander"]');
     if(command){
       const card=getCommander();
       if(!card)return;
