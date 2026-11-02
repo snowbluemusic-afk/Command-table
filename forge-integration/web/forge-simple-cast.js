@@ -57,7 +57,7 @@
   backdrop.setAttribute('aria-modal','true');
   backdrop.setAttribute('aria-label','Card preview and cast');
   document.body.append(backdrop);
-  let displayed=null,busy=false,mulliganBusy=false;
+  let displayed=null,busy=false,handChoiceQueue=Promise.resolve();
   const say=(s)=>window.ctNativeToast?.(s) || window.announce?.(s);
   const currentPlayer=()=>window.app?.game?.players?.[0];
   const getFromHand=(index)=>{
@@ -198,21 +198,22 @@
       if(window.ctForgePriority?.isHandChoice){
         // Discarding or mulliganing uses Forge card selection, not Cast.
         // Select by stable ID (two identical cards are different instances).
-        if(!mulliganBusy){
-          mulliganBusy=true;
-          void (async()=>{
-            try{
-              await window.CommandTableNative.request('game.command',{
-                action:'cardId',value:card.id
-              });
-              const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
-              if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
-              window.ctForgePriority?.refresh?.();
-            }catch(error){
-              say('Forge could not select this hand card: '+(error?.message||String(error)));
-            }finally{mulliganBusy=false;}
-          })();
-        }
+        // A two-card discard needs two distinct commands. Queue fast taps
+        // instead of silently dropping the second tap while Forge processes
+        // the first selection.
+        const exactId=card.id;
+        handChoiceQueue=handChoiceQueue.catch(()=>{}).then(async()=>{
+          try{
+            await window.CommandTableNative.request('game.command',{
+              action:'cardId',value:exactId
+            });
+            const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
+            if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
+            window.ctForgePriority?.refresh?.();
+          }catch(error){
+            say('Forge could not select this hand card: '+(error?.message||String(error)));
+          }
+        });
         return;
       }
       open(card);return;

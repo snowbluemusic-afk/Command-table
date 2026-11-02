@@ -115,6 +115,10 @@ function createHarness(reject=false){
   assert.deepEqual(JSON.parse(JSON.stringify(discard.requests[0])),
     {method:'game.command',payload:{action:'cardId',value:42}},
     'Discard must select one exact Forge hand card instance');
+  discard.tap('hand');
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(discard.requests.filter(x=>x.method==='game.command').length,2,
+    'Rapid discard taps must queue both Forge selections rather than drop one');
   const cancelled=createHarness();
   cancelled.tap('hand');
   cancelled.buttons().cancel.onclick();
