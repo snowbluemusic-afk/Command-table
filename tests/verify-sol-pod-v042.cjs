@@ -8,6 +8,15 @@ const choice=load('forge-integration/web/forge-choice.js');
 const cast=load('forge-integration/web/forge-simple-cast.js');
 const dispatcher=load('forge-integration/src/main/java/forge/commandtable/CommandTableChoiceDispatcher.java');
 const projection=load('forge-integration/src/main/java/forge/commandtable/CommandTableGameProjection.java');
+const native=load('forge-integration/src/main/java/forge/app/CommandTableOverlay.java');
+assert(native.includes('private static forge.game.card.CardView commanderInZone(PlayerView human)'),
+  'Native castCommander must identify the actual commander');
+assert(native.includes('if (card != null && card.isCommander()) return card;'),
+  'Native command-zone lookup must be based on commander identity');
+assert(native.includes('bridge.castCard(commanderInZone(human).getId());'),
+  'Native command-zone casting must use the commander card ID');
+assert(!native.includes('human.getCommand().get(0).getId()'),
+  'First command-zone card is not necessarily the commander');
 const upstreamGameAction='GameAction.stateBasedAction_Commander / PlayerControllerHuman.confirmAction';
 assert(dispatcher.includes('extras.put("commanderDestination", true)'),
   'Forge Commander choice should be explicitly identified');
