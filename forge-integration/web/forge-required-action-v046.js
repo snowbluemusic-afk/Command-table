@@ -163,8 +163,10 @@
     if(!me)return [];
     const raw=Array.isArray(me.handCards)&&me.handCards.length
       ?me.handCards:(Array.isArray(me.hand)?me.hand.map((name,i)=>({
-        name,id:me.handForgeIds?.[i],
-        ...window.ctForgeCards?.[String(name||'').toLowerCase()]
+        ...window.ctForgeCards?.[String(name||'').toLowerCase()],
+        // The catalog's card ID is a name-derived slug; never replace the
+        // distinct Forge object ID (particularly for duplicate basic lands).
+        name,id:me.handForgeIds?.[i]
       })):[]);
     return raw.filter(c=>c&&c.name).map((c,i)=>({
       ...c,id:c.id??me.handForgeIds?.[i]??i,name:String(c.name)
