@@ -71,6 +71,7 @@ const win={app,ctForgeChoice:{hasPending:false},
   get selectionInfo(){return selectionState;},
   get prompt(){return buttons.message;},
   isLegalCard:id=>selectionState.cards.some(c=>Number(c.id)===Number(id)),
+  isRequiredSelection:item=>selectionState.cards.some(c=>Number(c.id)===Number(item.id)&&!c.actionable),
   chooseCard:async id=>{chosenCard=id;return true;}
  },
  addEventListener(type,fn){(callbacks[type]??=[]).push(fn);},
@@ -115,6 +116,11 @@ async function test(){
  assert.equal(win.ctForgeRequiredAction.visible,true);
  assert.equal(win.ctForgeRequiredAction.kind,'cards');
  assert.equal(optionList().children.length,1);
+ win.ctForgeSafety.needsRecovery=true;
+ event('ct-forge-selection');
+ assert.equal(optionList().children[0].disabled,false,
+  'Required Forge hand choice must remain enabled after its original cast timed out');
+ win.ctForgeSafety.needsRecovery=false;
  optionList().children[0].onclick();await tick();
  assert.equal(chosenCard,51,'The exact original Forge card ID must be selected');
  footer().children.find(x=>x.textContent==='Cancel').onclick();await tick();
