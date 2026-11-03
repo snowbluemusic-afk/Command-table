@@ -100,6 +100,20 @@
       return true;
     });
   }
+  // An unconfirmed cast blocks NEW spells, but must not block Forge's
+  // existing mana, target or discard selections needed to finish that cast.
+  function isRequiredSelection(item){
+    if(!item)return false;
+    const same=x=>x.kind===item.kind&&Number(x.id)===Number(item.id);
+    if((selection.targets||[]).some(same))return true;
+    if(item.kind!=='card')return false;
+    const card=(selection.cards||[]).find(same);
+    if(!card)return false;
+    if(window.ctForgePriority?.isManaPayment||window.ctForgePriority?.isHandChoice)return true;
+    const message=String(promptMessage||window.ctForgePriority?.buttonInfo?.message||'');
+    return !card.actionable&&(Number(selection.min||0)>0 ||
+      /\b(?:choose|select|discard|sacrifice|bottom|return|pay)\b/i.test(message));
+  }
   function highlight() {
     document.querySelectorAll('.ct-forge-legal-target').forEach(e=>{
       e.classList.remove('ct-forge-legal-target');
@@ -140,7 +154,7 @@
   async function select(item) {
     // Never submit a stale or invented target. Only Forge's current Selection
     // model determines which player/card/stack item is actionable.
-    if(working || window.ctForgeSafety?.needsRecovery ||
+    if(working || (window.ctForgeSafety?.needsRecovery && !isRequiredSelection(item)) ||
        !candidates().some(candidate=>
         candidate.kind===item.kind && Number(candidate.id)===Number(item.id)))return false;
     const action = item.kind==='player'?'selectPlayer':
@@ -215,7 +229,8 @@
     const category=hasPlayer&&!(hasCard||hasStack)?'player':
       hasStack&&!(hasCard||hasPlayer)?'spell on stack':
       hasCard&&!(hasPlayer||hasStack)?'card':'target';
-    title.textContent=(needsRecovery?'Refresh Forge before another choice':
+    const blockedByRecovery=needsRecovery&&!all.some(isRequiredSelection);
+    title.textContent=(blockedByRecovery?'Refresh Forge before a new action':
       !declaring?('Choose legal '+category):combatLabel||promptMessage||'Forge choices')+
       ' · '+all.length+(chosen?' · '+chosen+' selected':'');
     // The title is always visible in Game Events. Expand automatically for
@@ -243,7 +258,7 @@
       button.style.cssText='padding:8px 10px;font-size:12px;background:#2b434c;'+
         'border:1px solid #a68c66;border-radius:8px;color:#f1e8da;'+
         'max-width:100%;white-space:normal;text-align:left;min-height:38px';
-      button.disabled=working||needsRecovery;
+      button.disabled=working||(needsRecovery&&!isRequiredSelection(item));
       const expectedVersion=selectionVersion;
       button.onclick=()=>{
         // Ignore stale buttons after Forge has published a different selection.
@@ -644,6 +659,7 @@
       (selection.chosen||[]).some(c=>Number(c)===Number(id)),
     get legalCards(){return candidates().filter(c=>c.kind==='card');},
     get selectionInfo(){return {...selection};},
+    isRequiredSelection:(item)=>isRequiredSelection(item),
     get prompt(){return promptMessage;},
     get active(){return candidates().length>0;}
   };
