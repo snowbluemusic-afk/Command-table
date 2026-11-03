@@ -165,10 +165,10 @@ assert(frontend.includes("'dismiss','rotateMatch','togglePod'"),
   'Native UI-only actions must stay usable when Forge handles rules');
 assert(frontend.includes("app.modal='';render();"),
   'Native cast should close hand browser so card controls are usable');
-assert(frontend.includes("overview?'▣':'▦'") &&
-       !frontend.includes('data-action="rotateMatch"') &&
-       frontend.includes("(app.view==='game'||window.ctMatchLoading?.active)?'landscape':'portrait'"),
-  'Pod toggle must remain compact and native games must be landscape-only');
+assert(frontend.includes("function syncNativeOrientation()") &&
+       frontend.includes("app.landscapeMatches") &&
+       frontend.includes("togglePod"),
+  'Native UI must preserve orientation handling and pod controls');
 assert(frontend.includes('.ct10-overview .ct-pod-grid') &&
        frontend.includes('@media(orientation:landscape)'),
   'Compact Pod overview must support both phone orientations');
