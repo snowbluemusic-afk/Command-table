@@ -378,7 +378,9 @@
       const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
       if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
     }catch(error){
-      window.ctNativeToast?.('Unable to sync Forge choices: '+(error?.message||String(error)));
+      if(window.ctForgeSafety?.showError)
+        window.ctForgeSafety.showError(error,'Unable to sync Forge required choices');
+      else window.ctNativeToast?.('Unable to sync Forge choices: '+(error?.message||String(error)));
     }finally{
       syncBusy=false;
       paintDecision();
