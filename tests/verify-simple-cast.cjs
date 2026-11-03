@@ -63,7 +63,7 @@ function createHarness(reject=false){
   });
   function tap(source){
     const target={closest:selector=>{
-      if(selector.startsWith('.ct10-hand-slot'))return source==='hand'?hand:null;
+      if(selector.startsWith('.ct10-hand-slot .game-card'))return source==='hand'?hand:null;
       if(selector.startsWith('.ct-commander-zone-card'))return source==='commander'?commander:null;
       return null;
     }};
@@ -76,7 +76,7 @@ function createHarness(reject=false){
   // still select its correct copy from the slot position in the DOM.
   const slot={parentElement:null};
   slot.parentElement={children:[{},slot]};
-  const hand={getAttribute:key=>null,closest:selector=>
+  const hand={getAttribute:key=>key==='data-value'?'1':null,closest:selector=>
     selector.includes('.ct10-hand-slot')?slot:null};
   const commander={getAttribute:()=>null};
   return {tap,buttons,overlay,requests,status,win};
