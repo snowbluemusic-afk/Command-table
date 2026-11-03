@@ -11,7 +11,8 @@ const selection=read('forge-integration/web/forge-selection.js');
 new Function(hub);new Function(viewer);
 assert(!hub.includes('contents.append(stack)'), 'Stack must not be relocated into notices');
 assert(!hub.includes('prior.remove()'), 'Old hub must not discard stack items');
-assert(hub.includes('NOTIFICATIONS & CHOICES'), 'Notifications must have their own heading');
+assert(hub.includes('✦ GAME LOG'), 'Non-blocking game history must have a distinct heading');
+assert(hub.includes('sol-log-collapsed'), 'Passive history must collapse without interfering with the stack');
 assert(patch.includes('sol-pod-stack-v038.js'), 'Full-screen stack viewer not injected into generated Android UI');
 assert(patch.includes('for(const item of Array.isArray(raw.stack)?raw.stack:[])'), 'Stack card metadata not hydrated');
 assert(java.includes('item.getSourceCard()')&&java.includes('spell.put("cardName"'), 'Native Forge source art unavailable');
@@ -123,7 +124,7 @@ Promise.resolve().then(()=>{
  if(generated){
    const html=read(generated);
    assert(html.includes('sol-pod-stack-reader'),'Android generated HTML did not embed viewer');
-   assert(html.includes('NOTIFICATIONS & CHOICES'),'Android generated HTML did not separate notices');
+   assert(html.includes('✦ GAME LOG'),'Android generated HTML did not keep Game Log separate from stack');
  }
  console.log('PASS Sol Pod v0.38: separate notifications, visible card stack, fullscreen reader, legal response/target, mandatory prompt safety');
 }).catch(e=>{console.error(e);process.exitCode=1;});

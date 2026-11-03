@@ -74,7 +74,8 @@ function ctHydrateForgeState(raw) {
       typeof item==='string'?{id:i,name:item}:item),
     combat:Array.isArray(raw.combat)?raw.combat:[],
     pending:null, waiting:null, log:[], autoPilot:false, autoPaused:false,
-    winner:raw.gameOver ? (raw.winner || 'Game ended') : null
+    gameOver:!!raw.gameOver, outcome:raw.gameOver ? (raw.outcome||'draw') : null,
+    winner:raw.gameOver ? (raw.winner || 'Draw') : null
   };
 }
 """
@@ -2021,6 +2022,12 @@ source=source.replace('</body>','<script>\n'+target_dialog+'\n</script></body>')
 
 # Cross-mechanic diagnostics record *observed* Forge zone/life/stack changes
 # and native choices, never replace Forge rules or infer hidden library cards.
+# v0.43 reports only actual Forge match outcomes and leaves the board
+# readable via an explicit Review action; the modal lives on document.body.
+match_result=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-match-result-v043.js').read_text()
+assert 'window.solPodMatchResult' in match_result and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+match_result+'\n</script></body>')
+
 rules_trace=(Path(__file__).resolve().parent.parent/'web'/'forge-rules-trace-v040.js').read_text()
 assert 'ctRulesTrace' in rules_trace and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+rules_trace+'\n</script></body>')
@@ -2029,6 +2036,14 @@ source=source.replace(
   '<h2>Match history</h2><div class="arena-history-list">',
   '<h2>Match history</h2><button class="secondary full" data-action="ctCopyRulesTrace" aria-label="Copy Forge rules diagnostics">Copy Forge rules diagnostics</button><div class="arena-history-list">'
 )
+
+# Add the authoritative match-result callback after all historical patch
+# anchors have been resolved. Earlier insertions depend on exact adjacent
+# comment markers and should not be altered mid-pipeline.
+final_outcome_hook="  ctFocusActiveOpponent(before,app.game);\n  // The animation layer"
+assert source.count(final_outcome_hook)==1, 'Match result callback insertion changed'
+source=source.replace(final_outcome_hook,
+  "  ctFocusActiveOpponent(before,app.game);\n  window.solPodMatchResult?.onState?.(state);\n  // The animation layer")
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)

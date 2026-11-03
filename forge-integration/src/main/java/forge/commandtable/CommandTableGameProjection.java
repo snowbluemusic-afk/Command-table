@@ -58,8 +58,16 @@ public final class CommandTableGameProjection {
         out.put("pregame", pregame);
         out.put("activePlayer", game.getPlayerTurn() == null ? null : game.getPlayerTurn().getId());
         out.put("isCommander", game.isCommander());
-        out.put("gameOver", initialBool(game::isGameOver));
-        out.put("winner", game.getWinningPlayerName());
+        // Forge's GameView is the only authority for completion. A negative
+        // life total is NOT sufficient: state-based actions and replacement
+        // effects must finish before presenting a result.
+        boolean gameOver = initialBool(game::isGameOver);
+        String winningPlayer = game.getWinningPlayerName();
+        out.put("gameOver", gameOver);
+        out.put("winner", winningPlayer);
+        out.put("outcome", !gameOver ? null
+            : winningPlayer == null || winningPlayer.isBlank() ? "draw"
+            : winningPlayer.equals(local.getLobbyPlayerName()) ? "victory" : "defeat");
 
         List<Object> players = new ArrayList<>();
         for (PlayerView p : game.getPlayers()) {

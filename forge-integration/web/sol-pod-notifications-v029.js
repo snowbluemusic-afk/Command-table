@@ -35,7 +35,7 @@
    close.setAttribute('aria-label','Dismiss notification');
    close.textContent='×';close.setAttribute('data-dismiss-notice',key);
    item.append(words,close);host.prepend(item);entries.set(key,item);
-   if(entries.size>5){
+   if(entries.size>20){
      // Prefer evicting an informational event rather than an error.
      const oldestInfo=[...entries].find(([,node])=>node.dataset.kind!=='error')?.[0];
      const oldest=oldestInfo||[...entries.keys()][0];
