@@ -135,6 +135,14 @@
         open(choice,'The card has moved. Please choose it again.');
         return;
       }
+      // Gate every cast against the current Forge snapshot before entering
+      // the native request. This is not a local mana rules approximation:
+      // mana costs, alternate costs and stack legality stay with Forge.
+      const safety=window.ctForgeSafety?.checkCast(choice);
+      if(safety && !safety.ok){
+        open(choice,safety.reason);
+        return;
+      }
       let request,watchdog;
       try {
         // Submit the actual Forge command FIRST. Previously, calling render()
