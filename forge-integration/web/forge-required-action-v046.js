@@ -99,7 +99,7 @@
   const selector=()=>window.ctForgeSelection;
   const modeData=()=>{
     if(!window.app?.nativeMatch||window.app?.view!=='game'||!window.app?.game||
-        window.app.game.gameOver || window.app.game.winner!==null ||
+        window.app.game.gameOver || window.app.game.winner!=null ||
         forgeChoice()||window.ctForgeSafety?.recoveryVisible)return null;
     const buttons=priority()?.buttonInfo||{};
     const select=selector()?.selectionInfo||{};
@@ -123,7 +123,7 @@
       /\b(?:discard|bottom|return|choose|select|sacrifice)\b/i.test(prompt));
     // Forge supplies choices of stack/board/player targets separately. The
     // already full-screen target UI owns those; never display two overlays.
-    if(targets.length>0 && !needCards)return null;
+    if(targets.length>0)return null;
     const unusual=enabled && (
       /^(?:yes|no|approve|decline|accept|reject|keep|mulligan|play|draw)$/i.test(label1.trim()) ||
       /^(?:yes|no|approve|decline|accept|reject|keep|mulligan|play|draw)$/i.test(label2.trim()) ||
