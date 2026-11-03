@@ -184,6 +184,10 @@ public final class CommandTableChoiceDispatcher {
         return ticket.result.complete(new Response(selected, typed, cancelled, remember, assigned));
     }
 
+    /** Whether Forge has an unresolved mandatory choice, even if the WebView
+     * has been remounted and temporarily lost the visible sheet. */
+    public boolean hasPending() { return !pending.isEmpty(); }
+
     /** Replay the current unanswered Forge choice when the Android view returns. */
     public void replayPending() {
         Map<String,Object> event=lastEvent;
