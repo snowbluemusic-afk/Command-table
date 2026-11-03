@@ -131,7 +131,10 @@
     }catch(_){}
     return result;
   };
-  window.CommandTableNative?.onState?.(capture);
+  // CommandTableNative is a top-level lexical const in the generated Android
+  // HTML and is not necessarily exposed as window.CommandTableNative.
+  const engine=()=>typeof CommandTableNative!=='undefined'?CommandTableNative:window.CommandTableNative;
+  engine()?.onState?.(capture);
   function report(){
     const header=['Sol Pod Forge rules trace','Observer only — never proof that a trigger fired.',
       'Native Forge is the rules authority. All changes are observed GameView snapshots.',
@@ -142,7 +145,7 @@
   }
   async function copy(){
     try{
-      const snapshot=await window.CommandTableNative?.request?.('game.snapshot');
+      const snapshot=await engine()?.request?.('game.snapshot');
       if(snapshot?.game)capture(snapshot.game);
     }catch(e){push('sync-warning','Could not refresh final Forge snapshot: '+String(e?.message||e));}
     const text=report();
