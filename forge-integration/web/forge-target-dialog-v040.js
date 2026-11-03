@@ -88,7 +88,7 @@
   const status=create('div',null,'ct-target-status');
   sheet.append(header,subtitle,count,grid,status);
   modal.append(sheet);document.body.append(modal);
-  let lastSignature='',dismissed='',busy=false,previousFocus=null;
+  let lastSignature='',dismissed='',busy=false,previousFocus=null,suspended=false;
   const forge=()=>window.ctForgeSelection;
   const targeting=()=>Array.isArray(forge()?.legalTargets)?forge().legalTargets:[];
   const game=()=>window.app?.game;
@@ -105,7 +105,7 @@
   function signature(){
     const targets=targeting();
     return JSON.stringify([targets.map(t=>[t.kind,t.id,t.label,t.zone]),
-      forge()?.legalTargets?.length||0]);
+      (forge()?.chosenIds||[]).map(String)]);
   }
   function dismiss(){
     if(modal.dataset.open==='true') dismissed=lastSignature;
@@ -188,18 +188,20 @@
   }
   function sync(event){
     if(!available()){
+      suspended=!!targeting().length&&dismissed!==lastSignature;
       modal.dataset.open='false';busy=false;return;
     }
     const sig=signature();
     const changed=sig!==lastSignature;
     if(changed)lastSignature=sig;
-    if(changed&&sig!==dismissed){
+    if((changed||suspended)&&sig!==dismissed){
       // The stack inspector might already be showing the card; a mandatory
       // target decision takes precedence, not two overlapping modals.
       window.solPodStack?.close?.();
       previousFocus=document.activeElement;
       modal.dataset.open='true';
     }
+    suspended=false;
     if(modal.dataset.open==='true')renderOptions();
   }
   window.addEventListener('ct-forge-selection',sync);
