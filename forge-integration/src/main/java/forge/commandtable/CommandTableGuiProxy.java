@@ -139,7 +139,17 @@ public final class CommandTableGuiProxy {
                         || "handleGameEvent".equals(name)
                         || "updateCards".equals(name)
                         || "updateZones".equals(name)
-                        || "showCombat".equals(name)) {
+                        || "showCombat".equals(name)
+                        // These callbacks are the native Forge boundaries
+                        // when spells/abilities (including triggers) enter or
+                        // leave the stack. Without publishing these changes,
+                        // fast events can be skipped by a sampled UI snapshot.
+                        || "updateStack".equals(name)
+                        || "notifyStackAddition".equals(name)
+                        || "notifyStackRemoval".equals(name)
+                        || "updateLives".equals(name)
+                        || "updateTurn".equals(name)
+                        || "updatePhase".equals(name)) {
                     GameView current = game.get();
                     if (current != null) onState.accept(current);
                 }
