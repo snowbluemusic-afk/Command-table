@@ -191,7 +191,7 @@
       // The old DOM-position fallback selected the WRONG card after sorting.
       // Do not derive identity from screen order, labels, or duplicated names.
       const rawIndex=hand.getAttribute('data-value');
-      const index=rawIndex!==null && /^\\d+$/.test(rawIndex)
+      const index=rawIndex!==null && /^\d+$/.test(rawIndex)
         ? Number(rawIndex) : -1;
       const card=getFromHand(index);
       if(!card)return;
