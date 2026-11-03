@@ -25,7 +25,8 @@ const tests=[
  ['Expanded cards scroll without overlapping',ux.includes('scroll-snap-type:x proximity')&&ux.includes('margin-right:0!important')],
  ['Remove obsolete combat bubble',patch.includes("source=source.replace(old_combat,'')")],
  ['Duplicate legal choice drawer hidden for visible targets',selection.includes('visualTargetsOnly')],
- ['Stale stack panels disposed',hub.includes('for(const prior of [...contents.querySelectorAll')&&hub.includes('prior.remove()')],
+ ['Stack stays separate from notification rail',!hub.includes('contents.append(stack)') &&
+   !hub.includes('for(const prior of [...contents.querySelectorAll')],
  ['Forge still authors combat and priority',file('forge-integration/src/main/java/forge/commandtable/CommandTableForgeInput.java').includes('human().selectCard')],
 ];
 for(const [name,success] of tests)assert(success,'FAIL '+name);
