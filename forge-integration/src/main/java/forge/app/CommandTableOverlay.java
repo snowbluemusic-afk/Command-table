@@ -56,7 +56,10 @@ public final class CommandTableOverlay {
     // a modal choice. Keep those follow-up inputs OFF the initiating command
     // queue or the answer needed to finish casting deadlocks behind the cast.
     private static final ExecutorService REQUESTS = Executors.newSingleThreadExecutor();
-    private static final ExecutorService INTERACTIVE = Executors.newSingleThreadExecutor();
+    // Targeting an activated ability can itself block on another prompt.
+    // A bounded pool lets that follow-up answer run without waiting behind it;
+    // Forge's EDT still serializes actual rule-state mutations.
+    private static final ExecutorService INTERACTIVE = Executors.newFixedThreadPool(4);
     private static final ExecutorService CONTROL = Executors.newSingleThreadExecutor();
     private static volatile CommandTableMain host;
     private static volatile WebView web;
