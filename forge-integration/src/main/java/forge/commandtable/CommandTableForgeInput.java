@@ -30,7 +30,12 @@ public final class CommandTableForgeInput {
         FThreads.invokeInEdtAndWait(() -> human().selectButtonOk());
     }
     public void cancel() {
-        FThreads.invokeInEdtAndWait(() -> human().selectButtonCancel());
+        // The Forge GL/EDT may currently be busy resolving an ability or
+        // waiting for a mana/target decision. Do not block the WebView's
+        // cancellation request behind the same thread and time out again.
+        // This ACK means cancellation was REQUESTED, not that Forge has
+        // completed it. Sol Pod must verify the live state afterwards.
+        FThreads.invokeInEdtNowOrLater(() -> human().selectButtonCancel());
     }
     public void concede() {
         FThreads.invokeInEdtAndWait(() -> human().concede());
