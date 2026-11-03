@@ -210,7 +210,8 @@
       opt.textContent=(chosen.has(String(item.id))?'✓ ':'')+label+
         (item.zone?' · '+item.zone:'');
       opt.dataset.chosen=String(chosen.has(String(item.id)));
-      opt.disabled=submitting||waitingForForgeKey===key||!!window.ctForgeSafety?.needsRecovery;
+      opt.disabled=submitting||waitingForForgeKey===key||
+        (!!window.ctForgeSafety?.needsRecovery && !selector()?.isRequiredSelection?.(item));
       opt.onclick=()=>{void chooseCard(item,signature);};
       list.append(opt);
     }
