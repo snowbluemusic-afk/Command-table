@@ -108,7 +108,57 @@ public final class CommandTableGameProjection {
         for (StackItemView item : stackItems) {
             Map<String,Object> spell=new LinkedHashMap<>();
             spell.put("id",item.getId());
+            // Retain the existing description for older clients, but provide
+            // the actual source card and activating player for visual stack UI.
+            // An activated or triggered ability is NOT necessarily a cast spell.
             spell.put("name",String.valueOf(item));
+            spell.put("description",item.getText());
+            spell.put("ability",item.isAbility());
+            spell.put("trigger",item.isTrigger());
+            CardView source = item.getSourceCard();
+            if (source != null) {
+                boolean hidden = source.isFaceDown();
+                String cardName = hidden ? "Face-down card" : source.getName();
+                spell.put("cardName",cardName);
+                spell.put("faceDown",hidden);
+                if (!hidden && source.getCurrentState() != null) {
+                    spell.put("type",String.valueOf(source.getCurrentState().getType()));
+                    spell.put("manaCost",String.valueOf(source.getCurrentState().getManaCost()));
+                    spell.put("rulesText",source.getCurrentState().getOracleText());
+                }
+            }
+            PlayerView caster = item.getActivatingPlayer();
+            if (caster != null) {
+                spell.put("controllerId",caster.getId());
+                spell.put("controllerName",caster.getLobbyPlayerName());
+            }
+            // Only targets explicitly exposed by Forge are published.
+            // Do not inspect hands, libraries or hidden card identities.
+            List<Map<String,Object>> targets = new ArrayList<>();
+            if (item.getTargetCards() != null) for (CardView target : item.getTargetCards()) {
+                Map<String,Object> entry = new LinkedHashMap<>();
+                entry.put("kind","card");
+                entry.put("id",target.getId());
+                entry.put("name",target.isFaceDown()?"Face-down card":target.getName());
+                targets.add(entry);
+            }
+            if (item.getTargetPlayers() != null) for (PlayerView target : item.getTargetPlayers()) {
+                Map<String,Object> entry = new LinkedHashMap<>();
+                entry.put("kind","player");
+                entry.put("id",target.getId());
+                entry.put("name",target.getLobbyPlayerName());
+                targets.add(entry);
+            }
+            if (item.getTargetStackItems() != null) for (StackItemView target : item.getTargetStackItems()) {
+                Map<String,Object> entry = new LinkedHashMap<>();
+                entry.put("kind","stack");
+                entry.put("id",target.getId());
+                entry.put("name",target.getSourceCard() != null &&
+                    !target.getSourceCard().isFaceDown()
+                    ? target.getSourceCard().getName() : "Spell or ability");
+                targets.add(entry);
+            }
+            spell.put("targets",targets);
             stack.add(spell);
         }
         out.put("stack", stack);
