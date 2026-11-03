@@ -75,8 +75,13 @@ if([rulePath,actionPath,playerPath,inputPath].every(fs.existsSync)){
 const bundled=process.argv[2];
 if(bundled){
  const html=read(bundled);
- assert(html.includes('Where should your commander go?'),
-  'Embedded full-screen choice must describe commander destination');
+ // The question is authored by the native Java choice dispatcher and
+ // delivered as a game.choice payload. It cannot appear as static HTML.
+ // Verify that the embedded JavaScript receives and renders this payload.
+ assert(html.includes('commanderDestination'),
+  'Embedded UI must distinguish Forge commander destination choices');
+ assert(html.includes('Move to command zone') || html.includes('Choose where your commander goes.'),
+  'Embedded UI must explain the commander destination decision');
  assert(html.includes('ct-forge-decision-sheet'),
   'Embedded Commander choice must use the full-screen Forge modal');
 }
