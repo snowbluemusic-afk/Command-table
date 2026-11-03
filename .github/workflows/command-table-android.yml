@@ -53,6 +53,7 @@ jobs:
           node tests/verify-sol-pod-v032.cjs 2>&1 | tee recovery-logs/sol-pod-v032.txt
           node tests/verify-sol-pod-v033.cjs 2>&1 | tee recovery-logs/sol-pod-v033.txt
           node tests/verify-sol-pod-v034.cjs 2>&1 | tee recovery-logs/sol-pod-v034.txt
+          node tests/verify-sol-pod-v0341.cjs 2>&1 | tee recovery-logs/sol-pod-v0341.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Fetch pinned Forge engine and Android source
         run: |
