@@ -61,7 +61,7 @@ async function blockerFlow(){
   ctReceiveForgeState(){}
  };
  const ctx={window,document,Promise,Number,Date,Math,String,Array,
-   setTimeout:(fn)=>{fn();return 1;},clearTimeout(){},
+   setTimeout:(fn,ms)=>{if(ms<10000)fn();return 1;},clearTimeout(){},
    MutationObserver:undefined};
  vm.runInNewContext(gesture,ctx,{filename:'forge-gestures.js'});
  const target=which=>({
