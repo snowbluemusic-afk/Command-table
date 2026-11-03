@@ -60,7 +60,7 @@
  function show(){
   token++;active=true;startTime=Date.now();
   message.textContent='Shuffling decks and loading card artwork…';
-  recovery.hidden=true;
+  recovery.hidden=true;recovery.style.display='none';
   screen.hidden=false;
   try{window.AndroidBridge?.setOrientation?.('landscape');}catch(_){}
  }
@@ -82,7 +82,7 @@
      hide();return;
    }
    const elapsed=Date.now()-startTime;
-   if(elapsed>20000)recovery.hidden=false;
+   if(elapsed>20000){recovery.hidden=false;recovery.style.display='flex';}
    message.textContent=elapsed>8000?
      'Forge is preparing your opening hand. The game will appear when ready…':
      'Shuffling decks and preparing your opening hand…';
