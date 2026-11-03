@@ -624,6 +624,7 @@
       (selection.targets||[]).some(c=>c.kind==='player'&&Number(c.id)===Number(id)),
     get version(){return selectionVersion;},
     get legalTargets(){return selection.targets||[];},
+    get chosenIds(){return selection.chosen||[];},
     isSelectedCard:(id)=>Number.isInteger(Number(id))&&
       (selection.chosen||[]).some(c=>Number(c)===Number(id)),
     get legalCards(){return candidates().filter(c=>c.kind==='card');},

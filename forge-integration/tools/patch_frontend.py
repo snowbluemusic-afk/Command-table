@@ -2013,6 +2013,23 @@ hud_layout=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-hud-layout-v03
 assert 'window.solPodHudLayout' in hud_layout and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+hud_layout+'\n</script></body>')
 
+# v0.40 targeted selections use an authoritative full-screen decision surface;
+# normal playable-card highlights still use the compact battlefield affordance.
+target_dialog=(Path(__file__).resolve().parent.parent/'web'/'forge-target-dialog-v040.js').read_text()
+assert 'ct-fullscreen-targets' in target_dialog and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+target_dialog+'\n</script></body>')
+
+# Cross-mechanic diagnostics record *observed* Forge zone/life/stack changes
+# and native choices, never replace Forge rules or infer hidden library cards.
+rules_trace=(Path(__file__).resolve().parent.parent/'web'/'forge-rules-trace-v040.js').read_text()
+assert 'ctRulesTrace' in rules_trace and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+rules_trace+'\n</script></body>')
+assert source.count('<h2>Match history</h2><div class="arena-history-list">')==1
+source=source.replace(
+  '<h2>Match history</h2><div class="arena-history-list">',
+  '<h2>Match history</h2><button class="secondary full" data-action="ctCopyRulesTrace" aria-label="Copy Forge rules diagnostics">Copy Forge rules diagnostics</button><div class="arena-history-list">'
+)
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')

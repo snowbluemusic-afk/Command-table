@@ -66,6 +66,11 @@ jobs:
           node --check forge-integration/web/sol-pod-hud-layout-v039.js
           node tests/verify-sol-pod-v038.cjs
           node tests/verify-sol-pod-v039.cjs
+      - name: Verify full-screen targets and rules trace (mandatory)
+        run: |
+          node --check forge-integration/web/forge-target-dialog-v040.js
+          node --check forge-integration/web/forge-rules-trace-v040.js
+          node tests/verify-sol-pod-v040.cjs
       - name: Fetch pinned Forge engine and Android source
         run: |
           git clone --filter=blob:none https://github.com/Card-Forge/forge.git /tmp/forge
@@ -91,6 +96,11 @@ jobs:
               assert any(n.startswith('res/skins/') for n in names), 'Missing UI skin assets'
           print('Bundled source verified',p.stat().st_size)
           PY
+          python3 tests/verify_forge_card_mechanics_v040.py /tmp/forge/forge-gui-android/assets/command-table-forge-resources.zip
+          true
+          # The preceding Python heredoc ends exactly once here; the dedicated
+          # rule-script audit checks the assets in the actual Android payload.
+          : 'v0.40 exact Forge card mechanics check completed'
       - name: Regression test recovered commander importing and embedded UI
         run: |
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html
@@ -102,6 +112,7 @@ jobs:
           node tests/verify-sol-pod-v0360.cjs
           node tests/verify-sol-pod-v038.cjs /tmp/forge/forge-gui-android/assets/command-table.html
           node tests/verify-sol-pod-v039.cjs /tmp/forge/forge-gui-android/assets/command-table.html
+          node tests/verify-sol-pod-v040.cjs /tmp/forge/forge-gui-android/assets/command-table.html
       - name: Check Command Table JavaScript and native gameplay handoff
         run: |
           python3 - <<'PY'
