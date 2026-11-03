@@ -135,7 +135,12 @@ public final class CommandTableGuiProxy {
                     }
                     if (!prompt.isEmpty()) onPrompt.accept(prompt);
                 }
+                // The final GameView is published on Forge's finishGame
+                // callback as well as ordinary board events. Completion can
+                // happen without another turn/phase/stack update (e.g. lethal
+                // combat damage or a draw from an empty library).
                 if ("setGameView".equals(name) || "openView".equals(name)
+                        || "finishGame".equals(name) || "afterGameEnd".equals(name)
                         || "handleGameEvent".equals(name)
                         || "updateCards".equals(name)
                         || "updateZones".equals(name)
