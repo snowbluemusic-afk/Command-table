@@ -43,6 +43,9 @@ function ctHydrateForgeState(raw) {
       commanderCasts:p.commanderCasts||0, commanderDamage:p.commanderDamage||{},
       hand:cardZone(p.hand).map(c=>c.name),
       handForgeIds:cardZone(p.hand).map(c=>c.id),
+      // Forge-authoritative local player's hand: readable previews before
+      // Keep/Mulligan, preserving ID/order and card text. Never reveal AI hands.
+      handCards:cardZone(p.hand),
       library:Array(Math.max(0,p.libraryCount||0)).fill('Unknown card'),
       battlefield, graveyard:cardZone(p.graveyard).map(c=>c.name),
       graveyardCards:cardZone(p.graveyard),
