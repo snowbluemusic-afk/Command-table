@@ -1841,6 +1841,55 @@ assert source.count(commander)==1
 source=source.replace(commander,
  "case 'inspectCommander':app.inspectOwner=null;app.inspectForgeId=null;app.inspect=p.commander;")
 
+
+# v0.35: all native requests get a finite response window and remove their
+# pending bridge entry on timeout. Late responses are ignored and must not
+# secretly update a newer choice/UI. A timeout is NOT proof Forge rolled back.
+transport_needle="  const pending = new Map();\n  const onState = new Set();"
+assert source.count(transport_needle)==1, 'Native request transport changed'
+source=source.replace(transport_needle,
+ """  const pending = new Map();
+  const onState = new Set();
+  const ctRequestDeadline = type =>
+    type==='match.start'?90000:
+    type==='game.command'?25000:
+    type==='choice.answer'?25000:
+    (type==='game.snapshot'||type==='engine.status')?12000:30000;""")
+old_pending="""      pending.set(id, {resolve,reject});
+      try {"""
+assert source.count(old_pending)==1
+source=source.replace(old_pending,
+ """      const timer=setTimeout(()=>{
+        const awaiting=pending.get(id);
+        if(!awaiting)return;
+        pending.delete(id);
+        const problem=new Error('Forge did not respond to '+type+
+          '. The request may still be processing; refresh the game before retrying.');
+        problem.code='FORGE_TIMEOUT';
+        problem.action=payload?.action||type;
+        reject(problem);
+      },ctRequestDeadline(type));
+      pending.set(id, {resolve,reject,timer,type});
+      try {""")
+old_bridge_catch="} catch (e) {pending.delete(id);reject(e);}"
+assert source.count(old_bridge_catch)==1
+source=source.replace(old_bridge_catch,
+ " } catch (e) {clearTimeout(timer);pending.delete(id);reject(e);}")
+old_reply="""    if (!p) return;
+    pending.delete(String(data.id));
+    if (data.ok===false)"""
+assert source.count(old_reply)==1
+source=source.replace(old_reply,
+ """    if (!p) return;
+    pending.delete(String(data.id));
+    clearTimeout(p.timer);
+    if (data.ok===false)""")
+# UI module runs after source handlers exist; the native request wrapper is
+# installed for ALL Forge gameplay action paths, not only the cast preview.
+v35=(Path(__file__).resolve().parent.parent/'web'/'forge-resilience-v035.js').read_text()
+assert 'ctForgeSafety' in v35 and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+v35+'\n</script></body>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
