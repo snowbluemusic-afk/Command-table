@@ -12,6 +12,8 @@
  let retryPanel=null;
  let recoveryBusy=false;
  let lastFailure='';
+ let nativeChoiceWaiting=false;
+ const hasRequiredChoice=()=>!!window.ctForgeChoice?.hasPending || nativeChoiceWaiting;
  const text=value=>String(value?.message||value||'Forge did not respond');
  const isCasting=payload=>payload?.action==='castById'||
    payload?.action==='castCommander'||payload?.action==='castSelected';
@@ -105,7 +107,7 @@
    body.className='ct-safety-details';
    body.textContent=message;
    const hint=document.createElement('div');
-   hint.textContent=window.ctForgeChoice?.hasPending
+   hint.textContent=hasRequiredChoice()
      ? 'A Forge choice is waiting. Open it to continue the game.'
      : 'Refresh checks Forge without replaying a spell. Cancel requests cancellation of the current action; it does not automatically cast again.';
    const controls=document.createElement('div');
@@ -118,7 +120,7 @@
      controls.append(button);return button;
    };
    action('↻ Refresh Forge status',recover);
-   if(window.ctForgeChoice?.hasPending){
+   if(hasRequiredChoice()){
      action('Open required Forge choice',async()=>{
        // Replay only the current decision; never answer it automatically.
        try{await nativeRequest('engine.status');}catch(_){}
@@ -147,12 +149,13 @@
    renderPanel('Checking the live Forge game. No card is being cast again…');
    try{
      const status=await nativeRequest('engine.status');
+     nativeChoiceWaiting=!!status?.choicePending;
      const response=await nativeRequest('game.snapshot');
      if(!response?.game)throw new Error('Forge has not returned an authoritative game state');
      window.ctReceiveForgeState?.(response.game);
      window.ctForgePriority?.refresh?.();
      window.ctForgeSelection?.refresh?.();
-     if(window.ctForgeChoice?.hasPending){
+     if(hasRequiredChoice()){
        recoveryBusy=false;
        renderPanel('Forge is waiting for a required choice. Open that choice to continue.');
        return false;
@@ -177,7 +180,7 @@
  async function cancelAndRecover(){
    if(!isGame()){clearPanel();return false;}
    if(recoveryBusy)return false;
-   if(window.ctForgeChoice?.hasPending){
+   if(hasRequiredChoice()){
      renderPanel('Forge is waiting for a required decision. Open that choice; cancellation may not be legal.');
      return false;
    }
