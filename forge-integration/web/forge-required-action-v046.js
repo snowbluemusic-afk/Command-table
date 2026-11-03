@@ -274,6 +274,10 @@
       const raw=String(message||'');
       if(!/^\s*(?:please\s+)?(?:choose|select|approve|confirm|discard|sacrifice|pay|tap|assign|cancel\s+pending|refresh\s+forge)\b/i.test(raw))
         return false;
+      // Do not cover an already-visible Forge choice/target modal with a
+      // second generic recovery sheet simply because notice text is imperative.
+      if(forgeChoice() || window.ctFullscreenTargets?.visible ||
+         (selector()?.legalTargets||[]).length>0)return true;
       lastExplicit=raw;
       sync();
       if(!current)window.ctForgeSafety?.showError?.(
