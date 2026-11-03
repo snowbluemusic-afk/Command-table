@@ -123,8 +123,19 @@
    if(hasRequiredChoice()){
      action('Open required Forge choice',async()=>{
        // Replay only the current decision; never answer it automatically.
-       try{await nativeRequest('engine.status');}catch(_){}
-       clearPanel();
+       // Do not silently dismiss recovery if Forge no longer has a choice
+       // or the control channel could not replay it.
+       try{
+         const status=await nativeRequest('engine.status');
+         nativeChoiceWaiting=!!status?.choicePending;
+         if(!hasRequiredChoice()){
+           renderPanel('Forge no longer reports a pending choice. Refresh the game to verify the current stack and priority.');
+           return;
+         }
+         clearPanel();
+       }catch(error){
+         renderPanel('Unable to reopen the required Forge decision: '+text(error)+'. Refresh status to try again.');
+       }
      });
    }else{
      action('Cancel pending action',cancelAndRecover);
