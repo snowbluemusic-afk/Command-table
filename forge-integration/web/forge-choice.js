@@ -94,6 +94,23 @@
     const input = sheet.querySelector('[data-ct-choice-value]');
     return input ? input.value : '';
   }
+  // An allocation is valid only when every Forge-supplied recipient has a
+  // whole-number amount in range and their combined total is exact. This is
+  // UI preflight; Forge remains authoritative on combat damage assignment.
+  function allocationStatus() {
+    if (!current || current.mode !== 'allocation') return {valid:false, valuesValid:false, remaining:0};
+    const total=Number(current.amount);
+    const min=Number(current.minEach||0);
+    const opts=Array.isArray(current.options)?current.options:[];
+    let assigned=0;
+    let valuesValid=Number.isInteger(total) && total>=0 && Number.isInteger(min) && min>=0;
+    for(let i=0;i<opts.length;i++){
+      const amount=current.allocation?.[i];
+      if(!Number.isInteger(amount) || amount<min || amount>total) valuesValid=false;
+      else assigned+=amount;
+    }
+    return {valid:valuesValid && assigned===total, valuesValid, remaining:total-assigned};
+  }
   async function answer(cancelled = false) {
     if (!current || inFlight) return;
     const mode = current.mode;
@@ -104,12 +121,9 @@
       }
     }
     const value = getTyped();
-    if (!cancelled && mode === 'allocation') {
-      const total=Object.values(current.allocation||{}).reduce((n,v)=>n+Number(v||0),0);
-      if(total!==Number(current.amount||0)){
-        showError('Assign all '+current.amount+' '+(current.unit||'points')+'.');
-        return;
-      }
+    if (!cancelled && mode === 'allocation' && !allocationStatus().valid) {
+      showError('Assign exactly '+current.amount+' '+(current.unit||'points')+' using whole-number amounts for every recipient.');
+      return;
     }
     if (!cancelled && mode === 'integer') {
       const n = Number(value);
@@ -212,15 +226,25 @@
         const name=el('span',label,'flex:1;font-size:13px;overflow-wrap:anywhere');
         const input=el('input');
         input.type='number';input.min=String(minimum);input.max=String(total);input.step='1';
-        input.value=String(assigned[i]??minimum);
+        input.value=assigned[i]===null?'':String(assigned[i]??minimum);
+        input.inputMode='numeric';
+        input.setAttribute('aria-label','Amount assigned to '+label);
         input.style.cssText='width:75px;min-height:40px;background:#283d46;color:white;border:1px solid #ba9e7b;border-radius:9px;padding:6px;font-size:16px;box-sizing:border-box';
-        input.oninput=()=>{
-          const val=Number(input.value);
-          if(!Number.isInteger(val)||val<minimum||val>total)return;
-          current.allocation[i]=val;
-          const left=total-Object.values(current.allocation).reduce((n,v)=>n+Number(v||0),0);
-          summary.textContent='Total: '+total+' · '+(left>=0?left+' remaining':Math.abs(left)+' over');
+        const updateAllocation=()=>{
+          const raw=input.value.trim();
+          const val=raw===''?null:Number(raw);
+          current.allocation[i]=val!==null&&Number.isInteger(val)&&val>=minimum&&val<=total?val:null;
+          const status=allocationStatus();
+          summary.textContent=status.valuesValid
+            ?'Total: '+total+' · '+(status.remaining>=0?status.remaining+' remaining':Math.abs(status.remaining)+' over')
+            :'Total: '+total+' · Enter valid whole-number amounts for every recipient';
+          // Do not repaint the sheet on input: it would discard focus and
+          // keyboard state on Android. Only update the existing confirm button.
+          const confirm=sheet.querySelector('[data-ct-choice-confirm]');
+          if(confirm)confirm.disabled=inFlight||needsVerification||!status.valid;
         };
+        input.oninput=updateAllocation;
+        input.onchange=updateAllocation;
         line.append(name,input);list.append(line);
       }
     } else if (current.mode==='integer' || current.mode==='text') {
@@ -295,11 +319,11 @@
     const footer=el('div',null,'display:flex;gap:10px;position:sticky;bottom:0;background:#17252c;padding-top:8px');
     const ok=action(inFlight?'Applying…':(current.mode==='order'?'Confirm order':'Confirm choice'),
       ()=>answer(false),true);
+    ok.dataset.ctChoiceConfirm='1';
     ok.disabled=inFlight || (current.mode!=='integer' && current.mode!=='text'
       && (selected.length<current.min || selected.length>current.max)) || needsVerification;
     if(current.mode==='allocation'){
-      const total=Object.values(current.allocation||{}).reduce((n,v)=>n+Number(v||0),0);
-      ok.disabled=inFlight||needsVerification||total!==Number(current.amount||0);
+      ok.disabled=inFlight||needsVerification||!allocationStatus().valid;
     }
     footer.append(ok);
     if(inFlight || !!current.error || needsVerification){
