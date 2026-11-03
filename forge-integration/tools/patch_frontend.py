@@ -2006,6 +2006,13 @@ stack_viewer=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-stack-v038.j
 assert 'window.solPodStack' in stack_viewer and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+stack_viewer+'\n</script></body>')
 
+# v0.39 must be the FINAL layout layer: earlier v0.30/v0.32/v0.38
+# independently positioned notifications, stack and priority as fixed panels.
+# Put all three under one flex layout so none can cover the others.
+hud_layout=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-hud-layout-v039.js').read_text()
+assert 'window.solPodHudLayout' in hud_layout and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+hud_layout+'\n</script></body>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
