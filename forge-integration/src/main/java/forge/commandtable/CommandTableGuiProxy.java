@@ -108,7 +108,7 @@ public final class CommandTableGuiProxy {
                 }
                 if ("setSelection".equals(name) && args != null && args.length > 0
                         && args[0] instanceof Selection selection) {
-                    onSelection.accept(selectionView(selection));
+                    onSelection.accept(selectionView(selection, game.get()));
                 }
                 if ("showPromptMessage".equals(name) && args != null && args.length > 1) {
                     Map<String, Object> prompt = new LinkedHashMap<>();
@@ -147,7 +147,29 @@ public final class CommandTableGuiProxy {
             });
     }
     /** Publish ONLY the objects Forge says this player may select. */
-    private static Map<String, Object> selectionView(Selection selection) {
+    private static boolean containsId(Iterable<CardView> cards, int id) {
+        if (cards == null) return false;
+        for (CardView card : cards) if (card != null && card.getId() == id) return true;
+        return false;
+    }
+
+    // These labels are presentation only. Forge's Selection remains the sole
+    // authority for which cards can actually be chosen or targeted.
+    private static String visibleZone(GameView game, CardView card) {
+        if (game == null || card == null || game.getPlayers() == null) return null;
+        for (PlayerView player : game.getPlayers()) {
+            String owner = player.getLobbyPlayerName();
+            int id = card.getId();
+            if (containsId(player.getBattlefield(), id)) return owner + " · Battlefield";
+            if (containsId(player.getGraveyard(), id)) return owner + " · Graveyard";
+            if (containsId(player.getExile(), id)) return owner + " · Exile";
+            if (containsId(player.getCommand(), id)) return owner + " · Command";
+            if (containsId(player.getHand(), id)) return owner + " · Hand";
+        }
+        return null; // Do not inspect or reveal hidden libraries.
+    }
+
+    private static Map<String, Object> selectionView(Selection selection, GameView game) {
         Map<String, Object> state = new LinkedHashMap<>();
         state.put("min", selection.min());
         state.put("max", selection.max());
@@ -157,6 +179,8 @@ public final class CommandTableGuiProxy {
             entry.put("kind", "card");
             entry.put("id", card.getId());
             entry.put("label", card.getName());
+            String zone = visibleZone(game, card);
+            if (zone != null) entry.put("zone", zone);
             cards.add(entry);
         }
         for (CardView card : selection.actionable()) {
@@ -165,6 +189,8 @@ public final class CommandTableGuiProxy {
             entry.put("id", card.getId());
             entry.put("label", card.getName());
             entry.put("actionable", true);
+            String zone = visibleZone(game, card);
+            if (zone != null) entry.put("zone", zone);
             cards.add(entry);
         }
         List<Map<String, Object>> targets = new ArrayList<>();
@@ -174,6 +200,8 @@ public final class CommandTableGuiProxy {
             if (target instanceof CardView c) {
                 entry.put("kind", "card");
                 entry.put("label", c.getName());
+                String zone = visibleZone(game, c);
+                if (zone != null) entry.put("zone", zone);
             } else if (target instanceof PlayerView p) {
                 entry.put("kind", "player");
                 entry.put("label", p.getLobbyPlayerName());
