@@ -13,6 +13,7 @@ function createHarness(reject=false){
       append(...children){this.children.push(...children);},
       replaceChildren(...children){this.children=[...children];},
       focus(){},
+      addEventListener(){},
       querySelector(){return null;},
       get textContent(){return this.text||'';},
       set textContent(v){this.text=v;}
