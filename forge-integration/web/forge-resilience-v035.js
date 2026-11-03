@@ -134,7 +134,7 @@
  function showError(error,prefix){
    const message=(prefix?prefix+': ':'')+text(error);
    if(isGame()){
-     window.solPodNotice?.(message,'error','forge-safety-'+Date.now());
+     // Actionable recovery is never just a passive Game Log entry.
      renderPanel(message);
    }else{
      window.ctNativeToast?.(message);
