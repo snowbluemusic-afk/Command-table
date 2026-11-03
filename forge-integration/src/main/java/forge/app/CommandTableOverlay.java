@@ -67,6 +67,9 @@ public final class CommandTableOverlay {
     private static volatile CommandTableForgeInput input;
     private static volatile CommandTableChoiceDispatcher choices;
     private static volatile String pendingStart;
+    // Read on the CONTROL channel: timed-out casts may remain in progress
+    // while Forge's game thread awaits mana, targeting, or an ability choice.
+    private static volatile boolean castInProgress;
 
     private CommandTableOverlay() {}
 
@@ -379,7 +382,9 @@ public final class CommandTableOverlay {
             return;
         }
         Object value=p.opt("value");
+        boolean isCast="castById".equals(action) || "castCommander".equals(action);
         try {
+            if(isCast)castInProgress=true;
             switch(action) {
                 case "playInspected":case "castSelected":case "selectHand": {
                     if (value == null || JSONObject.NULL.equals(value)) {
@@ -473,6 +478,7 @@ public final class CommandTableOverlay {
             // The real Forge game thread broadcasts its next authoritative state.
             respond(id,true,new JSONObject(),null);
         } catch(Exception ex){respond(id,false,null,ex.getMessage());}
+        finally {if(isCast)castInProgress=false;}
     }
 
     public static final class Bridge {
@@ -520,7 +526,8 @@ public final class CommandTableOverlay {
                             JSONObject status=new JSONObject().put("protocol",1).put("engine","forge")
                                 .put("ready",initialized())
                                 .put("provider","embedded-forge-android")
-                                .put("matchActive",match!=null && match.getGameView()!=null);
+                                .put("matchActive",match!=null && match.getGameView()!=null)
+                                .put("castInProgress",castInProgress);
                             respond(id,true,status,null);
                             CommandTableChoiceDispatcher activeChoice=choices;
                             if(activeChoice!=null && match!=null && match.getGameView()!=null)
