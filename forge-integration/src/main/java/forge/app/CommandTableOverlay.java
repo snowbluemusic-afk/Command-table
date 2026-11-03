@@ -345,6 +345,18 @@ public final class CommandTableOverlay {
         } catch(Exception ex){respond(id,false,null,ex.getMessage());}
     }
 
+    /** Resolve the real commander by Forge identity, not the first item in a
+     * command zone that may also hold emblems, effects and other objects. */
+    private static forge.game.card.CardView commanderInZone(PlayerView human) {
+        if (human == null || human.getCommand() == null)
+            throw new IllegalArgumentException("Commander is not in the command zone");
+        for (forge.game.card.CardView card : human.getCommand()) {
+            if (card != null && card.isCommander()) return card;
+        }
+        throw new IllegalArgumentException(
+            "Your commander is not in the command zone. Check your graveyard, exile or hand, and the Forge destination decision.");
+    }
+
     private static void command(String id, JSONObject p) {
         String action=p.optString("action","");
         CommandTableForgeInput bridge=input;
@@ -374,8 +386,8 @@ public final class CommandTableOverlay {
                     PlayerView human=view.getPlayers().get(0);
                     if(pos>=0 && pos<human.getHand().size()) {
                         bridge.selectCard(human.getHand().get(pos).getId());
-                    } else if(pos==-1 && !human.getCommand().isEmpty()) {
-                        bridge.selectCard(human.getCommand().get(0).getId());
+                    } else if(pos==-1) {
+                        bridge.selectCard(commanderInZone(human).getId());
                     } else {
                         throw new IllegalArgumentException("Card selection outside hand/command zone");
                     }
@@ -385,9 +397,7 @@ public final class CommandTableOverlay {
                     GameView view=match.getGameView();
                     if(view==null)throw new IllegalStateException("Game not ready");
                     PlayerView human=view.getPlayers().get(0);
-                    if(human.getCommand()==null || human.getCommand().isEmpty())
-                        throw new IllegalArgumentException("Commander is not in the command zone");
-                    bridge.castCard(human.getCommand().get(0).getId());
+                    bridge.castCard(commanderInZone(human).getId());
                     break;
                 }
                 case "castById": {
