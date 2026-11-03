@@ -17,7 +17,7 @@ const tests=[
  ['Choices and text persist through engine replay',choices.includes("incoming?.id===current?.id")&&choices.includes('if(!inFlight)paint()')],
  ['Choice submission checks acknowledgement',choices.includes("response.accepted !== true")&&choices.includes('answerGeneration')],
  ['Slow Forge choices show recoverable state',choices.includes('Refresh Forge status')&&choices.includes('14000')&&choices.includes("request('engine.status')")],
- ['Mandatory choices cannot be cleared as notices',hub.includes('Do not dismiss mandatory decisions')],
+ ['Mandatory choices cannot be cleared as notices',hub.includes('Log controls never answer, cancel or dismiss a Forge choice')],
  ['No accidental tap on empty hand',patch.includes("fan_toggle='<div class=\"ct10-hand-fan\" data-action=\"toggleHandZoom\">'")],
  ['Explicit expand and close hand label',patch.includes('ENLARGE HAND')&&patch.includes('CLOSE HAND')],
  ['Mulligan does not enlarge empty hand',patch.includes('g.phase===\"mulligan\"&&me.hand.length>0')],
