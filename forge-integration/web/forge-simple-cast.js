@@ -186,12 +186,13 @@
     // two copies of the same card must cast the correct Forge card instance.
     const hand=event.target.closest('.ct10-hand-slot .game-card[data-action],.ct10-hand-zoom .game-card[data-action]');
     if(hand){
-      const rawIndex=hand.getAttribute('data-drag-index');
-      let index=rawIndex!==null?Number(rawIndex):-1;
-      if(!Number.isInteger(index)||index<0) {
-        const slot=hand.closest('.ct10-hand-slot');
-        index=slot?.parentElement?[...slot.parentElement.children].indexOf(slot):-1;
-      }
+      // data-value is the original Forge-hand index, even when the
+      // card has been moved visually to the front of a playable-first hand.
+      // The old DOM-position fallback selected the WRONG card after sorting.
+      // Do not derive identity from screen order, labels, or duplicated names.
+      const rawIndex=hand.getAttribute('data-value');
+      const index=rawIndex!==null && /^\d+$/.test(rawIndex)
+        ? Number(rawIndex) : -1;
       const card=getFromHand(index);
       if(!card)return;
       event.preventDefault();event.stopImmediatePropagation();
