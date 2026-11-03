@@ -136,7 +136,8 @@
     }catch(_){}
   }
   async function choose(target,key){
-    if(busy||key!==lastSignature||!available()||window.ctForgeSafety?.needsRecovery)return;
+    if(busy||key!==lastSignature||!available()||
+      (window.ctForgeSafety?.needsRecovery&&!forge()?.isRequiredSelection?.(target)))return;
     const api=forge();
     const valid=target.kind==='player'
       ?api?.isLegalPlayer?.(target.id)
@@ -190,11 +191,14 @@
       if(t.kind==='card' && !desc)desc='Card (Forge-legal)';
       text.append(create('span',desc,'ct-target-meta'));
       tile.append(icon,text);
-      tile.disabled=busy||!!window.ctForgeSafety?.needsRecovery;
+      tile.disabled=busy||(!!window.ctForgeSafety?.needsRecovery&&
+        !forge()?.isRequiredSelection?.(t));
       tile.onclick=()=>{void choose(t,key);};
       grid.append(tile);
     });
-    if(window.ctForgeSafety?.needsRecovery)status.textContent='Refresh Forge status before selecting a target.';
+    if(window.ctForgeSafety?.needsRecovery &&
+       !targets.some(t=>forge()?.isRequiredSelection?.(t)))
+      status.textContent='Refresh before initiating a new action.';
     else if(!busy)status.textContent='Only Forge-legal targets are shown. Returning to the battlefield does not cancel this choice.';
   }
   function sync(event){
