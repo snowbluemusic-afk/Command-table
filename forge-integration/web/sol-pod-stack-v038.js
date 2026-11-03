@@ -46,6 +46,7 @@
     '.sol-stack-tile b{display:block;font:750 11px/1.18 system-ui;overflow-wrap:anywhere}',
     '.sol-stack-tile small{display:block;font:650 10px/1.2 system-ui;color:#c8dbdd;',
     'margin-top:4px;overflow-wrap:anywhere}',
+    '#sol-pod-stack[data-empty="true"]{height:clamp(58px,10dvh,86px);max-height:10dvh}',
     '#sol-pod-stack-empty{padding:12px 9px;color:#b5c9d0;font:650 11px/1.4 system-ui}',
     '#sol-pod-stack-reader{position:fixed;inset:0;display:none;align-items:center;justify-content:center;',
     'box-sizing:border-box;padding:clamp(5px,1.2vw,15px);background:#020812f5;',
@@ -248,7 +249,7 @@
   function open(id){
     if(!active().length||!game())return;
     const choice=document.getElementById('ct-forge-decision-sheet');
-    if(choice?.style?.display==='flex')return;
+    if(choice?.style?.display==='flex' || window.ctForgeChoice?.hasPending)return;
     if(window.app?.modal)return;
     lastFocus=document.activeElement;
     openId=itemById(id)?String(id):key(active()[active().length-1]);
@@ -267,11 +268,12 @@
       window.solPodNotice?.('You have priority. Inspect a permanent to activate an available ability, or use Pass priority.','info','stack-respond');
     }
   }
-  function passPriority(){
-    if(!canRespond()||!window.ctForgePriority?.canConfirm)return;
+  // Viewing the stack must never implicitly resolve or advance an ability.
+  // Return to Forge's own priority dock for any confirmation / pass decision.
+  function returnToPriority(){
     close();
-    // Same explicit action as Forge's own Phase & Priority confirmation.
-    window.ctForgePriority.confirm();
+    const dock=document.getElementById('ct-forge-priority-buttons');
+    dock?.querySelector?.('button:not([disabled])')?.focus?.();
   }
   async function targetStack(id){
     const item=itemById(id);
@@ -282,6 +284,9 @@
   }
   function paintModal(){
     if(overlay.dataset.open!=='true')return;
+    const mandatory=document.getElementById('ct-forge-decision-sheet');
+    if(mandatory?.style?.display==='flex' || window.ctForgeChoice?.hasPending ||
+      window.app?.modal){close();return;}
     const items=active();
     const item=itemById(openId);
     if(!item || !items.length){close();return;}
@@ -343,15 +348,14 @@
     select.disabled=!legal||!!window.ctForgeSafety?.needsRecovery;
     select.hidden=!legal;
     actions.append(select);
-    const pass=button('Pass priority',passPriority);
-    pass.disabled=!canRespond()||!window.ctForgePriority?.canConfirm;
-    actions.append(pass);
+    actions.append(button('Priority controls',returnToPriority));
     actions.append(button('Back to battlefield',close));
     detail.append(actions);
   }
   function paintRail(){
     const items=active();
     count.textContent=items.length+' active';
+    rail.dataset.empty=String(!items.length);
     cards.replaceChildren();
     expand.disabled=!items.length;
     if(!items.length){
