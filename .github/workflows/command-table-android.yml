@@ -38,7 +38,6 @@ jobs:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
       - name: Verify recovery integration contract before downloading Forge
         run: |
-          set -o pipefail
           mkdir -p recovery-logs
           bash -n ci/android-smoke.sh
           node tests/verify-arena-gestures.cjs 2>&1 | tee recovery-logs/arena-gestures.txt
@@ -61,6 +60,10 @@ jobs:
           node tests/verify-sol-pod-v0360.cjs 2>&1 | tee recovery-logs/sol-pod-v0360.txt
           node tests/verify-sol-pod-v038.cjs 2>&1 | tee recovery-logs/sol-pod-v038.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
+      - name: Verify Sol Pod v0.38 stack behaviour (mandatory)
+        run: |
+          node --check forge-integration/web/sol-pod-stack-v038.js
+          node tests/verify-sol-pod-v038.cjs
       - name: Fetch pinned Forge engine and Android source
         run: |
           git clone --filter=blob:none https://github.com/Card-Forge/forge.git /tmp/forge
