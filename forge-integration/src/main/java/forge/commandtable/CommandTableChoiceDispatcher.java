@@ -119,7 +119,14 @@ public final class CommandTableChoiceDispatcher {
             Object value = options.get(i);
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("index", i);
-            entry.put("label", description(value, display));
+            // The Forge-owned yes/no result is unchanged. Only its presented
+            // label is clarified for Commander CR 903.9 decisions.
+            if (Boolean.TRUE.equals(extras == null ? null : extras.get("commanderDestination"))
+                    && options.size() == 2) {
+                entry.put("label", i == 0 ? "Move to command zone" : "Keep the normal destination");
+            } else {
+                entry.put("label", description(value, display));
+            }
             if (value instanceof CardView card) entry.put("cardId", card.getId());
             if (value instanceof PlayerView player) entry.put("playerId", player.getId());
             entries.add(entry);
@@ -230,7 +237,20 @@ public final class CommandTableChoiceDispatcher {
             case "confirm": {
                 String question = a.length > 1 ? text(a[1]) : "Confirm";
                 List<?> buttons = a.length > 3 ? list(a[3]) : List.of("Yes", "No");
-                Object picked = choose("single", question, buttons, 1, 1, null, Map.of("confirm", true));
+                // Forge's InputConfirm is used by CR 903.9's optional move to
+                // the command zone. Never assume 'yes' on behalf of the owner;
+                // its explicit binary decision must remain visible in Sol Pod.
+                String lower = question.toLowerCase(java.util.Locale.ROOT);
+                boolean commanderMove = buttons.size() == 2
+                    && lower.contains("commander") && lower.contains("command zone")
+                    && (lower.contains("graveyard") || lower.contains("exile")
+                        || lower.contains("hand") || lower.contains("library"));
+                Map<String,Object> extras = new LinkedHashMap<>();
+                extras.put("confirm", true);
+                if (commanderMove) extras.put("commanderDestination", true);
+                Object picked = choose("single", commanderMove
+                    ? "Where should your commander go?\n" + question : question,
+                    buttons, 1, 1, null, extras);
                 return picked != null && picked.equals(buttons.get(0));
             }
             case "showOptionDialog": {

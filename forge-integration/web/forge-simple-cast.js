@@ -69,9 +69,21 @@
   };
   const getCommander=()=>{
     const p=currentPlayer();
-    const commander=p?.commandZone?.find(c=>c.commander) || p?.commandZone?.[0];
+    // A command zone can contain emblems and auxiliary effects. Never
+    // mistake the first such card for the actual commander.
+    const commander=p?.commandZone?.find(c=>c.commander);
     if(!commander||!Number.isInteger(Number(commander.id)))return null;
     return {name:commander.name,id:Number(commander.id),source:'command'};
+  };
+  const commanderLocation=()=>{
+    const p=currentPlayer();
+    if(!p)return 'an unknown zone';
+    if(p.commandZone?.some(c=>c.commander))return 'the command zone';
+    if(p.graveyardCards?.some(c=>c.commander))return 'your graveyard';
+    if(p.exileCards?.some(c=>c.commander))return 'exile';
+    if(p.battlefield?.some(c=>c.commander))return 'the battlefield';
+    if((p.hand||[]).some(n=>String(n).toLowerCase()===String(p.commander).toLowerCase()))return 'your hand';
+    return 'another zone';
   };
   const lookup=(name)=>{
     const p=currentPlayer();
@@ -108,10 +120,17 @@
     const content=document.createElement('section');content.className='ct-cast-content';
     const title=document.createElement('h2');title.textContent=source.name;
     const line=document.createElement('div');line.className='ct-cast-meta';
-    line.textContent=[mana,type,source.source==='command'?'Command zone':'Hand'].filter(Boolean).join(' · ');
+    const casts=source.source==='command' && source.id===getCommander()?.id
+      ?Math.max(0,Math.floor(Number(p?.commanderCasts)||0)):0;
+    const tax=casts*2;
+    line.textContent=[mana,type,source.source==='command'?'Command zone':'Hand',
+      source.source==='command'?'Commander tax: +{'+tax+'} generic ('+casts+' prior command-zone cast'+(casts===1?'':'s')+')':null]
+      .filter(Boolean).join(' · ');
     const rules=document.createElement('div');rules.className='ct-cast-rules';rules.textContent=fullText;
     const hint=document.createElement('div');hint.className='ct-cast-hint';
-    hint.textContent='Forge checks timing, mana, targets and all card rules. Spells resolve after players pass priority.';
+    hint.textContent=source.source==='command'
+      ?'Commander tax increases by {2} for each previous command-zone cast. Forge checks the final payable cost, coloured mana, timing and discounts. A commander left in a different zone cannot be recast from the command zone.'
+      :'Forge checks timing, mana, targets and all card rules. Spells resolve after players pass priority.';
     const err=document.createElement('div');err.className='ct-cast-error';
     if(error)err.textContent=error;else err.style.display='none';
     const actions=document.createElement('div');actions.className='ct-cast-actions';
@@ -232,8 +251,13 @@
       '.ct10-own-player [data-action="inspectCommander"]');
     if(command){
       const card=getCommander();
-      if(!card)return;
-      event.preventDefault();event.stopImmediatePropagation();open(card);return;
+      event.preventDefault();event.stopImmediatePropagation();
+      if(!card){
+        const name=currentPlayer()?.commander||'Your commander';
+        say(name+' is in '+commanderLocation()+', not the command zone. A command-zone recast is available only after Forge moves it there.');
+        return;
+      }
+      open(card);return;
     }
   },true);
   backdrop.addEventListener('click',event=>{if(event.target===backdrop)hide();});
