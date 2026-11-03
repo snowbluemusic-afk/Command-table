@@ -90,7 +90,7 @@
   resume.id='ct-forge-required-resume';resume.type='button';
   document.body.append(resume);
   let minimized='',key='',submitting=false,lastExplicit='',notice='';
-  let current=null;
+  let current=null,waitingForForgeKey='';
   const player=()=>window.app?.game?.players?.[0];
   const phase=()=>String(window.app?.game?.phaseDetail||'').toUpperCase();
   const inCombat=()=>/ATTACKERS|BLOCKERS/.test(phase());
@@ -138,7 +138,7 @@
     return {kind,buttons,items:available,prompt,chosen,min,enabled,
       key:JSON.stringify([kind,label1,label2,select.min,select.max,
         available.map(c=>[c.id,c.label,c.actionable]),
-        chosen.map(String),prompt])};
+        chosen.map(String),prompt,buttons.sequence||0])};
   };
   function show(value,signature){
     backdrop.dataset.open=value?'true':'false';
@@ -148,11 +148,11 @@
   }
   const button=(label,fn,cls='',enabled=true)=>{
     const el=make('button',cls,label);
-    el.type='button';el.disabled=!enabled||submitting;el.onclick=fn;
+    el.type='button';el.disabled=!enabled||submitting||waitingForForgeKey===key;el.onclick=fn;
     footer.append(el);return el;
   };
   async function apply(ok){
-    if(submitting||!current)return;
+    if(submitting||!current||waitingForForgeKey===key)return;
     submitting=true;
     feedback.textContent='Sending your decision to Forge…';
     paint();
@@ -163,7 +163,8 @@
         feedback.textContent='Forge did not accept this decision. Use the recovery dialog.';
         return;
       }
-      feedback.textContent='Forge received your decision. Checking the next game state…';
+      waitingForForgeKey=key;
+      feedback.textContent='Decision sent to Forge. Waiting for the next prompt or game-state update; do not submit it twice.';
       minimized='';lastExplicit='';notice='';
       // Never assume completion or submit the decision twice; wait for
       // Forge's next selection/prompt/state event to close or replace it.
@@ -209,7 +210,7 @@
       opt.textContent=(chosen.has(String(item.id))?'✓ ':'')+label+
         (item.zone?' · '+item.zone:'');
       opt.dataset.chosen=String(chosen.has(String(item.id)));
-      opt.disabled=submitting||!!window.ctForgeSafety?.needsRecovery;
+      opt.disabled=submitting||waitingForForgeKey===key||!!window.ctForgeSafety?.needsRecovery;
       opt.onclick=()=>{void chooseCard(item,signature);};
       list.append(opt);
     }
@@ -220,6 +221,11 @@
     if(d.buttons.enable2)button(String(d.buttons.label2||'Cancel'),()=>{void apply(false);});
     // A mana cost might require manually tapping battlefield mana sources if
     // Forge's Auto control cannot pay; do not trap the player behind a modal.
+    if(waitingForForgeKey===key){
+      const check=make('button',null,'↻ Check Forge status');
+      check.onclick=()=>{void window.ctForgeSafety?.recover?.();};
+      footer.append(check);
+    }
     if(d.kind==='mana'||d.kind==='cards')button('Use battlefield',()=>{
       minimized=key;show(false,key);feedback.textContent='';
     });
@@ -230,7 +236,7 @@
     const d=modeData();
     if(!d){current=null;key='';minimized='';show(false,'');return;}
     if(d.key!==key){
-      key=d.key;minimized='';feedback.textContent='';
+      key=d.key;minimized='';waitingForForgeKey='';feedback.textContent='';
     }
     current=d;
     const opened=minimized!==key;
