@@ -25,6 +25,8 @@ assert(safety.includes('ctForgeChoice?.hasPending'),
  'A required Forge choice takes precedence over cancellation');
 assert(cast.includes('if(window.ctForgeSafety?.recoveryVisible){hide();return;}'),
  'A failed cast cannot reopen a card sheet over the recovery modal');
+assert(overlay.includes('.put("choicePending",choices!=null && choices.hasPending())'),
+ 'Recovery must know when Forge has a decision even if the JS sheet is temporarily missing');
 assert(overlay.includes('.put("castInProgress",castInProgress)'),
  'Engine status must report actual in-flight native casting');
 assert(overlay.includes('finally {if(isCast)castInProgress=false;}'),
@@ -52,13 +54,13 @@ const rail=new El('div'),document={
  getElementById:id=>id==='sol-pod-hub-content'?rail:null
 };
 const calls=[],notices=[];
-let nativeBusy=true,forceTimeout=true,choicePending=false,hidden=0,updated=0;
+let nativeBusy=true,forceTimeout=true,choicePending=false,nativeChoice=false,hidden=0,updated=0;
 const native={request:async(type,payload={})=>{
  calls.push({type,payload});
  if(type==='game.command'&&payload.action==='castById'&&forceTimeout){
   const e=new Error('Forge cast timed out');e.code='FORGE_TIMEOUT';throw e;
  }
- if(type==='engine.status')return {castInProgress:nativeBusy,ready:true};
+ if(type==='engine.status')return {castInProgress:nativeBusy,choicePending:nativeChoice,ready:true};
  if(type==='game.snapshot')return {game:{turn:8,players:[{id:1}]}};
  return {accepted:true};
 }};
@@ -104,7 +106,12 @@ function buttons(){
  assert(buttons().includes('Open required Forge choice'));
  assert(!buttons().includes('Cancel pending action'),
   'Cannot cancel a potentially mandatory choice');
- choicePending=false;nativeBusy=false;forceTimeout=false;
+ choicePending=false;nativeBusy=false;nativeChoice=true;forceTimeout=false;
+ assert.equal(await window.ctForgeSafety.recover(),false,
+  'Native Forge may have an unanswered decision even when the JS sheet is not rendered');
+ assert(buttons().includes('Open required Forge choice'),
+  'Native pending choice must never lead to an unsafe Cancel suggestion');
+ nativeChoice=false;
  assert.equal(await window.ctForgeSafety.recover(),true);
  assert.equal(window.ctForgeSafety.recoveryVisible,false);
  assert.equal(window.ctForgeSafety.needsRecovery,false);
