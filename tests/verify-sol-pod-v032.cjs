@@ -18,7 +18,7 @@ const checks=[
  ['Hand count no longer clickable',patch.includes('<span class="sol-hand-count">YOUR HAND')],
  ['Player roster takes precedence',ui.includes('body:has(.sol-battlefield.sol-roster-expanded) #sol-pod-hub')],
  ['Event rail uses vertical gap',ui.includes('max-height:42dvh')],
- ['Real native blocker instructions',selection.includes('Tap blocker → attacker')],
+ ['Real native blocker instructions',selection.includes('Select one of YOUR blockers, then select the attacking creature it will block.')],
  ['Rules unchanged',read('forge-integration/src/main/java/forge/commandtable/CommandTableForgeInput.java').includes('human().selectCard(attacker')]
 ];
 for(const [name,yes] of checks)assert(yes,'FAIL '+name);

@@ -393,7 +393,7 @@
       : pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
       : inAttack?'Choose attackers · tap glowing creatures':
-        inBlock?('Tap blocker → attacker · '+combatCount+' confirmed'+
+        inBlock?('Select one of YOUR blockers, then select the attacking creature it will block. '+combatCount+' blocks confirmed'+
           (blockerNames.length?' · '+blockerNames.join(', '):'')+
           (pendingAssignments?' · '+pendingAssignments+' processing…':'')):
         'Turn '+(game?.turn||1)+' · '+phaseText+
@@ -428,13 +428,13 @@
         ok && !pregame && ordinary && inAttack
           ? (combatCount?'Confirm '+combatCount+' attacker'+(combatCount===1?'':'s'):'No attacks'):
         ok && !pregame && ordinary && inBlock
-          ? (combatCount?'Confirm '+combatCount+' block'+(combatCount===1?'':'s'):'No blocks'):
+          ? (combatCount?'Confirm '+combatCount+' block'+(combatCount===1?'':'s'):'Select blocker'):
         ok && !pregame && ordinary
           ? (stack.length?'Pass priority':window.app?.game?.active===0?'Next phase':'Pass'):
           original;
       if(inBlock&&!ok)continue; // no "End Turn" or stale cancel in blocker step
       b.setAttribute('aria-label',original+' — '+b.textContent);
-      b.disabled=!enabled||busy||syncBusy||((inBlock||inAttack)&&pendingAssignments>0);
+      b.disabled=!enabled||busy||syncBusy||(inBlock&&ok&&combatCount===0)||((inBlock||inAttack)&&pendingAssignments>0);
       b.style.cssText=[
         'flex:1','min-height:36px','padding:6px 8px','border-radius:9px',
         'border:1px solid #bda17d',
@@ -444,6 +444,18 @@
       ].join(';');
       b.onclick=()=>decide(ok);
       buttons.append(b);
+    }
+    // No blocks is a valid Forge choice, but it must be EXPLICIT: the
+    // disabled Select blocker guide must never secretly confirm no blocks.
+    if(inBlock&&!combatCount&&buttonState.enable1){
+      const skip=document.createElement('button');
+      skip.type='button';
+      skip.textContent='Skip blocking';
+      skip.setAttribute('aria-label','Declare no blockers and continue combat');
+      skip.disabled=busy||syncBusy||pendingAssignments>0;
+      skip.style.cssText='flex:1;min-height:36px;padding:6px 8px;border-radius:9px;border:1px solid #bda17d;background:#294452;color:#f4e3c9;font-size:13px;font-weight:700';
+      skip.onclick=()=>decide(true);
+      buttons.append(skip);
     }
     if(inBlock && window.ctDirectCombat?.needsRecovery){
       decisionText.textContent='Combat response timed out. Refresh the Forge state and review blocks before confirming.';
