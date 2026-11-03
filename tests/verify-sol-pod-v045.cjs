@@ -29,7 +29,7 @@ assert(overlay.includes('.put("choicePending",choices!=null && choices.hasPendin
  'Recovery must know when Forge has a decision even if the JS sheet is temporarily missing');
 assert(overlay.includes('.put("castInProgress",castInProgress)'),
  'Engine status must report actual in-flight native casting');
-assert(overlay.includes('finally {if(isCast)castInProgress=false;}'),
+assert(overlay.includes('finally {if(isCast){castInProgress=false;cancelRequested=false;}}'),
  'Native cast-in-progress flag must be released after cast completion');
 assert(input.includes('FThreads.invokeInEdtNowOrLater(() -> human().selectButtonCancel());'),
  'Cancel request must not block the WebView behind Forge GL-thread interaction');
