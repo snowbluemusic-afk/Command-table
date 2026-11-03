@@ -367,7 +367,7 @@
     }
   }
   async function decide(ok){
-    if(busy)return;
+    if(busy)return false;
     busy=true;
     // A player may press Confirm immediately after dragging two blockers.
     // Wait for both Forge assignments before advancing combat.
@@ -377,10 +377,13 @@
       await window.CommandTableNative.request('game.command',{
         action:ok?'resolve':'cancelCastTarget',value:null
       });
-      // Forge sends the next state/buttons; keep decision panel responsive.
+      // Acknowledges the command; Forge remains responsible for resolution.
+      return true;
     }catch(err){
-      if(typeof window.announce==='function')
-        window.announce('Forge could not apply your decision: '+(err?.message||String(err)));
+      if(window.ctForgeSafety?.showError)
+        window.ctForgeSafety.showError(err,'Forge could not apply your decision');
+      else window.ctNativeToast?.('Forge decision rejected: '+(err?.message||String(err)));
+      return false;
     }finally{busy=false;paintDecision();}
   }
   function paintDecision(){
@@ -548,6 +551,11 @@
         if(Object.prototype.hasOwnProperty.call(p,key))buttonState[key]=p[key];
       }
       paintDecision();
+      // Required actions consume Forge's structured buttons, not Game Log text.
+      if(typeof window.dispatchEvent==='function' && typeof CustomEvent!=='undefined')
+        window.dispatchEvent(new CustomEvent('ct-forge-prompt-updated',{
+          detail:{...buttonState,message:openingMessage}
+        }));
       // Forge InputPayMana offers its Auto control only if its own
       // mana-payment solver can complete this cost. Never guess mana here.
       const auto=/^auto$/i.test(String(buttonState.label1).trim());
@@ -571,6 +579,8 @@
     get isManaPayment(){return /^auto$/i.test(String(buttonState.label1).trim())&&
       /^cancel$/i.test(String(buttonState.label2).trim())&&window.app?.nativeMatch===true;},
     confirm:()=>decide(true),
+    cancel:()=>decide(false),
+    get buttonInfo(){return {...buttonState,message:openingMessage,prompt:promptMessage,busy};},
     // Distinguish Forge's mandatory hand-card choices from the ordinary
     // castable-card highlights shown during priority. Do not let the UI
     // mistake a discard for a request to cast.
@@ -628,6 +638,7 @@
     isSelectedCard:(id)=>Number.isInteger(Number(id))&&
       (selection.chosen||[]).some(c=>Number(c)===Number(id)),
     get legalCards(){return candidates().filter(c=>c.kind==='card');},
+    get selectionInfo(){return {...selection};},
     get prompt(){return promptMessage;},
     get active(){return candidates().length>0;}
   };
