@@ -60,7 +60,22 @@ public final class CommandTableMatchLauncher {
         // On Android it opens an interrupting full-screen reveal dialog before
         // Command Table receives its first GameView, leaving the WebView on
         // its launch page. Keep real Commander rules and AI intact.
-        GameRules rules = new GameRules(GameType.Commander);
+        // Commander is an APPLIED VARIANT of a constructed match in Forge,
+        // not merely the GameRules.gameType. GameAction checks
+        // hasAppliedVariant(Commander) before prompting the owner when a
+        // commander enters graveyard/exile (CR 903.9a), and the engine also
+        // consults this variant for commander tax and combat damage.
+        //
+        // Previously new GameRules(GameType.Commander) plus an EMPTY applied
+        // variants set left all those rules disabled even though each player
+        // had a RegisteredPlayer.forCommander(deck) and 40 starting life.
+        final GameRules rules = new GameRules(GameType.Constructed);
+        final java.util.Set<GameType> appliedVariants =
+            Collections.singleton(GameType.Commander);
+        rules.setAppliedVariants(appliedVariants);
+        if (!rules.hasAppliedVariant(GameType.Commander) || !rules.hasCommander()) {
+            throw new IllegalStateException("Forge Commander rules variant was not activated");
+        }
         rules.setWarnAboutAICards(false);
         // Forge's InputPassPriority.getActionable() returns NO highlights
         // unless this preference is enabled. We run a custom UI and need
@@ -69,7 +84,7 @@ public final class CommandTableMatchLauncher {
         FModel.getPreferences().setPref(FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS, true);
         // A zero-human Forge match is its native spectator path: AIs control every seat.
         // No synthetic player actions are issued by Command Table.
-        match.startMatch(rules, Collections.emptySet(), players, watchMode ? null : human, ui);
+        match.startMatch(rules, appliedVariants, players, watchMode ? null : human, ui);
         return match;
     }
 
