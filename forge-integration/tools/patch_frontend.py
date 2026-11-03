@@ -1796,6 +1796,51 @@ v34=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-ux-v034.js').read_tex
 assert 'sol-pod-ux-v034' in v34 and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+v34+'\n</script></body>')
 
+
+# v0.34.2: the LARGE card-details modal is distinct from immersiveInspect.
+# It previously lacked Activate / interact, so a sacrifice ability such as
+# Thrashing Brontodon's could be read but never activated from full details.
+# Only offer activation on the player's still-present, exact Forge permanent.
+modal_history=" if(app.modal==='history'){"
+assert source.count(modal_history)==1, 'Full card details/history boundary changed'
+native_activate=r""" if(app.modal==='inspect'&&app.nativeMatch){
+   const me=app.game?.players?.[0],forgeId=app.inspectForgeId;
+   const owned=app.inspectOwner===0&&forgeId!=null&&
+     me?.battlefield?.find(x=>Number(x.forgeId)===Number(forgeId)&&
+       String(x.name).toLowerCase()===String(app.inspect||app.selectedCard||'').toLowerCase());
+   const c=owned&&card(owned.name);
+   // Forge owns actual ability/cost/target legality. The colon is only an
+   // affordance check for printed activated-ability text, not a rules engine.
+   const abilityText=String(c?.text||window.ctForgeCards?.[String(c?.name||'').toLowerCase()]?.text||'');
+   if(owned&&/:[^\n]*/.test(abilityText)){
+     const ready=!!me.priority;
+     inside+='<div class="ct-native-activated-action">'+
+       '<p>Activated abilities: Forge checks costs, sacrifice requirements and targets.</p>'+
+       '<button type="button" class="primary full" data-action="cardId" data-value="'+
+       esc(String(forgeId))+'" '+(ready?'':'disabled')+
+       '>Activate ability ↗</button>'+
+       (ready?'':'<small>Available when you have priority.</small>')+'</div>';
+   }
+ }
+"""
+source=source.replace(modal_history,native_activate+modal_history)
+# Native action interception already submits cardId to Forge; it also closes
+# inspect modal. No alternate custom rules/sacrifice handling is introduced.
+assert "if(app.nativeMatch && NATIVE_GAME_COMMANDS.has(act))" in source
+# Inspecting a hand card or commander must never inherit an old board ID.
+full_inspect_case="case 'inspectFull':app.inspect=v;app.modal='inspect';render();break;"
+assert source.count(full_inspect_case)==1, 'Full inspection action changed'
+source=source.replace(full_inspect_case,
+ "case 'inspectFull':if(String(app.inspect||'')!==String(v)){app.inspectOwner=null;app.inspectForgeId=null;}app.inspect=v;app.modal='inspect';render();break;")
+other_inspect="case 'inspect':app.selected=null;app.inspect=v;app.selectedCard=v;"
+assert source.count(other_inspect)==1, 'Generic inspector action changed'
+source=source.replace(other_inspect,
+ "case 'inspect':app.inspectOwner=null;app.inspectForgeId=null;app.selected=null;app.inspect=v;app.selectedCard=v;")
+commander="case 'inspectCommander':app.inspect=p.commander;"
+assert source.count(commander)==1
+source=source.replace(commander,
+ "case 'inspectCommander':app.inspectOwner=null;app.inspectForgeId=null;app.inspect=p.commander;")
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
