@@ -527,7 +527,8 @@ public final class CommandTableOverlay {
                                 .put("ready",initialized())
                                 .put("provider","embedded-forge-android")
                                 .put("matchActive",match!=null && match.getGameView()!=null)
-                                .put("castInProgress",castInProgress);
+                                .put("castInProgress",castInProgress)
+                                .put("choicePending",choices!=null && choices.hasPending());
                             respond(id,true,status,null);
                             CommandTableChoiceDispatcher activeChoice=choices;
                             if(activeChoice!=null && match!=null && match.getGameView()!=null)
