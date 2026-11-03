@@ -57,6 +57,7 @@ jobs:
           node tests/verify-sol-pod-v0342.cjs 2>&1 | tee recovery-logs/sol-pod-v0342.txt
           node tests/verify-sol-pod-v035.cjs 2>&1 | tee recovery-logs/sol-pod-v035.txt
           node tests/verify-sol-pod-v0351.cjs 2>&1 | tee recovery-logs/sol-pod-v0351.txt
+          node tests/verify-sol-pod-v0360.cjs 2>&1 | tee recovery-logs/sol-pod-v0360.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Fetch pinned Forge engine and Android source
         run: |
@@ -91,6 +92,7 @@ jobs:
           node tests/verify-sol-pod-v0342.cjs /tmp/forge/forge-gui-android/assets/command-table.html
           node tests/verify-sol-pod-v035.cjs /tmp/forge/forge-gui-android/assets/command-table.html
           node tests/verify-sol-pod-v0351.cjs
+          node tests/verify-sol-pod-v0360.cjs
       - name: Check Command Table JavaScript and native gameplay handoff
         run: |
           python3 - <<'PY'
