@@ -70,6 +70,7 @@ public final class CommandTableOverlay {
     // Read on the CONTROL channel: timed-out casts may remain in progress
     // while Forge's game thread awaits mana, targeting, or an ability choice.
     private static volatile boolean castInProgress;
+    private static volatile boolean cancelRequested;
 
     private CommandTableOverlay() {}
 
@@ -384,7 +385,7 @@ public final class CommandTableOverlay {
         Object value=p.opt("value");
         boolean isCast="castById".equals(action) || "castCommander".equals(action);
         try {
-            if(isCast)castInProgress=true;
+            if(isCast){castInProgress=true;cancelRequested=false;}
             switch(action) {
                 case "playInspected":case "castSelected":case "selectHand": {
                     if (value == null || JSONObject.NULL.equals(value)) {
@@ -471,14 +472,19 @@ public final class CommandTableOverlay {
                 case "autoBlocks":
                     throw new IllegalArgumentException(
                         "Choose blockers yourself with Forge's legal target buttons");
-                case "cancelCastTarget": bridge.cancel();break;
+                case "cancelCastTarget":
+                    // This acknowledges a request to cancel, not completion.
+                    // A pending Forge prompt may have to exit before GL/EDT
+                    // can process the cancellation callback.
+                    cancelRequested=castInProgress;
+                    bridge.cancel();break;
                 case "concede": case "quitGame": bridge.concede();break;
                 default:throw new IllegalArgumentException("Native action not wired: "+action);
             }
             // The real Forge game thread broadcasts its next authoritative state.
             respond(id,true,new JSONObject(),null);
         } catch(Exception ex){respond(id,false,null,ex.getMessage());}
-        finally {if(isCast)castInProgress=false;}
+        finally {if(isCast){castInProgress=false;cancelRequested=false;}}
     }
 
     public static final class Bridge {
@@ -528,6 +534,7 @@ public final class CommandTableOverlay {
                                 .put("provider","embedded-forge-android")
                                 .put("matchActive",match!=null && match.getGameView()!=null)
                                 .put("castInProgress",castInProgress)
+                                .put("cancelRequested",cancelRequested)
                                 .put("choicePending",choices!=null && choices.hasPending());
                             respond(id,true,status,null);
                             CommandTableChoiceDispatcher activeChoice=choices;

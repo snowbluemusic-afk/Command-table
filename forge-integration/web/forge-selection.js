@@ -100,6 +100,20 @@
       return true;
     });
   }
+  // An unconfirmed cast blocks NEW spells, but must not block Forge's
+  // existing mana, target or discard selections needed to finish that cast.
+  function isRequiredSelection(item){
+    if(!item)return false;
+    const same=x=>x.kind===item.kind&&Number(x.id)===Number(item.id);
+    if((selection.targets||[]).some(same))return true;
+    if(item.kind!=='card')return false;
+    const card=(selection.cards||[]).find(same);
+    if(!card)return false;
+    if(window.ctForgePriority?.isManaPayment||window.ctForgePriority?.isHandChoice)return true;
+    const message=String(promptMessage||window.ctForgePriority?.buttonInfo?.message||'');
+    return !card.actionable&&(Number(selection.min||0)>0 ||
+      /\b(?:choose|select|discard|sacrifice|bottom|return|pay)\b/i.test(message));
+  }
   function highlight() {
     document.querySelectorAll('.ct-forge-legal-target').forEach(e=>{
       e.classList.remove('ct-forge-legal-target');
@@ -140,7 +154,7 @@
   async function select(item) {
     // Never submit a stale or invented target. Only Forge's current Selection
     // model determines which player/card/stack item is actionable.
-    if(working || window.ctForgeSafety?.needsRecovery ||
+    if(working || (window.ctForgeSafety?.needsRecovery && !isRequiredSelection(item)) ||
        !candidates().some(candidate=>
         candidate.kind===item.kind && Number(candidate.id)===Number(item.id)))return false;
     const action = item.kind==='player'?'selectPlayer':
@@ -157,7 +171,10 @@
       }catch(_){}
       return true;
     }catch(err) {
-      if(typeof announce==='function')announce('Forge: '+(err?.message||String(err)));
+      // A failed required selection requires recovery, not a passive log entry.
+      if(window.ctForgeSafety?.showError)
+        window.ctForgeSafety.showError(err,'Forge could not select card or target');
+      else window.ctNativeToast?.('Forge selection unavailable: '+(err?.message||String(err)));
       return false;
     }finally{working=false;update();}
   }
@@ -212,7 +229,8 @@
     const category=hasPlayer&&!(hasCard||hasStack)?'player':
       hasStack&&!(hasCard||hasPlayer)?'spell on stack':
       hasCard&&!(hasPlayer||hasStack)?'card':'target';
-    title.textContent=(needsRecovery?'Refresh Forge before another choice':
+    const blockedByRecovery=needsRecovery&&!all.some(isRequiredSelection);
+    title.textContent=(blockedByRecovery?'Refresh Forge before a new action':
       !declaring?('Choose legal '+category):combatLabel||promptMessage||'Forge choices')+
       ' · '+all.length+(chosen?' · '+chosen+' selected':'');
     // The title is always visible in Game Events. Expand automatically for
@@ -240,7 +258,7 @@
       button.style.cssText='padding:8px 10px;font-size:12px;background:#2b434c;'+
         'border:1px solid #a68c66;border-radius:8px;color:#f1e8da;'+
         'max-width:100%;white-space:normal;text-align:left;min-height:38px';
-      button.disabled=working||needsRecovery;
+      button.disabled=working||(needsRecovery&&!isRequiredSelection(item));
       const expectedVersion=selectionVersion;
       button.onclick=()=>{
         // Ignore stale buttons after Forge has published a different selection.
@@ -349,6 +367,7 @@
   let openingMessage='';
   let busy=false;
   let autoManaIssued=false;
+  let promptSequence=0;
   let syncBusy=false;
   async function syncChoices(){
     if(syncBusy)return;
@@ -359,7 +378,9 @@
       const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
       if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
     }catch(error){
-      window.ctNativeToast?.('Unable to sync Forge choices: '+(error?.message||String(error)));
+      if(window.ctForgeSafety?.showError)
+        window.ctForgeSafety.showError(error,'Unable to sync Forge required choices');
+      else window.ctNativeToast?.('Unable to sync Forge choices: '+(error?.message||String(error)));
     }finally{
       syncBusy=false;
       paintDecision();
@@ -367,7 +388,7 @@
     }
   }
   async function decide(ok){
-    if(busy)return;
+    if(busy)return false;
     busy=true;
     // A player may press Confirm immediately after dragging two blockers.
     // Wait for both Forge assignments before advancing combat.
@@ -377,10 +398,13 @@
       await window.CommandTableNative.request('game.command',{
         action:ok?'resolve':'cancelCastTarget',value:null
       });
-      // Forge sends the next state/buttons; keep decision panel responsive.
+      // Acknowledges the command; Forge remains responsible for resolution.
+      return true;
     }catch(err){
-      if(typeof window.announce==='function')
-        window.announce('Forge could not apply your decision: '+(err?.message||String(err)));
+      if(window.ctForgeSafety?.showError)
+        window.ctForgeSafety.showError(err,'Forge could not apply your decision');
+      else window.ctNativeToast?.('Forge decision rejected: '+(err?.message||String(err)));
+      return false;
     }finally{busy=false;paintDecision();}
   }
   function paintDecision(){
@@ -544,10 +568,16 @@
     if(payload?.type==='game.prompt'){
       const p=payload.payload||{};
       if(typeof p.message==='string')openingMessage=p.message;
+      promptSequence++;
       for(const key of ['label1','label2','enable1','enable2']){
         if(Object.prototype.hasOwnProperty.call(p,key))buttonState[key]=p[key];
       }
       paintDecision();
+      // Required actions consume Forge's structured buttons, not Game Log text.
+      if(typeof window.dispatchEvent==='function' && typeof CustomEvent!=='undefined')
+        window.dispatchEvent(new CustomEvent('ct-forge-prompt-updated',{
+          detail:{...buttonState,message:openingMessage}
+        }));
       // Forge InputPayMana offers its Auto control only if its own
       // mana-payment solver can complete this cost. Never guess mana here.
       const auto=/^auto$/i.test(String(buttonState.label1).trim());
@@ -571,6 +601,8 @@
     get isManaPayment(){return /^auto$/i.test(String(buttonState.label1).trim())&&
       /^cancel$/i.test(String(buttonState.label2).trim())&&window.app?.nativeMatch===true;},
     confirm:()=>decide(true),
+    cancel:()=>decide(false),
+    get buttonInfo(){return {...buttonState,message:openingMessage,prompt:promptMessage,busy,sequence:promptSequence};},
     // Distinguish Forge's mandatory hand-card choices from the ordinary
     // castable-card highlights shown during priority. Do not let the UI
     // mistake a discard for a request to cast.
@@ -628,6 +660,8 @@
     isSelectedCard:(id)=>Number.isInteger(Number(id))&&
       (selection.chosen||[]).some(c=>Number(c)===Number(id)),
     get legalCards(){return candidates().filter(c=>c.kind==='card');},
+    get selectionInfo(){return {...selection};},
+    isRequiredSelection:(item)=>isRequiredSelection(item),
     get prompt(){return promptMessage;},
     get active(){return candidates().length>0;}
   };

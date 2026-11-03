@@ -27,9 +27,9 @@ assert(patch.includes('gameOver:!!raw.gameOver') && patch.includes('outcome:raw.
  'Hydrated game must retain authoritative GameView completion metadata');
 assert(hub.includes('✦ GAME LOG') && hub.includes('sol-log-collapsed'),
  'Routine notifications must be collapsible');
-assert(hub.includes("entry.dataset.kind==='error'") && hub.includes('logOpen=true'),
- 'New errors must expand the event log');
-assert(hub.includes('const hasChoices=') && hub.includes('sol-no-active-choices'),
+assert(!hub.includes('logOpen=true') && !hub.includes('contents.append(choices)'),
+ 'Passive Game Log must never pop open for errors or mount interactive Forge choices');
+assert(hub.includes("hub.classList.toggle('sol-no-active-choices',true)") && hub.includes('sol-log-collapsed'),
  'Log collapse must not hide a Forge-legal selection');
 assert(notice.includes('if(entries.size>20)'),
  'Game Log should retain a useful short history');

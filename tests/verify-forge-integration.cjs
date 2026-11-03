@@ -214,20 +214,20 @@ assert(selectionUi.includes("phases={main1:'First main'") &&
        selectionUi.includes("!window.app?.sideInspect"),
   'Show current phase without covering inspected cards');
 const choiceUi=read('forge-integration/web/forge-choice.js');
-assert(choiceUi.includes("'background:transparent','pointer-events:none'") &&
+assert(choiceUi.includes("'display:none','position:fixed','inset:0'") &&
        choiceUi.includes("'pointer-events:auto'") &&
-       choiceUi.includes("width:min(37vw,460px)") &&
-       choiceUi.includes('ct-forge-choice-layout'),
-  'Routine Forge decisions must be a non-blocking responsive side tray');
+       choiceUi.includes("width:min(94vw,1000px)") &&
+       choiceUi.includes("ct-forge-decision-sheet"),
+  'Mandatory Forge choices must render full-screen');
 assert(choiceUi.includes("current.min===1 && current.max===1") &&
        choiceUi.includes("void answer(false)"),
   'A single required Forge card choice must complete with one tap');
 assert(choiceUi.includes("window.AndroidBridge?.artworkUrl?.(simpleName)"),
   'Forge discard and card-choice options must have optional card art');
-assert(selectionUi.includes("candidates().length<=4") &&
-       selectionUi.includes("width:min(34vw,410px)") &&
-       selectionUi.includes("ct-forge-selection-layout"),
-  'Small target selections should display inline in compact panels');
+assert(selectionUi.includes('ctForgeSelection') &&
+       read('forge-integration/web/forge-target-dialog-v040.js').includes('ct-fullscreen-targets') &&
+       read('forge-integration/web/forge-required-action-v046.js').includes('ct-required-forge-action'),
+  'Forge legal selections must display fullscreen instead of inside Game Log');
 assert(frontend.includes('ctForgeLastSignature') &&
        frontend.includes('ctReceiveForgeState(message)') &&
        frontend.includes('ctForgeRenderTimer=setTimeout') &&

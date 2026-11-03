@@ -2020,6 +2020,12 @@ target_dialog=(Path(__file__).resolve().parent.parent/'web'/'forge-target-dialog
 assert 'ct-fullscreen-targets' in target_dialog and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+target_dialog+'\n</script></body>')
 
+# v0.46: only history belongs to Game Log. All Forge player approvals,
+# forced hand selections and manual payment choices use a full-screen sheet.
+required_action=(Path(__file__).resolve().parent.parent/'web'/'forge-required-action-v046.js').read_text()
+assert 'ctForgeRequiredAction' in required_action and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+required_action+'\n</script></body>')
+
 # Cross-mechanic diagnostics record *observed* Forge zone/life/stack changes
 # and native choices, never replace Forge rules or infer hidden library cards.
 # v0.43 reports only actual Forge match outcomes and leaves the board

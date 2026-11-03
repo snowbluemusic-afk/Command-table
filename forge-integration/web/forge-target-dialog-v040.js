@@ -54,6 +54,10 @@
     'border-top:1px solid #d7b07755;color:#ffdda3;min-height:19px;',
     'font:700 12px system-ui}',
     '#ct-fullscreen-targets button:focus-visible{outline:3px solid #fff0be}',
+    '#ct-fullscreen-target-resume{display:none;position:fixed;left:2vw;',
+    'bottom:3dvh;z-index:2147483060;border:2px solid #dfb778;',
+    'border-radius:11px;background:#e0b775;color:#152a33;',
+    'padding:9px 15px;min-height:43px;font:800 13px system-ui}',
     '@media(orientation:landscape) and (max-height:460px){',
     '#ct-fullscreen-targets>div{max-height:97dvh;height:97dvh}',
     '#ct-fullscreen-targets .ct-target-tile{min-height:64px;padding:6px}',
@@ -88,7 +92,12 @@
   const status=create('div',null,'ct-target-status');
   sheet.append(header,subtitle,count,grid,status);
   modal.append(sheet);document.body.append(modal);
-  let lastSignature='',dismissed='',busy=false,previousFocus=null,suspended=false;
+  // Full-screen target choices can be temporarily hidden to review the board;
+  // this separate resume affordance never lives inside the Game Log.
+  const resume=create('button','✦ Continue Forge targeting');
+  resume.id='ct-fullscreen-target-resume';resume.type='button';
+  document.body.append(resume);
+  let lastSignature='',dismissed='',busy=false,previousFocus=null,suspended=false,manualReview=false;
   const forge=()=>window.ctForgeSelection;
   const targeting=()=>Array.isArray(forge()?.legalTargets)?forge().legalTargets:[];
   const game=()=>window.app?.game;
@@ -97,7 +106,7 @@
     if(/ATTACKERS|BLOCKERS/.test(phase))return false;
     if(!window.app?.nativeMatch||window.app?.view!=='game'||game()?.winner!==null)return false;
     if(window.app?.modal || window.app?.sideInspect)return false;
-    if(window.ctForgeChoice?.hasPending)return false;
+    if(window.ctForgeChoice?.hasPending || window.ctForgeSafety?.recoveryVisible)return false;
     const sheet=document.getElementById('ct-forge-decision-sheet');
     if(sheet && sheet.style?.display && sheet.style.display!=='none')return false;
     return targeting().length>0;
@@ -108,8 +117,9 @@
       (forge()?.chosenIds||[]).map(String)]);
   }
   function dismiss(){
-    if(modal.dataset.open==='true') dismissed=lastSignature;
+    if(modal.dataset.open==='true') {dismissed=lastSignature;manualReview=true;}
     modal.dataset.open='false';
+    resume.style.display=manualReview&&available()?'block':'none';
     if(previousFocus?.focus)previousFocus.focus();
     previousFocus=null;
   }
@@ -126,7 +136,8 @@
     }catch(_){}
   }
   async function choose(target,key){
-    if(busy||key!==lastSignature||!available()||window.ctForgeSafety?.needsRecovery)return;
+    if(busy||key!==lastSignature||!available()||
+      (window.ctForgeSafety?.needsRecovery&&!forge()?.isRequiredSelection?.(target)))return;
     const api=forge();
     const valid=target.kind==='player'
       ?api?.isLegalPlayer?.(target.id)
@@ -144,7 +155,8 @@
     if(accepted){
       // Selection may immediately advance to a SECOND target; if so the
       // version/signature will change and the next prompt should open.
-      if(lastSignature===key){dismissed=key;modal.dataset.open='false';}
+      if(lastSignature===key){dismissed=key;manualReview=false;modal.dataset.open='false';
+        resume.style.display='none';}
     }else status.textContent='Forge could not select this target. Try again or refresh.';
     sync();
   }
@@ -179,21 +191,24 @@
       if(t.kind==='card' && !desc)desc='Card (Forge-legal)';
       text.append(create('span',desc,'ct-target-meta'));
       tile.append(icon,text);
-      tile.disabled=busy||!!window.ctForgeSafety?.needsRecovery;
+      tile.disabled=busy||(!!window.ctForgeSafety?.needsRecovery&&
+        !forge()?.isRequiredSelection?.(t));
       tile.onclick=()=>{void choose(t,key);};
       grid.append(tile);
     });
-    if(window.ctForgeSafety?.needsRecovery)status.textContent='Refresh Forge status before selecting a target.';
+    if(window.ctForgeSafety?.needsRecovery &&
+       !targets.some(t=>forge()?.isRequiredSelection?.(t)))
+      status.textContent='Refresh before initiating a new action.';
     else if(!busy)status.textContent='Only Forge-legal targets are shown. Returning to the battlefield does not cancel this choice.';
   }
   function sync(event){
     if(!available()){
       suspended=!!targeting().length&&dismissed!==lastSignature;
-      modal.dataset.open='false';busy=false;return;
+      modal.dataset.open='false';busy=false;resume.style.display='none';return;
     }
     const sig=signature();
     const changed=sig!==lastSignature;
-    if(changed)lastSignature=sig;
+    if(changed){lastSignature=sig;manualReview=false;}
     if((changed||suspended)&&sig!==dismissed){
       // The stack inspector might already be showing the card; a mandatory
       // target decision takes precedence, not two overlapping modals.
@@ -202,6 +217,7 @@
       modal.dataset.open='true';
     }
     suspended=false;
+    resume.style.display=manualReview&&modal.dataset.open!=='true'?'block':'none';
     if(modal.dataset.open==='true')renderOptions();
   }
   window.addEventListener('ct-forge-selection',sync);
@@ -217,9 +233,11 @@
     'background:#b99c6b;color:#162e3a;border:0;border-radius:9px;font-weight:800';
   launcher.onclick=()=>{
     if(!available())return;
-    dismissed='';lastSignature=signature();
-    previousFocus=document.activeElement;modal.dataset.open='true';renderOptions();
+    dismissed='';manualReview=false;lastSignature=signature();
+    previousFocus=document.activeElement;modal.dataset.open='true';
+    resume.style.display='none';renderOptions();
   };
+  resume.onclick=()=>launcher.onclick();
   document.getElementById('ct-forge-legal-actions')?.append(launcher);
   window.addEventListener('ct-forge-selection',()=>{
     launcher.style.display=available()?'block':'none';

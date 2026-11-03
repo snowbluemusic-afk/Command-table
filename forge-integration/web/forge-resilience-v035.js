@@ -13,7 +13,18 @@
  let recoveryBusy=false;
  let lastFailure='';
  let nativeChoiceWaiting=false;
- const hasRequiredChoice=()=>!!window.ctForgeChoice?.hasPending || nativeChoiceWaiting;
+ let cancellationPending=false;
+ let lastEngineStatus=null;
+ const hasRequiredChoice=()=>{
+   if(window.ctForgeChoice?.hasPending || nativeChoiceWaiting)return true;
+   // InputPayMana, targeting and hand selection are driven by Forge
+   // Selection/updateButtons rather than by the game.choice dispatcher.
+   if(window.ctForgePriority?.isManaPayment || window.ctForgePriority?.isHandChoice)return true;
+   if((window.ctForgeSelection?.legalTargets||[]).length)return true;
+   const selection=window.ctForgeSelection?.selectionInfo;
+   return !!selection && Number(selection.min||0)>0 &&
+     (selection.cards||[]).some(c=>!c.actionable);
+ };
  const text=value=>String(value?.message||value||'Forge did not respond');
  const isCasting=payload=>payload?.action==='castById'||
    payload?.action==='castCommander'||payload?.action==='castSelected';
@@ -68,6 +79,10 @@
    'background:#294959;color:#fff0d8;font:bold 14px system-ui;flex:1}',
    '#ct-forge-safety button:first-child{background:#e4bc78;color:#112633}',
    '#ct-forge-safety button:disabled{opacity:.6;cursor:wait}',
+   '#ct-forge-recovery-resume{display:none;position:fixed;left:2vw;',
+   'bottom:3dvh;z-index:2147483520;background:#e1b776;color:#122a36;',
+   'border:2px solid #f1d39b;border-radius:10px;padding:10px 15px;',
+   'min-height:43px;font:bold 13px system-ui;box-shadow:0 7px 28px #000c}',
    '@media(orientation:landscape) and (max-height:450px){',
    '#ct-forge-safety .ct-safety-dialog{padding:12px;gap:7px}',
    '#ct-forge-safety .ct-safety-heading{font-size:22px}',
@@ -75,6 +90,12 @@
    '#ct-forge-safety button{min-height:36px;padding:7px 10px}}'
  ].join('');
  document.head.append(style);
+ const resumeRecovery=document.createElement('button');
+ resumeRecovery.id='ct-forge-recovery-resume';
+ resumeRecovery.type='button';
+ resumeRecovery.textContent='✦ Resume Forge recovery';
+ resumeRecovery.onclick=()=>renderPanel(lastFailure||'Forge still requires recovery.');
+ document.body.append(resumeRecovery);
  function mountPanel(){
    if(!retryPanel){
      retryPanel=document.createElement('section');
@@ -86,6 +107,7 @@
    // The Game Log has display:none when collapsed. Never attach interactive
    // recovery controls there or inside a clipped HUD/stack container.
    if(retryPanel.parentNode!==document.body)document.body.append(retryPanel);
+   resumeRecovery.style.display='none';
    // A stale cast preview must not reappear above/below recovery.
    window.ctSimpleCast?.hide?.();
  }
@@ -93,6 +115,16 @@
    retryPanel?.remove();
    retryPanel=null;
    recoveryBusy=false;
+   resumeRecovery.style.display='none';
+ }
+ function reviewBattlefield(){
+   // Reviewing is not cancellation; keep a visible way to resume recovery.
+   retryPanel?.remove();
+   retryPanel=null;
+   recoveryBusy=false;
+   resumeRecovery.style.display='block';
+   window.ctFullscreenTargets?.refresh?.();
+   window.ctForgeRequiredAction?.refresh?.();
  }
  function renderPanel(message){
    lastFailure=message;
@@ -133,14 +165,18 @@
            return;
          }
          clearPanel();
+         window.ctFullscreenTargets?.refresh?.();
+         window.ctForgeRequiredAction?.refresh?.();
        }catch(error){
          renderPanel('Unable to reopen the required Forge decision: '+text(error)+'. Refresh status to try again.');
        }
      });
+   }else if(cancellationPending){
+     action('Cancellation requested — check status',recover);
    }else{
      action('Cancel pending action',cancelAndRecover);
    }
-   action('Review battlefield',async()=>{clearPanel();});
+   action('Review battlefield',reviewBattlefield);
    dialog.append(header,body,hint,controls);
    retryPanel.append(dialog);
  }
@@ -160,12 +196,16 @@
    renderPanel('Checking the live Forge game. No card is being cast again…');
    try{
      const status=await nativeRequest('engine.status');
+     lastEngineStatus=status;
      nativeChoiceWaiting=!!status?.choicePending;
+     cancellationPending=!!status?.cancelRequested;
      const response=await nativeRequest('game.snapshot');
      if(!response?.game)throw new Error('Forge has not returned an authoritative game state');
      window.ctReceiveForgeState?.(response.game);
      window.ctForgePriority?.refresh?.();
      window.ctForgeSelection?.refresh?.();
+     window.ctFullscreenTargets?.refresh?.();
+     window.ctForgeRequiredAction?.refresh?.();
      if(hasRequiredChoice()){
        recoveryBusy=false;
        renderPanel('Forge is waiting for a required choice. Open that choice to continue.');
@@ -173,13 +213,18 @@
      }
      if(status?.castInProgress){
        recoveryBusy=false;
-       renderPanel('Forge still has the previous cast in progress. Do not press Cast again. You can request cancellation or review the battlefield.');
+       renderPanel(cancellationPending
+         ?'Cancellation was requested, but Forge has not stopped the cast. Check status again or review the battlefield; do not recast yet.'
+         :'Forge is still processing the previous cast. You can request cancellation or check again, but do not recast yet.');
        return false;
      }
      // The native command has stopped processing and the authoritative
      // snapshot was retrieved. Never blindly replay a timed-out cast.
      unknownResult=false;
+     cancellationPending=false;
      clearPanel();
+     window.ctFullscreenTargets?.refresh?.();
+     window.ctForgeRequiredAction?.refresh?.();
      window.solPodNotice?.('Forge status refreshed. Review the stack and card zone before trying another action.','info','forge-recovered');
      return true;
    }catch(error){
@@ -199,6 +244,9 @@
    renderPanel('Requesting cancellation from Forge. Checking the result…');
    try{
      await nativeRequest('game.command',{action:'cancelCastTarget',value:null});
+     cancellationPending=true;
+     recoveryBusy=false;
+     renderPanel('Cancellation request acknowledged by the native bridge. Forge may still be processing; checking status…');
    }catch(error){
      recoveryBusy=false;
      renderPanel('Forge did not confirm cancellation: '+text(error)+'. Refresh before trying to cast again.');
