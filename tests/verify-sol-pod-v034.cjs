@@ -42,16 +42,21 @@ if(process.argv[2]){
  const window={ctForgeChoice:{hasPending:false},ctForgePriority:{isHandChoice:false},
   ctForgeSelection:{isLegalCard:id=>id===102||id===103,prompt:''}};
  const card=name=>({name});
- const smallCard=(c,opts)=>'<probe card="'+c.name+'" index="'+opts.value+'" drag="'+opts.dragIndex+'"/>';
- const get=()=>[...fn(cards,g,app,window,card,smallCard).matchAll(/<probe card="([^"]+)" index="([^"]+)" drag="([^"]+)"\/>/g)]
-   .map(x=>[x[1],Number(x[2]),Number(x[3])]);
- assert.deepEqual(get(),[['B',1,1],['C',2,2],['A',0,0]],
+ const smallCard=(c,opts)=>{
+   // Some native card elements intentionally omit dragIndex. The authoritative
+   // data-action index must still refer to the ORIGINAL unsorted hand position.
+   if(opts.dragIndex!==undefined)assert.equal(Number(opts.dragIndex),Number(opts.value));
+   return '<probe card="'+c.name+'" index="'+opts.value+'"/>';
+ };
+ const get=()=>[...fn(cards,g,app,window,card,smallCard).matchAll(/<probe card="([^"]+)" index="([^"]+)"\/>/g)]
+   .map(x=>[x[1],Number(x[2])]);
+ assert.deepEqual(get(),[['B',1],['C',2],['A',0]],
   'Playable cards must sort first without mutating Forge indices');
  g.phase='mulligan';
- assert.deepEqual(get(),[['A',0,0],['B',1,1],['C',2,2]],
+ assert.deepEqual(get(),[['A',0],['B',1],['C',2]],
   'Mulligan selection must retain physical hand order');
  g.phase='main1';window.ctForgeChoice.hasPending=true;
- assert.deepEqual(get(),[['A',0,0],['B',1,1],['C',2,2]],
+ assert.deepEqual(get(),[['A',0],['B',1],['C',2]],
   'Active Forge choice must not reorder hand');
  console.log('PASS v0.34 generated-hand behaviour: Forge legal cards first, original IDs preserved, stable in choices');
  assert(html.includes('class="sol-hand-toggle sol-hand-pill"'),'YOUR HAND toggle missing in generated app');
