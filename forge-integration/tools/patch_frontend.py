@@ -1766,7 +1766,7 @@ source=source.replace(original_style,'--order:'+chr(36)+'{visualIndex}')
 # button (with count) alongside Zones; compact hand tray becomes cards only.
 old_toggle='<button type="button" class="sol-hand-toggle" data-action="toggleHandZoom" aria-pressed="'+chr(36)+'{!!app.handZoom}">'+chr(36)+'{app.handZoom?"✕ Hide hand":"▤ Enlarge hand"}</button>'
 assert source.count(old_toggle)==1, 'v0.33 external hand toggle changed'
-new_toggle='<button type="button" class="sol-hand-toggle sol-hand-pill" data-action="toggleHandZoom" aria-label="Toggle expanded hand" aria-pressed="'+chr(36)+'{!!app.handZoom}">▤ YOUR HAND <b>'+chr(36)+'{me.hand.length}</b> '+chr(36)+'{app.handZoom?"✕":"⤢"}</button>'
+new_toggle='<button type="button" class="sol-hand-toggle sol-hand-pill" data-action="toggleHandZoom" aria-label="Toggle expanded hand" aria-pressed="'+chr(36)+'{!!(app.handZoom||(g.phase==="mulligan"&&me.hand.length>0&&!app.mulliganHandClosed))}">▤ YOUR HAND <b>'+chr(36)+'{me.hand.length}</b> '+chr(36)+'{(app.handZoom||(g.phase==="mulligan"&&me.hand.length>0&&!app.mulliganHandClosed))?"✕":"⤢"}</button>'
 source=source.replace(old_toggle,new_toggle)
 old_count='<span class="sol-hand-count">YOUR HAND <b>'+chr(36)+'{me.hand.length}</b></span>'
 assert source.count(old_count)==1
@@ -1781,6 +1781,11 @@ old_action="case 'toggleHandZoom':app.handZoom=!app.handZoom;app.modal='';render
 assert source.count(old_action)==1
 source=source.replace(old_action,
  "case 'toggleHandZoom':if(app.game?.phase==='mulligan'){app.mulliganHandClosed=!app.mulliganHandClosed;app.handZoom=false;}else{app.handZoom=!app.handZoom;app.mulliganHandClosed=false;}app.modal='';render();break;")
+# Clear the one-match collapsed mulligan state after normal play begins.
+view_marker='const g=app.game;if(!g)return home();'
+assert source.count(view_marker)==1
+source=source.replace(view_marker,view_marker+"if(g.phase!=='mulligan')app.mulliganHandClosed=false;")
+
 # Source of the tutorial can be stale because previous releases instructed
 # users to use a standalone button, now replaced by the YOUR HAND pill.
 old_help='Use Enlarge hand beside Zones to browse cards. Press Hide hand to return to the board.'
