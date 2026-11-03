@@ -58,6 +58,7 @@ const selectionApi={
  get legalTargets(){return targets;},get chosenIds(){return chosen;},
  get prompt(){return 'Choose target player for this spell';},
  isLegalPlayer:id=>canSelect.has(Number(id)),
+ isRequiredSelection:target=>targets.some(t=>t.kind===target.kind&&t.id===target.id),
  isLegalCard:()=>false,isLegalStack:()=>false,
  choosePlayer:async id=>{calls.push({kind:'player',id});return true;},
  chooseCard:async id=>{calls.push({kind:'card',id});return true;},
@@ -115,7 +116,8 @@ assert(cards.children[0].children[1].children[1].textContent.includes('39 life')
  pending=false;win.ctFullscreenTargets.refresh();
  assert.equal(modal.dataset.open,'true','Suspended target returns after mandatory choice');
  win.ctForgeSafety.needsRecovery=true;win.ctFullscreenTargets.refresh();
- assert(cards.children.every(b=>b.disabled),'Targets must be disabled during uncertain native timeout');
+ assert(cards.children.every(b=>!b.disabled),
+  'Forge-required targets must remain selectable while original cast confirmation is uncertain');
  win.ctForgeSafety.needsRecovery=false;
  win.ctFullscreenTargets.dismiss();
  const reopen=compact.children.find(x=>x.className==='ct-fullscreen-target-open');
