@@ -234,7 +234,7 @@
   }
   function sync(){
     const d=modeData();
-    if(!d){current=null;key='';minimized='';show(false,'');return;}
+    if(!d){current=null;key='';minimized='';lastExplicit='';waitingForForgeKey='';show(false,'');return;}
     if(d.key!==key){
       key=d.key;minimized='';waitingForForgeKey='';feedback.textContent='';
     }
