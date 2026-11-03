@@ -1890,6 +1890,100 @@ v35=(Path(__file__).resolve().parent.parent/'web'/'forge-resilience-v035.js').re
 assert 'ctForgeSafety' in v35 and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+v35+'\n</script></body>')
 
+
+# v0.35: rebuild the full 12-step welcome experience. Older text had the
+# wrong blocker tap order and unrelated illustration step indices.
+guide_start=source.index('const TUTORIAL_STEPS=[')
+guide_end=source.index('function currentLesson(){',guide_start)
+assert guide_start>=0 and guide_end>guide_start
+guide=r"""const TUTORIAL_STEPS=[
+ {title:'Welcome to Sol Pod',icon:'✦',body:'Play Commander against one, two or three AI opponents. Sol Pod displays the battle; the embedded Forge rules engine decides timing, mana, targets, combat and legal actions.',try:'Choose a deck and select Play to begin.'},
+ {title:'Before the first turn',icon:'🂠',body:'Choose to play or draw when the coin toss resolves. Review your opening seven cards, then Keep or Mulligan. The cards you put on the bottom are selected through Forge, not by casting.',try:'Look through the whole opening hand before Keep.'},
+ {title:'Read both battlefields',icon:'◈',body:'Your cards are below the combat line, the focused opponent above. Lands are toward the outside, artifacts and enchantments in the middle, and creatures face each other. Tap a row heading to enlarge or scroll a crowded battlefield.',try:'Tap a Creatures or Lands row to inspect it.'},
+ {title:'Your hand and card details',icon:'▤',body:'Tap YOUR HAND beside Zones to open and close it. Highlighted playable cards appear toward the left. Tap a card for its full rules, then Cast or Play land. Each card keeps its own Forge identity even if the display order changes.',try:'Open YOUR HAND, tap a card, and close its preview.'},
+ {title:'Mana, lands and casting costs',icon:'◉',body:'Mana may come from lands, artifacts and activated abilities. Forge checks real coloured costs, generic mana, taxes and alternative costs. Pay through a Forge prompt or Auto when offered. If the cost is not payable, cancel the action; do not keep pressing Cast.',try:'Check the cost in the card preview before casting.'},
+ {title:'Priority and the stack',icon:'ϟ',body:'Phase & Priority is at the lower right; Game Events & Choices is above it. Instants and activated abilities can respond when Forge gives you priority. The stack resolves last-in, first-out after everyone passes.',try:'Use Pass priority when you have nothing to add.'},
+ {title:'Activate abilities and sacrifice',icon:'✧',body:'Inspect one of your battlefield permanents and choose Activate ability. Forge checks its cost, legal targets and timing. For a sacrifice ability, the permanent is sacrificed to pay its cost; it does not stay on the battlefield.',try:'Find a card with “Tap:” or “Sacrifice:” in its text.'},
+ {title:'Declare attackers',icon:'⚔',body:'At combat, select an eligible attacking creature and the defending player. Glowing cards and attack lines show legal choices. Review your declared attackers before pressing Confirm.',try:'Select an attacker and who it attacks.'},
+ {title:'Declare blockers',icon:'♜',body:'Tap YOUR blocker FIRST, then the attacking creature it will block. The selected blocker glows. Repeat for each attack, then Confirm blocks. Skip blocking is a separate action that deliberately declares no blockers.',try:'YOUR blocker → attacking creature → Confirm blocks.'},
+ {title:'Focus a multiplayer pod',icon:'✦',body:'In a three- or four-player pod, the upper battlefield follows the active AI automatically. Players at the upper right lets you inspect another seat. Each AI has its own identifying colour.',try:'Open Players and inspect another opponent.'},
+ {title:'Zones and your collection',icon:'♛',body:'Zones opens your commander, library count, graveyard and exile. Battlefield rows can also expand for readable cards. Build, import and delete saved decks from the Decks screen.',try:'Open Zones and look at your graveyard or commander.'},
+ {title:'Recover without losing control',icon:'↻',body:'Forge choices appear in Game Events & Choices or a readable decision sheet. Finish or Cancel a pending action before casting again. If something fails or times out, use Refresh game or Cancel pending choice. A timed-out action may still be processing; never blindly send it twice.',try:'Press ? to reopen this guide whenever needed.'}
+];
+const LESSONS={
+ pod:{title:'Explore the pod',tag:'PLAYERS & FOCUS',brief:'Follow the active player or open Players.',detail:TUTORIAL_STEPS[9].body,step:9},
+ cast:{title:'Cast with Forge',tag:'HAND & LEGALITY',brief:'Tap YOUR HAND, inspect, then Cast when legal.',detail:TUTORIAL_STEPS[3].body+' '+TUTORIAL_STEPS[4].body,step:3},
+ turns:{title:'Priority and the stack',tag:'PHASE & PRIORITY',brief:'Use the controls at the right to respond or advance.',detail:TUTORIAL_STEPS[5].body,step:5},
+ attack:{title:'Choose attackers',tag:'COMBAT · ATTACK',brief:'Select your attacker and its defending player.',detail:TUTORIAL_STEPS[7].body,step:7},
+ defend:{title:'Block an incoming attack',tag:'COMBAT · BLOCK',brief:'Choose your blocker FIRST, then the attacker.',detail:TUTORIAL_STEPS[8].body,step:8},
+ response:{title:'Respond to the stack',tag:'STACK & RESPONSES',brief:'Cast an instant or pass priority when Forge allows.',detail:TUTORIAL_STEPS[5].body,step:5},
+ target:{title:'Choose legal targets',tag:'TARGETING & ABILITIES',brief:'Use Forge-glowing targets, or cancel the action.',detail:TUTORIAL_STEPS[6].body,step:6},
+ watch:{title:'Watch AI players',tag:'WATCH MODE',brief:'The active AI takes focus; Forge owns the rules.',detail:'Watch mode is selected before the game. Game Events explains major actions; the active AI board follows the turn. Press ? for help.',step:9},
+ zones:{title:'Browse your zones',tag:'ZONES & DECKS',brief:'View graveyard, exile, commander and library.',detail:TUTORIAL_STEPS[10].body,step:10}
+};
+"""
+source=source[:guide_start]+guide+source[guide_end:]
+image_start=source.index('function tutorialIllustration(step){')
+image_end=source.index('function tutorialModal(){',image_start)
+assert image_end>image_start
+images=r"""function tutorialIllustration(step){
+ const diagrams=[
+  ['◩ SOL POD','YOU · ♥40','AI 1 · ♥40','AI 2 · ♥40','AI 3 · ♥40'],
+  ['OPENING HAND','PLAY / DRAW','KEEP / MULLIGAN','FORGE CONTROLS THE DECISION'],
+  ['THE BATTLEFIELD','THEIR LANDS → ARTIFACTS → CREATURES','──────── COMBAT LINE ────────','YOUR CREATURES → ARTIFACTS → LANDS'],
+  ['YOUR HAND · 7','PLAYABLE FIRST','TAP TO INSPECT','CAST / CANCEL'],
+  ['MANA & COSTS','{1}{G}{G}','TAP MANA SOURCES','AUTO / CANCEL'],
+  ['PHASE & PRIORITY','YOUR TURN · MAIN','1 ON STACK','PASS PRIORITY'],
+  ['ACTIVATE ABILITY','PAY COST','SACRIFICE IF REQUIRED','CHOOSE LEGAL TARGET'],
+  ['DECLARE ATTACKERS','YOUR CREATURE → OPPONENT','REVIEW ATTACK LINES','CONFIRM ATTACKERS'],
+  ['DECLARE BLOCKERS','YOUR BLOCKER → ATTACKER','REVIEW BLOCK LINES','CONFIRM / SKIP'],
+  ['PLAYER FOCUS','AI 1 · PURPLE','AI 2 · BLUE','AI 3 · GREEN'],
+  ['YOUR ZONES','COMMAND · 1','GRAVEYARD · 0','EXILE · 0'],
+  ['RECOVER FROM ERRORS','REFRESH GAME','CANCEL PENDING CHOICE','NEVER BLINDLY RETRY']
+ ];
+ const lines=diagrams[Math.max(0,Math.min(diagrams.length-1,step))]||diagrams[0];
+ return '<div class="ct-guide-illustration ct-guide-v035" aria-label="'+esc(lines[0])+'">'+
+   '<strong class="ct-guide-v035-title">'+esc(lines[0])+'</strong>'+
+   '<div class="ct-guide-v035-flow">'+lines.slice(1).map((label,i)=>
+      '<span class="ct-guide-v035-tile '+(i===0?'ct-guide-v035-focus':'')+'">'+esc(label)+'</span>').join('')+
+   '</div><span class="ct-guide-caption">SOL POD · FORGE RULES ENGINE</span></div>';
+}
+"""
+source=source[:image_start]+images+source[image_end:]
+old_body='<p>'+chr(36)+'{esc(item.body)}</p>'+chr(36)+'{tutorialIllustration(step)}</div>'
+assert source.count(old_body)==1
+new_body='<p>'+chr(36)+'{esc(item.body)}</p>'+chr(36)+'{tutorialIllustration(step)}<p class="ct-guide-try"><strong>TRY THIS:</strong> '+chr(36)+'{esc(item.try)}</p></div>'
+source=source.replace(old_body,new_body)
+welcome_css=r"""<style id="ct-welcome-v035">
+.ct-tutorial-modal{width:min(92vw,790px)!important;max-height:94dvh!important}
+.ct-guide-v035{display:flex;flex-direction:column;gap:8px;
+ height:clamp(125px,24dvh,186px);padding:12px!important;
+ justify-content:space-between;overflow:hidden}
+.ct-guide-v035-title{font:800 clamp(12px,1.3vw,18px) system-ui;
+ letter-spacing:.08em;color:#f3d5a0;text-align:center}
+.ct-guide-v035-flow{display:flex;align-items:center;justify-content:space-around;
+ gap:8px;flex:1;flex-wrap:wrap;min-height:0}
+.ct-guide-v035-tile{display:flex;align-items:center;justify-content:center;
+ min-height:35px;max-width:100%;flex:1 1 100px;
+ padding:7px 9px;border:1px solid #99b1b1a0;border-radius:9px;
+ background:linear-gradient(150deg,#304e56,#1b2c3d);
+ color:#eff1e5;font-size:clamp(9px,.95vw,13px);font-weight:750;
+ text-align:center;overflow-wrap:anywhere}
+.ct-guide-v035-focus{border:2px solid #e9be73;box-shadow:0 0 12px #e7bd7545}
+.ct-guide-try{margin:9px 0 0!important;font-size:12px!important;
+ line-height:1.4!important;color:#f1dbb0!important;
+ border-left:3px solid #deb77b;padding:5px 10px;background:#29404475}
+.ct-guide-try strong{font-weight:900}
+@media(max-height:530px){
+ .ct-tutorial-modal{max-height:96dvh!important}
+ .ct-guide-v035{height:94px!important;padding:6px!important;gap:3px}
+ .ct-guide-v035-tile{min-height:25px!important;padding:3px 5px!important;font-size:9px!important}
+ .ct-guide-try{font-size:10px!important;margin:4px 0!important}
+}
+</style>"""
+assert source.count('</head>')==1
+source=source.replace('</head>',welcome_css+'</head>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
