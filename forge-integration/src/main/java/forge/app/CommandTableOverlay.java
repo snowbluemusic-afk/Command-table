@@ -199,6 +199,11 @@ public final class CommandTableOverlay {
 
     private static void publishChoice(Map<String, Object> prompt) {
         try {
+            // Forge has blocked its game thread until this decision is
+            // answered. Reassert the Sol Pod WebView before publishing so
+            // native Forge surfaces cannot conceal a Commander destination
+            // choice or any other mandatory interaction.
+            show();
             send(new JSONObject().put("v", 1).put("type", "game.choice")
                 .put("payload", new JSONObject(prompt)));
         } catch (Exception error) {
