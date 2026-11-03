@@ -260,7 +260,7 @@
     let parsed;
     try{parsed=typeof payload==='string'?JSON.parse(payload):payload;}catch(_){}
     const result=typeof previous==='function'?previous(payload):undefined;
-    if(parsed?.type==='game.state'||parsed?.type==='game.choice.clear')sync();
+    if(parsed?.type==='game.state'||parsed?.type==='game.choice'||parsed?.type==='game.choice.clear')sync();
     return result;
   };
   window.ctForgeRequiredAction={
