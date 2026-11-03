@@ -44,6 +44,58 @@
     'text-align:center}',
     '#ct-required-forge-action .ct-required-primary{',
     'background:#e1b876;color:#102431}',
+    '#ct-required-forge-action .ct-required-options.ct-opening-hand-grid{',
+    'display:flex;align-items:stretch;overflow-x:auto;overflow-y:hidden;',
+    'flex-wrap:nowrap;max-height:none;min-height:0;gap:10px;',
+    'padding:4px 3px 11px;scroll-snap-type:x proximity}',
+    '#ct-required-forge-action .ct-opening-card{',
+    'flex:0 0 clamp(112px,12vw,170px);min-width:0;max-width:170px;',
+    'display:flex;flex-direction:column;gap:5px;align-items:stretch;',
+    'padding:6px;border-radius:11px;text-align:left;',
+    'border:1.5px solid #9db4b8;background:#203b45;',
+    'scroll-snap-align:start;cursor:zoom-in}',
+    '#ct-required-forge-action .ct-opening-card img{',
+    'height:clamp(125px,30dvh,205px);width:100%;object-fit:contain;',
+    'object-position:center;border-radius:7px;background:#0b1922}',
+    '#ct-required-forge-action .ct-opening-card .ct-opening-placeholder{',
+    'display:none;height:clamp(125px,30dvh,205px);align-content:center;',
+    'text-align:center;background:#172c38;border-radius:7px;color:#cbd8db}',
+    '#ct-required-forge-action .ct-opening-name{font:750 12px/1.2 system-ui;',
+    'overflow-wrap:anywhere}',
+    '#ct-required-forge-action .ct-opening-cost{font:600 11px system-ui;',
+    'color:#e6c894}',
+    '#ct-required-forge-action .ct-opening-empty{font:700 13px system-ui;',
+    'color:#f5ce9b;padding:14px 5px}',
+    '#ct-opening-card-viewer{display:none;position:fixed;inset:0;',
+    'z-index:2147483470;background:#020915f2;',
+    'align-items:center;justify-content:center;padding:clamp(8px,2vh,20px);',
+    'box-sizing:border-box;color:#ffefdb;font-family:system-ui}',
+    '#ct-opening-card-viewer[data-open="true"]{display:flex}',
+    '#ct-opening-card-viewer .ct-opening-detail{width:min(93vw,1000px);',
+    'max-height:94dvh;display:grid;grid-template-columns:minmax(155px,36%) 1fr;',
+    'gap:clamp(10px,2vw,22px);overflow:auto;padding:clamp(12px,3vh,24px);',
+    'box-sizing:border-box;border:2px solid #dbb47a;border-radius:17px;',
+    'background:linear-gradient(140deg,#19333b,#0d1b28)}',
+    '#ct-opening-card-viewer .ct-opening-detail img{width:100%;',
+    'height:min(76dvh,510px);object-fit:contain;object-position:center}',
+    '#ct-opening-card-viewer .ct-opening-detail-copy{display:flex;',
+    'flex-direction:column;gap:12px;min-width:0;overflow:auto}',
+    '#ct-opening-card-viewer h2{font:800 clamp(22px,3vw,34px) Georgia,serif;',
+    'color:#ffdda1;margin:0}',
+    '#ct-opening-card-viewer .ct-opening-rules{white-space:pre-wrap;',
+    'line-height:1.55;overflow-y:auto;flex:1}',
+    '#ct-opening-card-viewer button{align-self:flex-start;min-height:40px;',
+    'padding:9px 15px;border-radius:9px;border:1px solid #e7c28a;',
+    'background:#dfb77d;color:#152a33;font:800 13px system-ui}',
+    '@media(orientation:landscape) and (max-height:460px){',
+    '#ct-required-forge-action .ct-opening-card{flex-basis:115px}',
+    '#ct-required-forge-action .ct-opening-card img,',
+    '#ct-required-forge-action .ct-opening-card .ct-opening-placeholder{height:118px}',
+    '#ct-required-forge-action .ct-required-options.ct-opening-hand-grid{gap:7px;padding-bottom:4px}',
+    '#ct-required-forge-action .ct-opening-card .ct-opening-name{font-size:10px}',
+    '#ct-opening-card-viewer .ct-opening-detail img{height:75dvh}',
+    '#ct-opening-card-viewer .ct-opening-detail-copy{gap:6px}',
+    '}',
     '#ct-required-forge-action .ct-required-status{min-height:17px;',
     'font:700 12px system-ui;color:#ffd7a8}',
     '#ct-forge-required-resume{position:fixed;left:clamp(10px,2vw,22px);',
@@ -86,17 +138,78 @@
   sheet.append(heading,intro,count,list,feedback,footer);
   backdrop.append(sheet);
   document.body.append(backdrop);
+  // Opening-hand inspection is read-only. The only mutating choices remain
+  // Keep/Mulligan and come directly from Forge's enabled buttons.
+  const handViewer=make('section');
+  handViewer.id='ct-opening-card-viewer';handViewer.dataset.open='false';
+  handViewer.setAttribute('role','dialog');
+  handViewer.setAttribute('aria-modal','true');
+  handViewer.setAttribute('aria-label','Inspect opening-hand card');
+  document.body.append(handViewer);
   const resume=make('button',null,'✦ Continue Forge choice');
   resume.id='ct-forge-required-resume';resume.type='button';
   document.body.append(resume);
   let minimized='',key='',submitting=false,lastExplicit='',notice='';
   let current=null,waitingForForgeKey='';
+  let handLoading=false,requestedHandFor='',handViewerCardId='';
   const player=()=>window.app?.game?.players?.[0];
   const phase=()=>String(window.app?.game?.phaseDetail||'').toUpperCase();
   const inCombat=()=>/ATTACKERS|BLOCKERS/.test(phase());
   const forgeChoice=()=>!!window.ctForgeChoice?.hasPending;
   const priority=()=>window.ctForgePriority;
   const selector=()=>window.ctForgeSelection;
+  const localHand=()=>{
+    const me=player();
+    if(!me)return [];
+    const raw=Array.isArray(me.handCards)&&me.handCards.length
+      ?me.handCards:(Array.isArray(me.hand)?me.hand.map((name,i)=>({
+        name,id:me.handForgeIds?.[i],
+        ...window.ctForgeCards?.[String(name||'').toLowerCase()]
+      })):[]);
+    return raw.filter(c=>c&&c.name).map((c,i)=>({
+      ...c,id:c.id??me.handForgeIds?.[i]??i,name:String(c.name)
+    }));
+  };
+  const isKeepMulligan=d=>d?.kind==='opening' &&
+    /\bkeep\b/i.test(String(d.buttons?.label1||'')+' '+String(d.buttons?.label2||'')) &&
+    /\bmulligan\b/i.test(String(d.buttons?.label1||'')+' '+String(d.buttons?.label2||''));
+  const cardInfo=card=>{
+    const meta=window.ctForgeCards?.[String(card.name).toLowerCase()]||{};
+    return {name:card.name,id:card.id,
+      manaCost:String(card.manaCost||meta.cost||''),
+      type:String(card.type||meta.type||''),
+      rulesText:String(card.rulesText||meta.text||'')};
+  };
+  function closeCardViewer(){handViewer.dataset.open='false';handViewerCardId='';handViewer.replaceChildren();}
+  function inspectOpeningCard(card){
+    if(!card || !isKeepMulligan(current))return;
+    const info=cardInfo(card);
+    handViewerCardId=String(info.id);handViewer.replaceChildren();
+    const paper=make('div','ct-opening-detail');
+    const art=make('img');art.alt=info.name;
+    art.src=window.ctCardArtUrl?.(info.name)||'';
+    const copy=make('div','ct-opening-detail-copy');
+    const name=make('h2',null,info.name);
+    const meta=make('div',null,[info.manaCost,info.type].filter(Boolean).join(' · '));
+    const rules=make('div','ct-opening-rules',info.rulesText||'Card text is not available in this Forge snapshot.');
+    const close=make('button',null,'← Back to opening hand');close.type='button';
+    close.onclick=closeCardViewer;
+    copy.append(name,meta,rules,close);paper.append(art,copy);
+    handViewer.append(paper);handViewer.dataset.open='true';
+  }
+  async function refreshOpeningHand(){
+    if(handLoading||!isKeepMulligan(current))return;
+    handLoading=true;
+    feedback.textContent='Loading your actual opening hand from Forge…';
+    try{
+      const result=await window.CommandTableNative?.request?.('game.snapshot');
+      if(result?.game)window.ctReceiveForgeState?.(result.game);
+      if(!localHand().length)feedback.textContent='Forge has not exposed your hand yet. Try Refresh hand, or review the game state.';
+      else feedback.textContent='Your opening hand is ready. Tap any card to inspect it.';
+    }catch(error){
+      feedback.textContent='Could not load the opening hand: '+(error?.message||String(error));
+    }finally{handLoading=false;sync();}
+  }
   const modeData=()=>{
     if(!window.app?.nativeMatch||window.app?.view!=='game'||!window.app?.game||
         window.app.game.gameOver || window.app.game.winner!=null ||
@@ -135,10 +248,12 @@
     if(!opening&&!mana&&!needCards&&!unusual)return null;
     const kind=needCards?'cards':mana?'mana':opening?'opening':'approval';
     const available=needCards?usable:(mana?cards:[]);
-    return {kind,buttons,items:available,prompt,chosen,min,enabled,
+    const hand=kind==='opening'?localHand():[];
+    return {kind,buttons,items:available,prompt,chosen,min,enabled,hand,
       key:JSON.stringify([kind,label1,label2,select.min,select.max,
         available.map(c=>[c.id,c.label,c.actionable]),
-        chosen.map(String),prompt,buttons.sequence||0])};
+        chosen.map(String),prompt,buttons.sequence||0,
+        hand.map(c=>[c.id,c.name])])};
   };
   function show(value,signature){
     backdrop.dataset.open=value?'true':'false';
@@ -198,12 +313,33 @@
       'Forge is waiting for mana payment. Use Auto only when Forge enables it, or choose a legal mana source below.':
       String(d.prompt);
     const chosen=new Set(d.chosen.map(String));
-    count.textContent=d.kind==='cards'?
-      (d.min?d.min+' required · ':'')+chosen.size+' selected':
-      d.items.length?d.items.length+' Forge-legal options':'';
+    const showingHand=isKeepMulligan(d);
+    count.textContent=showingHand
+      ?('YOUR OPENING HAND · '+d.hand.length+' card'+(d.hand.length===1?'':'s')+' · Tap a card to read it')
+      :d.kind==='cards'?(d.min?d.min+' required · ':'')+chosen.size+' selected'
+      :d.items.length?d.items.length+' Forge-legal options':'';
     list.replaceChildren();
+    list.classList.toggle('ct-opening-hand-grid',showingHand);
+    if(showingHand){
+      if(!d.hand.length){
+        list.append(make('div','ct-opening-empty','Loading the opening hand from Forge. Keep and Mulligan are disabled until you can inspect your cards.'));
+      }else for(const raw of d.hand){
+        const card=cardInfo(raw);
+        const tile=make('button','ct-opening-card');tile.type='button';
+        tile.setAttribute('aria-label','Inspect '+card.name+' in opening hand');
+        const art=make('img');art.alt=card.name;
+        const placeholder=make('span','ct-opening-placeholder','Artwork unavailable');
+        art.src=window.ctCardArtUrl?.(card.name)||'';
+        art.onerror=()=>{art.style.display='none';placeholder.style.display='block';};
+        const title=make('span','ct-opening-name',card.name);
+        const cost=make('span','ct-opening-cost',card.manaCost||card.type||'');
+        tile.append(art,placeholder,title,cost);
+        tile.onclick=()=>inspectOpeningCard(raw);
+        list.append(tile);
+      }
+    }
     const signature=d.key;
-    for(const item of d.items){
+    for(const item of (showingHand?[]:d.items)){
       const opt=make('button');
       opt.type='button';
       const label=String(item.label||('Card #'+item.id));
@@ -217,9 +353,17 @@
     }
     feedback.textContent=feedback.textContent||'Select an option to continue.';
     footer.replaceChildren();
+    const handReady=!showingHand||d.hand.length>0;
     if(d.buttons.enable1)button(String(d.buttons.label1||'Confirm'),()=>{void apply(true);},
-      'ct-required-primary');
-    if(d.buttons.enable2)button(String(d.buttons.label2||'Cancel'),()=>{void apply(false);});
+      'ct-required-primary',handReady);
+    if(d.buttons.enable2)button(String(d.buttons.label2||'Cancel'),()=>{void apply(false);},
+      '',handReady);
+    if(showingHand&&!d.hand.length){
+      const retry=make('button',null,handLoading?'Loading hand…':'↻ Refresh hand');
+      retry.disabled=handLoading;
+      retry.onclick=()=>{void refreshOpeningHand();};
+      footer.append(retry);
+    }
     // A mana cost might require manually tapping battlefield mana sources if
     // Forge's Auto control cannot pay; do not trap the player behind a modal.
     if(waitingForForgeKey===key){
@@ -235,14 +379,21 @@
   }
   function sync(){
     const d=modeData();
-    if(!d){current=null;key='';minimized='';lastExplicit='';waitingForForgeKey='';show(false,'');return;}
+    if(!d){current=null;key='';minimized='';lastExplicit='';waitingForForgeKey='';show(false,'');closeCardViewer();return;}
     if(d.key!==key){
       key=d.key;minimized='';waitingForForgeKey='';feedback.textContent='';
+      closeCardViewer();
     }
     current=d;
     const opened=minimized!==key;
     show(opened,key);
     if(opened)paint();
+    // Pregame prompt events can arrive before GameView has projected the hand.
+    // Snapshot is read-only; never guess or synthesize cards for the player.
+    if(isKeepMulligan(d)&&!d.hand.length&&requestedHandFor!==key){
+      requestedHandFor=key;
+      Promise.resolve().then(()=>{void refreshOpeningHand();});
+    }
   }
   resume.onclick=()=>{minimized='';if(current){show(true,key);paint();}};
   backdrop.addEventListener('click',event=>{
@@ -250,6 +401,9 @@
     if(event.target===backdrop)event.stopPropagation();
   });
   document.addEventListener('keydown',event=>{
+    if(event.key==='Escape' && handViewer.dataset.open==='true'){
+      event.preventDefault();event.stopImmediatePropagation();closeCardViewer();return;
+    }
     if(event.key==='Escape' && backdrop.dataset.open==='true'){
       event.preventDefault();event.stopImmediatePropagation();
     }
