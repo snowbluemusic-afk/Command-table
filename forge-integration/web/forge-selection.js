@@ -138,7 +138,10 @@
     }catch(_){}
   }
   async function select(item) {
-    if(working)return;
+    // Never submit a stale or invented target. Only Forge's current Selection
+    // model determines which player/card/stack item is actionable.
+    if(working || !candidates().some(candidate=>
+        candidate.kind===item.kind && Number(candidate.id)===Number(item.id)))return;
     const action = item.kind==='player'?'selectPlayer':
                    item.kind==='stack'?'selectStack':'cardId';
     working=true;
@@ -155,6 +158,23 @@
       if(typeof announce==='function')announce('Forge: '+(err?.message||String(err)));
     }finally{working=false;}
   }
+  // Outside combat there is no legacy player action: the normal click handler
+  // does not dispatch selectPlayer. Handle legal player badges at capture time,
+  // including our own player when Forge permits self-targeting. Intercept only
+  // legal targets, leaving ordinary player inspection and combat taps alone.
+  document.addEventListener('click',event=>{
+    if(!window.app?.nativeMatch || window.app?.view!=='game' || window.app?.modal)return;
+    if(document.getElementById('ct-forge-decision-sheet')?.style.display==='flex')return;
+    const surface=event.target?.closest?.('[data-ct-forge-player-id]');
+    if(!surface)return;
+    const id=Number(surface.getAttribute('data-ct-forge-player-id'));
+    if(!Number.isInteger(id)||id<=0||!(selection.targets||[]).some(target=>
+        target.kind==='player'&&Number(target.id)===id))return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void select({kind:'player',id});
+  },true);
+
   function update() {
     const all=candidates();
     const playing=(()=>{try{return !!app.nativeMatch && app.view==='game' && app.game?.winner===null;}catch(_){return false;}})();
@@ -166,21 +186,29 @@
     // overlapping list for ordinary card/player targets; retain the drawer
     // for non-board targets (e.g. stack or other nonvisual choices).
     const visualTargetsOnly=all.length>0&&all.every(item=>item.kind==='card'||item.kind==='player');
-    panel.style.display=playing&&all.length&&!choiceActive&&!window.app?.sideInspect&&!visualTargetsOnly?'block':'none';
-    queueCombatLinks();
-    if(!playing||!all.length)return;
-    const chosen=(selection.chosen||[]).length;
     const phaseDetail=String(window.app?.game?.phaseDetail||'').toUpperCase();
+    const showPlayerChoices=all.some(item=>item.kind==='player')&&
+      !/ATTACKERS|BLOCKERS/.test(phaseDetail);
+    // Players can be targeted by spells outside combat. Their badges may not
+    // be visible (or easily tappable) on a small landscape screen, so provide
+    // real buttons for Forge's current legal players, not merely a glow.
+    panel.style.display=playing&&all.length&&!choiceActive&&!window.app?.sideInspect&&
+      (!visualTargetsOnly||showPlayerChoices)?'block':'none';
+    queueCombatLinks();
+    if(!playing||!all.length){highlight();return;}
+    const chosen=(selection.chosen||[]).length;
     const combatLabel=/ATTACKERS/.test(phaseDetail)?'⚔ Choose attacking creatures':
       /BLOCKERS/.test(phaseDetail)?'🛡 Tap your blocker, then the attacker':
       /COMBAT/.test(phaseDetail)?'⚔ Combat choices':null;
-    title.textContent=(combatLabel||promptMessage||'Forge legal choices').slice(0,95)+
+    title.textContent=(showPlayerChoices?'Choose a legal player target':
+      combatLabel||promptMessage||'Forge legal choices').slice(0,95)+
       ' · '+all.length+' option'+(all.length===1?'':'s')+
       (chosen?' · '+chosen+' selected':'');
     expander.textContent=expanded?'Hide options':'Other choices';
-    choices.style.display=expanded?'flex':'none';
+    expander.style.display=showPlayerChoices?'none':'';
+    choices.style.display=expanded||showPlayerChoices?'flex':'none';
     choices.replaceChildren();
-    if(expanded) for (const item of all) {
+    if(expanded||showPlayerChoices) for (const item of all) {
       const b=document.createElement('button');
       b.type='button';
       const prefix=/ATTACKERS/.test(phaseDetail)?'⚔ ':
