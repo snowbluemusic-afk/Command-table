@@ -38,6 +38,7 @@ jobs:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
       - name: Verify recovery integration contract before downloading Forge
         run: |
+          set -o pipefail
           mkdir -p recovery-logs
           bash -n ci/android-smoke.sh
           node tests/verify-arena-gestures.cjs 2>&1 | tee recovery-logs/arena-gestures.txt
