@@ -1385,7 +1385,7 @@ source=source.replace('function ctReceiveForgeState(state) {',
 state_marker='  applyAuthoritativeGame(state);\n  // The animation layer'
 assert source.count(state_marker)==1, 'State history insertion changed'
 source=source.replace(state_marker,
-                      '  applyAuthoritativeGame(state);\n  ctRecordNativeHistory(before,app.game);\n  window.solPodMatchResult?.onState?.(state);\n  // The animation layer')
+                      '  applyAuthoritativeGame(state);\n  ctRecordNativeHistory(before,app.game);\n  // The animation layer')
 start_marker="window.ctMatchLoading?.show();app.notice='Starting Forge Commander match…';render();"
 assert source.count(start_marker)==1, 'Startup history reset changed'
 source=source.replace(start_marker,
@@ -2036,6 +2036,14 @@ source=source.replace(
   '<h2>Match history</h2><div class="arena-history-list">',
   '<h2>Match history</h2><button class="secondary full" data-action="ctCopyRulesTrace" aria-label="Copy Forge rules diagnostics">Copy Forge rules diagnostics</button><div class="arena-history-list">'
 )
+
+# Add the authoritative match-result callback after all historical patch
+# anchors have been resolved. Earlier insertions depend on exact adjacent
+# comment markers and should not be altered mid-pipeline.
+final_outcome_hook="  ctFocusActiveOpponent(before,app.game);\n  // The animation layer"
+assert source.count(final_outcome_hook)==1, 'Match result callback insertion changed'
+source=source.replace(final_outcome_hook,
+  "  ctFocusActiveOpponent(before,app.game);\n  window.solPodMatchResult?.onState?.(state);\n  // The animation layer")
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
