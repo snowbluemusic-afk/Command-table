@@ -35,7 +35,7 @@ function buildHarness({phase,sourceId,targetKind,targetId,legal=true}) {
   }
   const doc={
     createElement:elem,createElementNS:elem,
-    body:elem(),head:elem(),querySelectorAll:()=>[],
+    body:elem(),head:elem(),querySelectorAll:()=>[],getElementById:()=>null,
     elementFromPoint:()=>elementAt,
     addEventListener(type,fn){(docEvents.get(type)||docEvents.set(type,[]).get(type)).push(fn);}
   };
