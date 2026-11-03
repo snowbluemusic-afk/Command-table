@@ -45,7 +45,8 @@ function ctHydrateForgeState(raw) {
       handForgeIds:cardZone(p.hand).map(c=>c.id),
       library:Array(Math.max(0,p.libraryCount||0)).fill('Unknown card'),
       battlefield, graveyard:cardZone(p.graveyard).map(c=>c.name),
-      exile:cardZone(p.exile).map(c=>c.name), landPlays:p.landPlays||0, spellsThisTurn:0,
+      graveyardCards:cardZone(p.graveyard),
+      exile:cardZone(p.exile).map(c=>c.name), exileCards:cardZone(p.exile), landPlays:p.landPlays||0, spellsThisTurn:0,
       commandZone:cardZone(p.commandZone), priority:!!p.priority
     };
   });

@@ -70,8 +70,20 @@
   };
   function cards(){
     const ps=window.app?.game?.players||[];
-    return Array.isArray(ps[seat]?.[zone])?ps[seat][zone]:[];
+    // Retain stable Forge card IDs where available. The old name-only
+    // representation stays as a display-only fallback for older snapshots.
+    const p=ps[seat]||{};
+    const exact=p[zone+'Cards'];
+    return Array.isArray(exact)?exact:
+      Array.isArray(p[zone])?p[zone]:[];
   }
+  const cardName=card=>typeof card==='string'?card:
+    String(card?.name||'Unknown card');
+  const legalId=card=>{
+    const id=Number(card?.id);
+    return Number.isInteger(id)&&id>0&&
+      !!window.ctForgeSelection?.isLegalCard?.(id)?id:null;
+  };
   function art(name){
     try{return window.ctCardArtUrl?.(name)||'';}catch(_){return '';}
   }
@@ -117,10 +129,11 @@
     const grid=element('div',null,'ct-zb-grid');
     if(!entries.length)grid.append(element('p','No cards in this '+zone+' yet.','ct-zb-empty'));
     for(let i=0;i<entries.length;i++){
-      const name=String(entries[i]||'Unknown card');
+      const name=cardName(entries[i]);
       const b=element('button',null,'ct-zb-card'+(i===chosen?' active':''));
       b.type='button';
       b.setAttribute('aria-label','Inspect '+name);
+      if(legalId(entries[i])!==null)b.classList.add('ct-zb-selectable');
       b.setAttribute('aria-pressed',String(i===chosen));
       const pic=element('img');
       pic.alt='';pic.loading='lazy';pic.src=art(name);
@@ -131,12 +144,25 @@
     }
     const detail=element('aside',null,'ct-zb-detail');
     if(entries.length){
-      const name=String(entries[chosen]||'Unknown card'),info=cardInfo(name);
+      const name=cardName(entries[chosen]),info=cardInfo(name);
       const img=element('img');img.alt=name;img.src=art(name);
       img.onerror=()=>{img.style.display='none';};
       detail.append(img,element('h3',name));
       if(info.type)detail.append(element('p',info.type));
       detail.append(element('p',info.text||'Card text unavailable offline. Forge remains authoritative for card rules.'));
+      const id=legalId(entries[chosen]);
+      if(id!==null){
+        const select=element('button','Select this card with Forge','ct-zb-selectable-action');
+        select.type='button';
+        select.setAttribute('aria-label','Select '+name+' as a Forge legal choice');
+        select.onclick=async()=>{
+          select.disabled=true;
+          const accepted=await window.ctForgeSelection?.chooseCard?.(id);
+          if(accepted)hide();
+          else {select.disabled=false;window.ctForgeSelection?.refresh?.();}
+        };
+        detail.append(select);
+      }
     }else detail.append(element('p',seat===0?'Cards you discard, sacrifice, or lose to removal will appear here.':'This opponent has no cards in this zone.'));
     body.append(grid,detail);panel.append(header,tabs,body);
     backdrop.replaceChildren(panel);
