@@ -8,7 +8,7 @@
  // actionable recoveries may be placed inside it. Those live in modals.
  style.textContent+='\n#sol-pod-hub.sol-log-collapsed #sol-pod-hub-content{display:none!important}'+
   '#sol-pod-hub-header .sol-log-title{flex:1;min-width:0}'+
-  'body:has(.sol-battlefield) #ct-forge-legal-actions{display:none!important}';
+  '#ct-forge-legal-actions{display:none!important}';
  document.head.append(style);
  const hub=document.createElement('section');
  hub.id='sol-pod-hub';
