@@ -246,7 +246,9 @@
     // declaration must remain on the battlefield.
     if(inCombat()&&!mana&&!needCards&&!opening)return null;
     if(!opening&&!mana&&!needCards&&!unusual)return null;
-    const kind=needCards?'cards':mana?'mana':opening?'opening':'approval';
+    const keepMulliganButtons=/\bkeep\b/i.test(label1+' '+label2) &&
+      /\bmulligan\b/i.test(label1+' '+label2);
+    const kind=keepMulliganButtons?'opening':needCards?'cards':mana?'mana':opening?'opening':'approval';
     const available=needCards?usable:(mana?cards:[]);
     const hand=kind==='opening'?localHand():[];
     return {kind,buttons,items:available,prompt,chosen,min,enabled,hand,
@@ -267,7 +269,8 @@
     footer.append(el);return el;
   };
   async function apply(ok){
-    if(submitting||!current||waitingForForgeKey===key)return;
+    if(submitting||!current||waitingForForgeKey===key ||
+       (isKeepMulligan(current)&&!current.hand.length))return;
     submitting=true;
     feedback.textContent='Sending your decision to Forge…';
     paint();
@@ -331,6 +334,7 @@
         const placeholder=make('span','ct-opening-placeholder','Artwork unavailable');
         art.src=window.ctCardArtUrl?.(card.name)||'';
         art.onerror=()=>{art.style.display='none';placeholder.style.display='block';};
+        if(!art.src){art.style.display='none';placeholder.style.display='block';}
         const title=make('span','ct-opening-name',card.name);
         const cost=make('span','ct-opening-cost',card.manaCost||card.type||'');
         tile.append(art,placeholder,title,cost);
@@ -351,7 +355,9 @@
       opt.onclick=()=>{void chooseCard(item,signature);};
       list.append(opt);
     }
-    feedback.textContent=feedback.textContent||'Select an option to continue.';
+    feedback.textContent=feedback.textContent||(showingHand
+      ?d.hand.length?'Inspect your cards, then choose Keep or Mulligan.':'Waiting for Forge to provide your hand…'
+      :'Select an option to continue.');
     footer.replaceChildren();
     const handReady=!showingHand||d.hand.length>0;
     if(d.buttons.enable1)button(String(d.buttons.label1||'Confirm'),()=>{void apply(true);},
