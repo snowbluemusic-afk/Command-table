@@ -618,6 +618,8 @@
     chooseCard:(id)=>select({kind:'card',id:Number(id)}),
     choosePlayer:(id)=>select({kind:'player',id:Number(id)}),
     chooseStack:(id)=>select({kind:'stack',id:Number(id)}),
+    isLegalStack:(id)=>Number.isInteger(Number(id))&&
+      candidates().some(c=>c.kind==='stack'&&Number(c.id)===Number(id)),
     isLegalPlayer:(id)=>Number.isInteger(Number(id)) &&
       (selection.targets||[]).some(c=>c.kind==='player'&&Number(c.id)===Number(id)),
     get version(){return selectionVersion;},
