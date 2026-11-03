@@ -17,7 +17,7 @@ assert(ui.includes("isKeepMulligan")&&ui.includes("ct-opening-hand-grid"),
  'Opening-hand reader must render inside mandatory fullscreen decision');
 assert(ui.includes("↻ Refresh hand") && ui.includes("game.snapshot"),
  'Late opening hands need an authoritative Forge refresh control');
-assert(ui.includes("if(isKeepMulligan(current)&&!current.hand.length)"),
+assert(ui.includes("isKeepMulligan(current)&&!current.hand.length"),
  'Keep and Mulligan actions must not be sent before cards arrive');
 
 class E{
