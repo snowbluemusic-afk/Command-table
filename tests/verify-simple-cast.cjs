@@ -100,7 +100,7 @@ function createHarness(reject=false){
   mulligan.win.app.game.phase='mulligan';
   mulligan.win.ctForgePriority={isHandChoice:true,refresh:()=>{}};
   const tapped=mulligan.tap('hand');
-  await Promise.resolve();
+  await new Promise(resolve=>setImmediate(resolve));
   assert(tapped.stopped,'Mulligan selection must suppress the preview');
   assert.equal(mulligan.overlay().dataset.open,'false');
   assert.deepEqual(JSON.parse(JSON.stringify(mulligan.requests[0])),
@@ -109,7 +109,7 @@ function createHarness(reject=false){
   const discard=createHarness();
   discard.win.ctForgePriority={isHandChoice:true,refresh:()=>{}};
   const discardTap=discard.tap('hand');
-  await Promise.resolve();
+  await new Promise(resolve=>setImmediate(resolve));
   assert(discardTap.stopped,'Discard selection must suppress casting');
   assert.equal(discard.overlay().dataset.open,'false',
     'Faithless Looting discard must not show Cast');
