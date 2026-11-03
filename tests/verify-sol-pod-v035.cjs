@@ -89,7 +89,8 @@ vm.runInNewContext(safety,{window:win,document:doc,CommandTableNative:native,Pro
  mode='insufficient';
  await assert.rejects(native.request('game.command',{action:'castById',value:12}),/mana payment/);
  assert(!win.ctForgeSafety.castBusy,'Rejected mana payment must release cast lock');
- assert(rail.children.some(n=>n.id==='ct-forge-safety'),'Error recovery panel must remain available');
+ assert(body.children.some(n=>n.id==='ct-forge-safety'),'Error recovery must appear as a full-screen dialog');
+ assert(!rail.children.some(n=>n.id==='ct-forge-safety'),'Actionable recovery must never be hidden inside the Game Log');
  mode='timeout';
  await assert.rejects(native.request('game.command',{action:'castById',value:12}),/timed out/);
  assert(win.ctForgeSafety.needsRecovery,'Unconfirmed request requires recovery');
