@@ -27,6 +27,11 @@
   let selectedBlocker=null;
   let queued=0;
   let commandQueue=Promise.resolve();
+  let unresolved=false;
+  const nativeDeadline=(promise,label,ms=18000)=>new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{const err=new Error(label+' did not respond; resynchronise Forge before confirming combat.');err.nativeTimeout=true;reject(err);},ms);
+    Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value);},err=>{clearTimeout(timer);reject(err);});
+  });
   let suppressUntil=0;
   const phase=()=>String(window.app?.game?.phaseDetail||'').toUpperCase();
   const mode=()=>/ATTACKERS/.test(phase())?'attack':
@@ -39,7 +44,7 @@
   };
   const feedback=msg=>{
     if(mode()==='block' && typeof window.solPodNotice==='function')
-      window.solPodNotice(msg,'combat','blocker-selection');
+      window.solPodNotice(msg,/\berror\b|\bfailed\b|\brejected\b|did not respond|cannot|could not/i.test(String(msg))?'error':'combat',/\berror\b|\bfailed\b|\brejected\b|did not respond|cannot|could not/i.test(String(msg))?'blocker-error':'blocker-selection');
     else if(typeof window.ctNativeToast==='function')window.ctNativeToast(msg);
     else if(typeof window.announce==='function')window.announce(msg);
   };
@@ -88,6 +93,10 @@
     const task=async()=>{
       busy=true;
       try {
+        if(unresolved){
+          feedback('Combat has an unanswered Forge request. Use Refresh combat before making more assignments.');
+          return;
+        }
         if(mode()!==dragMode){
           feedback('Combat moved on before your '+dragMode+' could be assigned.');
           return;
@@ -102,11 +111,13 @@
           feedback('This creature is already blocking that attacker.');
           return;
         }
-        await window.CommandTableNative.request('game.command',{action,value});
+        await nativeDeadline(window.CommandTableNative.request('game.command',{action,value}),
+          'Combat assignment',18000);
         let snapshot=null,confirmed=false;
         // A command can return before Forge publishes the updated CombatView.
         for(let attempt=0;attempt<4;attempt++){
-          snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
+          snapshot=await nativeDeadline(window.CommandTableNative.request('game.snapshot'),
+            'Combat snapshot',10000).catch(()=>null);
           const combat=snapshot?.game?.combat||[];
           if(dragMode==='block'){
             confirmed=combat.some(c=>Number(c.cardId)===target.id&&
@@ -125,9 +136,10 @@
             '. Check the highlighted combat connection before pressing Confirm.');
         }else if(dragMode==='block'){
           const count=(snapshot?.game?.combat||[]).reduce((sum,c)=>sum+(c.blockerIds||[]).length,0);
-          feedback('Block confirmed: '+count+' assigned. Drag another creature or confirm.');
+          feedback('Block confirmed: '+count+' assigned. Select another blocker or confirm.');
         }
       }catch(error){
+        if(error?.nativeTimeout)unresolved=true;
         feedback('Forge could not apply this '+(dragMode==='attack'?'attack':'block')+
           ': '+(error?.message||String(error)));
       }finally{
@@ -215,8 +227,8 @@
         const id=idFromCard(own);
         if(!isOwnCreature(id))return;
         event.preventDefault();event.stopImmediatePropagation();
-        if(busy||queued){
-          feedback('The previous block is being applied. Select another blocker once Forge confirms it.');
+        if(unresolved){
+          feedback('Refresh combat first: Forge has not confirmed an earlier assignment.');
           return;
         }
         selectedBlocker=id===selectedBlocker?null:id;
@@ -236,8 +248,8 @@
           feedback('First tap one of YOUR creatures to select a blocker, then tap this attacker.');
           return;
         }
-        if(busy||queued){
-          feedback('Finishing the previous block before accepting another.');
+        if(unresolved){
+          feedback('Refresh combat first: Forge has not confirmed an earlier assignment.');
           return;
         }
         const blockerId=selectedBlocker;
@@ -297,6 +309,27 @@
       #ct-direct-combat-hint{font-size:11px;top:8%}
     }`;
   document.head.append(style);
-  window.ctDirectCombat={reset:()=>{clear();selectedBlocker=null;showSelectedBlocker();},get active(){return !!drag||busy||queued>0;},
-    get selectedBlockerId(){return selectedBlocker;},get pending(){return queued;},whenIdle:()=>commandQueue.catch(()=>{})};
+  window.ctDirectCombat={
+    reset:()=>{clear();selectedBlocker=null;unresolved=false;showSelectedBlocker();},
+    get active(){return !!drag||busy||queued>0;},
+    get selectedBlockerId(){return selectedBlocker;},
+    get needsRecovery(){return unresolved;},
+    get pending(){return queued+(unresolved?1:0);},
+    whenIdle:()=>commandQueue.catch(()=>{}),
+    recover:async()=>{
+      try{
+        const status=await nativeDeadline(window.CommandTableNative.request('engine.status'),'Forge status',12000);
+        const result=await nativeDeadline(window.CommandTableNative.request('game.snapshot'),'Forge snapshot',12000);
+        if(!result?.game)throw new Error('Forge did not return a game snapshot');
+        window.ctReceiveForgeState?.(result.game);
+        unresolved=false;
+        feedback('Combat resynchronised. Review the displayed blocks before confirming.');
+        window.dispatchEvent?.(new window.Event('ct-combat-queue-updated'));
+        return true;
+      }catch(error){
+        feedback('Combat still unavailable: '+(error?.message||String(error)));
+        return false;
+      }
+    }
+  };
 })();
