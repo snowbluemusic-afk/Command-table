@@ -31,10 +31,10 @@ if(process.argv[2]){
  const text='{1}, Sacrifice Thrashing Brontodon: Destroy target artifact or enchantment.';
  const card=name=>({name,type:'Creature — Dinosaur',cost:'{1}{G}{G}',text,
    keywords:[],implemented:true});
- const deps=['app','card','esc','artUrl','targetOptions','canCast','equalName','isLand','badge','window'];
+ const deps=['app','card','esc','artUrl','targetOptions','canCast','equalName','isLand','badge','smallCard','window'];
  const render=new Function(...deps,code);
  const run=()=>render(app,card,s=>String(s).replace(/"/g,'&quot;'),()=>'',()=>[],
-  ()=>false,(a,b)=>a===b,()=>false,()=>'',{ctForgeCards:{}});
+  ()=>false,(a,b)=>a===b,()=>false,()=>'',()=>'',{ctForgeCards:{}});
  const own=run();
  assert(own.includes('Activate ability ↗'),'Own Brontodon must expose Activate ability');
  assert(own.includes('data-action="cardId" data-value="42"'),
