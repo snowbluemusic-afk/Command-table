@@ -52,7 +52,12 @@ import java.util.concurrent.Executors;
  */
 public final class CommandTableOverlay {
     private static final Handler UI = new Handler(Looper.getMainLooper());
+    // A spell selection may synchronously wait for Forge mana, targeting or
+    // a modal choice. Keep those follow-up inputs OFF the initiating command
+    // queue or the answer needed to finish casting deadlocks behind the cast.
     private static final ExecutorService REQUESTS = Executors.newSingleThreadExecutor();
+    private static final ExecutorService INTERACTIVE = Executors.newSingleThreadExecutor();
+    private static final ExecutorService CONTROL = Executors.newSingleThreadExecutor();
     private static volatile CommandTableMain host;
     private static volatile WebView web;
     private static volatile HostedMatch match;
@@ -456,7 +461,34 @@ public final class CommandTableOverlay {
         private final Context context;
         Bridge(Context context){this.context=context;}
         @JavascriptInterface public void request(String json) {
-            REQUESTS.execute(() -> {
+            // Dispatch without touching Forge here; native bridge callbacks
+            // arrive on WebView threads, never mutate the engine on that thread.
+            // Interactive inputs can unblock the longer-running cast command.
+            final ExecutorService worker;
+            try {
+                JSONObject metadata=new JSONObject(json);
+                String type=metadata.optString("type","");
+                JSONObject payload=metadata.optJSONObject("payload");
+                String action=payload==null?"":payload.optString("action","");
+                if("engine.status".equals(type) ||
+                   "game.snapshot".equals(type) || "choice.answer".equals(type)) {
+                    worker=CONTROL;
+                } else if("game.command".equals(type) &&
+                    ("cardId".equals(action) || "permanent".equals(action) ||
+                     "selectPlayer".equals(action) || "selectStack".equals(action) ||
+                     "chooseCastTarget".equals(action) || "targetPlayer".equals(action) ||
+                     "cancelCastTarget".equals(action) || "resolve".equals(action) ||
+                     "confirmBlocks".equals(action) || "endTurn".equals(action) ||
+                     "chooseBlock".equals(action))) {
+                    worker=INTERACTIVE;
+                } else {
+                    worker=REQUESTS;
+                }
+            } catch(Exception malformed) {
+                respond("",false,null,"Invalid Forge request");
+                return;
+            }
+            worker.execute(() -> {
                 String id="";
                 try {
                     JSONObject req=new JSONObject(json);
