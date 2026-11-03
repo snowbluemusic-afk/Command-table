@@ -74,7 +74,8 @@ function ctHydrateForgeState(raw) {
       typeof item==='string'?{id:i,name:item}:item),
     combat:Array.isArray(raw.combat)?raw.combat:[],
     pending:null, waiting:null, log:[], autoPilot:false, autoPaused:false,
-    winner:raw.gameOver ? (raw.winner || 'Game ended') : null
+    gameOver:!!raw.gameOver, outcome:raw.gameOver ? (raw.outcome||'draw') : null,
+    winner:raw.gameOver ? (raw.winner || 'Draw') : null
   };
 }
 """
@@ -619,6 +620,9 @@ function ctReceiveForgeState(state) {
   const before=app.game;
   const previousPhase=String(before?.phaseDetail||'');
   applyAuthoritativeGame(state);
+  // Present the authoritative result on the same native state event. Do not
+  // wait for another phase/stack update or an optional game-view re-render.
+  window.solPodMatchResult?.onState?.(state);
   // The animation layer reads ONLY two confirmed Forge projections.
   window.ctArenaMotion?.onState?.(before,app.game);
   const declaration=/COMBAT_DECLARE_(ATTACKERS|BLOCKERS)/.test(String(app.game?.phaseDetail||''));
@@ -2021,6 +2025,12 @@ source=source.replace('</body>','<script>\n'+target_dialog+'\n</script></body>')
 
 # Cross-mechanic diagnostics record *observed* Forge zone/life/stack changes
 # and native choices, never replace Forge rules or infer hidden library cards.
+# v0.43 reports only actual Forge match outcomes and leaves the board
+# readable via an explicit Review action; the modal lives on document.body.
+match_result=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-match-result-v043.js').read_text()
+assert 'window.solPodMatchResult' in match_result and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+match_result+'\n</script></body>')
+
 rules_trace=(Path(__file__).resolve().parent.parent/'web'/'forge-rules-trace-v040.js').read_text()
 assert 'ctRulesTrace' in rules_trace and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+rules_trace+'\n</script></body>')
