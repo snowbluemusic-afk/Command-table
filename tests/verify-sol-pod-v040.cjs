@@ -5,11 +5,15 @@ const target=read('forge-integration/web/forge-target-dialog-v040.js');
 const trace=read('forge-integration/web/forge-rules-trace-v040.js');
 const patch=read('forge-integration/tools/patch_frontend.py');
 const selection=read('forge-integration/web/forge-selection.js');
+const proxy=read('forge-integration/src/main/java/forge/commandtable/CommandTableGuiProxy.java');
 new Function(target);new Function(trace);
 assert(patch.includes('forge-target-dialog-v040.js'),'Target dialog missing from Android build');
 assert(patch.includes('forge-rules-trace-v040.js'),'Rules trace missing from Android build');
 assert(patch.includes('Copy Forge rules diagnostics'),'Copy trace missing from match history');
 assert(selection.includes('get chosenIds()'),'Selected targets not available to read-only dialog');
+for(const event of ['updateStack','notifyStackAddition','notifyStackRemoval','updateLives','updateTurn']){
+ assert(proxy.includes('"'+event+'".equals(name)'),'Forge '+event+' must publish an authoritative snapshot');
+}
 assert(!target.includes("action:'resolve'"),'Target UI must not resolve a Forge spell');
 assert(!target.includes("action:'castById'"),'Target UI must not cast spells directly');
 assert(!trace.includes('doubleMill')&&!trace.includes('setLibraryCount'),
