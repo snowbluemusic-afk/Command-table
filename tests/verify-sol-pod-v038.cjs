@@ -86,7 +86,8 @@ assert.equal(overlay.dataset.open,'true','Tapping spell must show full-screen re
 const sheet=overlay.children[0],panels=sheet.children[1].children;
 const details=panels[2],actions=details.children.at(-1);
 assert(details.children.some(n=>n.textContent==='Counterspell'),'Reader does not identify selected spell');
-assert(details.children.some(n=>n.textContent==='Counter target spell.'),'Forge effect text not shown');
+const containsText=(node,value)=>node.textContent===value || node.children?.some(child=>containsText(child,value));
+assert(containsText(details,'Counter target spell.'),'Forge effect text not shown');
 const respond=actions.children.find(n=>n.textContent==='Respond');
 assert(respond&&!respond.disabled,'Respond should be available with priority');
 respond.onclick();
