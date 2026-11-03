@@ -123,7 +123,13 @@
   const before=window.CommandTableNativeReply;
   window.CommandTableNativeReply=function(payload){
     try {notice(payload);}catch(_){}
-    return typeof before==='function'?before(payload):undefined;
+    const result=typeof before==='function'?before(payload):undefined;
+    try {
+      const message=typeof payload==='string'?JSON.parse(payload):payload;
+      if(message?.type==='game.choice'||message?.type==='game.choice.clear')
+        window.ctFullscreenTargets?.refresh?.();
+    }catch(_){}
+    return result;
   };
   window.CommandTableNative?.onState?.(capture);
   function report(){
