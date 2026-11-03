@@ -26,6 +26,7 @@ class El{
  setAttribute(k,v){this.attrs[k]=String(v);}
  getAttribute(k){return this.attrs[k]??null;}
  closest(selector){return selector==='[data-ct-forge-player-id]' && this.getAttribute('data-ct-forge-player-id')?this:null;}
+ addEventListener(type,fn){this['on'+type]=fn;}
  querySelectorAll(){return [];}
  remove(){if(this.parentNode)this.parentNode.children=this.parentNode.children.filter(x=>x!==this);}
 }
@@ -119,8 +120,6 @@ const records=[
  win.ctZoneBrowser.open('graveyard');
  assert.equal(zoneBackdrop.dataset.open,'true');
  const sheet=zoneBackdrop.children[0],detail=sheet.children[2].children[1];
- assert(detail.children.some(n=>n.textContent==='Select this card with Forge'),
-   'Legal graveyard card must offer a Forge action');
  const chosen=detail.children.find(n=>n.textContent==='Select this card with Forge');
  // Only exile is currently selected; graveyard is not legal.
  assert(!chosen,'A graveyard card was marked legal while only exile was selectable');
