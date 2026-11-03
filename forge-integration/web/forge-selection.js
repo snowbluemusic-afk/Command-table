@@ -157,7 +157,10 @@
       }catch(_){}
       return true;
     }catch(err) {
-      if(typeof announce==='function')announce('Forge: '+(err?.message||String(err)));
+      // A failed required selection requires recovery, not a passive log entry.
+      if(window.ctForgeSafety?.showError)
+        window.ctForgeSafety.showError(err,'Forge could not select card or target');
+      else window.ctNativeToast?.('Forge selection unavailable: '+(err?.message||String(err)));
       return false;
     }finally{working=false;update();}
   }
@@ -349,6 +352,7 @@
   let openingMessage='';
   let busy=false;
   let autoManaIssued=false;
+  let promptSequence=0;
   let syncBusy=false;
   async function syncChoices(){
     if(syncBusy)return;
@@ -547,6 +551,7 @@
     if(payload?.type==='game.prompt'){
       const p=payload.payload||{};
       if(typeof p.message==='string')openingMessage=p.message;
+      promptSequence++;
       for(const key of ['label1','label2','enable1','enable2']){
         if(Object.prototype.hasOwnProperty.call(p,key))buttonState[key]=p[key];
       }
@@ -580,7 +585,7 @@
       /^cancel$/i.test(String(buttonState.label2).trim())&&window.app?.nativeMatch===true;},
     confirm:()=>decide(true),
     cancel:()=>decide(false),
-    get buttonInfo(){return {...buttonState,message:openingMessage,prompt:promptMessage,busy};},
+    get buttonInfo(){return {...buttonState,message:openingMessage,prompt:promptMessage,busy,sequence:promptSequence};},
     // Distinguish Forge's mandatory hand-card choices from the ordinary
     // castable-card highlights shown during priority. Do not let the UI
     // mistake a discard for a request to cast.
