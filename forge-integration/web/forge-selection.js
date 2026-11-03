@@ -140,8 +140,9 @@
   async function select(item) {
     // Never submit a stale or invented target. Only Forge's current Selection
     // model determines which player/card/stack item is actionable.
-    if(working || !candidates().some(candidate=>
-        candidate.kind===item.kind && Number(candidate.id)===Number(item.id)))return;
+    if(working || window.ctForgeSafety?.needsRecovery ||
+       !candidates().some(candidate=>
+        candidate.kind===item.kind && Number(candidate.id)===Number(item.id)))return false;
     const action = item.kind==='player'?'selectPlayer':
                    item.kind==='stack'?'selectStack':'cardId';
     working=true;
@@ -154,9 +155,11 @@
           else {applyAuthoritativeGame(next.game);if(app.view==='game')render();}
         }
       }catch(_){}
+      return true;
     }catch(err) {
       if(typeof announce==='function')announce('Forge: '+(err?.message||String(err)));
-    }finally{working=false;}
+      return false;
+    }finally{working=false;update();}
   }
   // Outside combat there is no legacy player action: the normal click handler
   // does not dispatch selectPlayer. Handle legal player badges at capture time,
@@ -185,39 +188,65 @@
     // Forge glows are the primary selection affordance. Do not show a second
     // overlapping list for ordinary card/player targets; retain the drawer
     // for non-board targets (e.g. stack or other nonvisual choices).
-    const visualTargetsOnly=all.length>0&&all.every(item=>item.kind==='card'||item.kind==='player');
+    // Every Forge-legal choice must remain reachable even when its card is
+    // off-board (graveyard/exile/command zone), hidden beneath a large hand,
+    // or represented only by a stack entry. Combat keeps its concise
+    // battlefield-first gestures, with this picker as a manual fallback.
     const phaseDetail=String(window.app?.game?.phaseDetail||'').toUpperCase();
-    const showPlayerChoices=all.some(item=>item.kind==='player')&&
-      !/ATTACKERS|BLOCKERS/.test(phaseDetail);
-    // Players can be targeted by spells outside combat. Their badges may not
-    // be visible (or easily tappable) on a small landscape screen, so provide
-    // real buttons for Forge's current legal players, not merely a glow.
-    panel.style.display=playing&&all.length&&!choiceActive&&!window.app?.sideInspect&&
-      (!visualTargetsOnly||showPlayerChoices)?'block':'none';
+    const declaring=/ATTACKERS|BLOCKERS/.test(phaseDetail);
+    const hasPlayer=all.some(item=>item.kind==='player');
+    const hasCard=all.some(item=>item.kind==='card');
+    const hasStack=all.some(item=>item.kind==='stack');
+    const needsRecovery=!!window.ctForgeSafety?.needsRecovery;
+    panel.style.display=playing&&all.length&&!choiceActive&&!window.app?.sideInspect?'block':'none';
     queueCombatLinks();
-    if(!playing||!all.length){highlight();return;}
-    const chosen=(selection.chosen||[]).length;
-    const combatLabel=/ATTACKERS/.test(phaseDetail)?'⚔ Choose attacking creatures':
-      /BLOCKERS/.test(phaseDetail)?'🛡 Tap your blocker, then the attacker':
-      /COMBAT/.test(phaseDetail)?'⚔ Combat choices':null;
-    title.textContent=(showPlayerChoices?'Choose a legal player target':
-      combatLabel||promptMessage||'Forge legal choices').slice(0,95)+
-      ' · '+all.length+' option'+(all.length===1?'':'s')+
-      (chosen?' · '+chosen+' selected':'');
-    expander.textContent=expanded?'Hide options':'Other choices';
-    expander.style.display=showPlayerChoices?'none':'';
-    choices.style.display=expanded||showPlayerChoices?'flex':'none';
+    if(!playing||!all.length){
+      choices.replaceChildren();
+      highlight();return;
+    }
+    const chosenIds=new Set((selection.chosen||[]).map(String));
+    const chosen=chosenIds.size;
+    const combatLabel=/ATTACKERS/.test(phaseDetail)?'Choose attackers':
+      /BLOCKERS/.test(phaseDetail)?'Choose blockers':
+      /COMBAT/.test(phaseDetail)?'Combat choices':null;
+    const category=hasPlayer&&!(hasCard||hasStack)?'player':
+      hasStack&&!(hasCard||hasPlayer)?'spell on stack':
+      hasCard&&!(hasPlayer||hasStack)?'card':'target';
+    title.textContent=(needsRecovery?'Refresh Forge before another choice':
+      !declaring?('Choose legal '+category):combatLabel||promptMessage||'Forge choices')+
+      ' · '+all.length+(chosen?' · '+chosen+' selected':'');
+    // The title is always visible in Game Events. Expand automatically for
+    // non-combat target prompts so players are not stuck hunting for a card.
+    const expandedNow=!declaring||expanded;
+    expander.textContent=expandedNow?'Hide choices':'Show legal choices';
+    expander.style.display=declaring?'':'none';
+    choices.style.display=expandedNow?'flex':'none';
     choices.replaceChildren();
-    if(expanded||showPlayerChoices) for (const item of all) {
-      const b=document.createElement('button');
-      b.type='button';
-      const prefix=/ATTACKERS/.test(phaseDetail)?'⚔ ':
-        /BLOCKERS/.test(phaseDetail)?'🛡 ':'';
-      b.textContent=(selection.chosen||[]).includes(item.id)?'✓ '+item.label:prefix+item.label;
-      b.style.cssText='padding:8px 10px;font-size:12px;background:#2b434c;border:1px solid #a68c66;border-radius:8px;color:#f1e8da;max-width:100%;white-space:normal;text-align:left';
-      b.disabled=working;
-      b.onclick=()=>select(item);
-      choices.append(b);
+    if(expandedNow) for(const item of all){
+      const button=document.createElement('button');
+      button.type='button';
+      const tag=item.kind==='player'?'PLAYER':
+        item.kind==='stack'?'STACK':'CARD';
+      const label=String(item.label||tag+' #'+item.id);
+      const zone=String(item.zone||'');
+      // Equal card names can be separate game objects with distinct Forge IDs.
+      const repeated=all.filter(other=>other.kind===item.kind&&
+        String(other.label||'')===String(item.label||'')).length>1;
+      const suffix=repeated?' · #'+item.id:'';
+      button.textContent=(chosenIds.has(String(item.id))?'✓ ':'')+
+        tag+' · '+label+(zone?' · '+zone:'')+suffix;
+      button.setAttribute('data-ct-forge-choice-kind',item.kind);
+      button.setAttribute('data-ct-forge-choice-id',String(item.id));
+      button.style.cssText='padding:8px 10px;font-size:12px;background:#2b434c;'+
+        'border:1px solid #a68c66;border-radius:8px;color:#f1e8da;'+
+        'max-width:100%;white-space:normal;text-align:left;min-height:38px';
+      button.disabled=working||needsRecovery;
+      const expectedVersion=selectionVersion;
+      button.onclick=()=>{
+        // Ignore stale buttons after Forge has published a different selection.
+        if(expectedVersion===selectionVersion)void select(item);
+      };
+      choices.append(button);
     }
     highlight();
   }
@@ -584,6 +613,11 @@
     refresh:()=>{update();},
     isLegalCard:(id)=>Number.isInteger(Number(id))&&
       candidates().some(c=>c.kind==='card'&&Number(c.id)===Number(id)),
+    // Zone browsers use the same guarded dispatcher as battlefield and stack
+    // targets. A visible card never becomes legal just because it is displayed.
+    chooseCard:(id)=>select({kind:'card',id:Number(id)}),
+    choosePlayer:(id)=>select({kind:'player',id:Number(id)}),
+    chooseStack:(id)=>select({kind:'stack',id:Number(id)}),
     isLegalPlayer:(id)=>Number.isInteger(Number(id)) &&
       (selection.targets||[]).some(c=>c.kind==='player'&&Number(c.id)===Number(id)),
     get version(){return selectionVersion;},
