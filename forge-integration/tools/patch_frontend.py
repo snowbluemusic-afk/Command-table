@@ -50,6 +50,20 @@ function ctHydrateForgeState(raw) {
       commandZone:cardZone(p.commandZone), priority:!!p.priority
     };
   });
+  // Stack spells may have left their caster's hand and are not yet in a
+  // public graveyard. Use only Forge-exposed, face-up stack source metadata
+  // so artwork and rules text still work while the spell is being cast.
+  for(const item of Array.isArray(raw.stack)?raw.stack:[]){
+    if(!item?.cardName || item.faceDown || !item.type)continue;
+    window.ctForgeCards ||= Object.create(null);
+    const name=String(item.cardName);
+    window.ctForgeCards[name.toLowerCase()]={
+      id:name.toLowerCase().replace(/[^a-z0-9]+/g,'-'),
+      name, type:String(item.type), cost:item.manaCost||'',
+      text:item.rulesText||'', implemented:true, effect:'forge',
+      identity:[],colors:[],keywords:[]
+    };
+  }
   const active=Math.max(0,raw.players.findIndex(p=>p.id===raw.activePlayer));
   const phaseValue=String(raw.phase||'MAIN1').toUpperCase();
   const phase=phaseValue.includes('MAIN1')?'main1':phaseValue.includes('MAIN2')?'main2':
@@ -1984,6 +1998,13 @@ welcome_css=r"""<style id="ct-welcome-v035">
 </style>"""
 assert source.count('</head>')==1
 source=source.replace('</head>',welcome_css+'</head>')
+
+# v0.38 — separate notifications/choices from the authoritative stack.
+# This is injected last, after all older layout CSS, so it overrides the
+# legacy small stack rail without taking over Forge controls or rules.
+stack_viewer=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-stack-v038.js').read_text()
+assert 'window.solPodStack' in stack_viewer and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+stack_viewer+'\n</script></body>')
 
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
