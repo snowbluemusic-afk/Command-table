@@ -22,6 +22,11 @@
  const issue=(message,kind='info',key=null)=>{
   if(!game())return false;
   const text=normalize(message);if(!text)return false;
+  // Imperative instructions are not game HISTORY. Forward them to the
+  // structured full-screen action router; it only exposes options/approvals
+  // that Forge actually supplied, or a recovery path if choices are missing.
+  const requiresPlayer=/^(?:please\s+)?(?:choose|select|approve|confirm|discard|sacrifice|pay|tap|assign|cancel\s+pending|refresh\s+forge)\b/i.test(text);
+  if(requiresPlayer&&window.ctForgeRequiredAction?.onNotice?.(text))return true;
   key=key||kind+':'+text;
   // New gameplay errors must never be hidden by a previously dismissed hint.
   // The same key can be reused for a later, more serious event.
