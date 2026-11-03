@@ -620,9 +620,6 @@ function ctReceiveForgeState(state) {
   const before=app.game;
   const previousPhase=String(before?.phaseDetail||'');
   applyAuthoritativeGame(state);
-  // Present the authoritative result on the same native state event. Do not
-  // wait for another phase/stack update or an optional game-view re-render.
-  window.solPodMatchResult?.onState?.(state);
   // The animation layer reads ONLY two confirmed Forge projections.
   window.ctArenaMotion?.onState?.(before,app.game);
   const declaration=/COMBAT_DECLARE_(ATTACKERS|BLOCKERS)/.test(String(app.game?.phaseDetail||''));
@@ -1388,7 +1385,7 @@ source=source.replace('function ctReceiveForgeState(state) {',
 state_marker='  applyAuthoritativeGame(state);\n  // The animation layer'
 assert source.count(state_marker)==1, 'State history insertion changed'
 source=source.replace(state_marker,
-                      '  applyAuthoritativeGame(state);\n  ctRecordNativeHistory(before,app.game);\n  // The animation layer')
+                      '  applyAuthoritativeGame(state);\n  ctRecordNativeHistory(before,app.game);\n  window.solPodMatchResult?.onState?.(state);\n  // The animation layer')
 start_marker="window.ctMatchLoading?.show();app.notice='Starting Forge Commander match…';render();"
 assert source.count(start_marker)==1, 'Startup history reset changed'
 source=source.replace(start_marker,
