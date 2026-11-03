@@ -445,6 +445,16 @@
       b.onclick=()=>decide(ok);
       buttons.append(b);
     }
+    if(inBlock && window.ctDirectCombat?.needsRecovery){
+      decisionText.textContent='Combat response timed out. Refresh the Forge state and review blocks before confirming.';
+      const recover=document.createElement('button');
+      recover.type='button';
+      recover.textContent='↻ Refresh combat';
+      recover.disabled=syncBusy;
+      recover.style.cssText='flex:1;min-height:38px;border-radius:9px;background:#3a6171;color:#fff4db;border:1px solid #eac088;font:700 13px system-ui';
+      recover.onclick=()=>{void window.ctDirectCombat.recover();};
+      buttons.append(recover);
+    }
     if((handChoice || manaPayment) && !buttonState.enable1){
       const refresh=document.createElement('button');
       refresh.type='button';
