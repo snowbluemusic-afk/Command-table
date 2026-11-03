@@ -23,7 +23,10 @@
   if(!game())return false;
   const text=normalize(message);if(!text)return false;
   key=key||kind+':'+text;
-  if((dismissed.get(key)||0)>Date.now())return true;
+  // New gameplay errors must never be hidden by a previously dismissed hint.
+  // The same key can be reused for a later, more serious event.
+  for(const [k,expiry] of dismissed)if(expiry<=Date.now())dismissed.delete(k);
+  if(kind!=='error'&&(dismissed.get(key)||0)>Date.now())return true;
   let item=entries.get(key);
   if(!item){
    item=document.createElement('div');item.className='sol-notice';item.dataset.kind=kind;
@@ -32,7 +35,15 @@
    close.setAttribute('aria-label','Dismiss notification');
    close.textContent='×';close.setAttribute('data-dismiss-notice',key);
    item.append(words,close);host.prepend(item);entries.set(key,item);
-   if(entries.size>5){const first=[...entries.keys()][0];if(first)dismiss(first);}
+   if(entries.size>5){
+     // Prefer evicting an informational event rather than an error.
+     const oldestInfo=[...entries].find(([,node])=>node.dataset.kind!=='error')?.[0];
+     const oldest=oldestInfo||[...entries.keys()][0];
+     if(oldest) {
+       entries.get(oldest)?.remove();
+       entries.delete(oldest);
+     }
+   }
   }
   item.querySelector('.sol-notice-text').textContent=text;
   return true;

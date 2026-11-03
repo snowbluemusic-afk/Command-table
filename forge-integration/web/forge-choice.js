@@ -8,6 +8,7 @@
   let selected = [];
   let inFlight = false;
   let answerGeneration=0;
+  let needsVerification=false;
   const forcedChoicesSubmitted=new Set();
   const view = document.createElement('section');
   view.id = 'ct-forge-decision-sheet';
@@ -79,7 +80,7 @@
     // One legal pick: the card/option tap IS confirmation. No second
     // full-screen confirm step unless Forge actually requested more picks.
     if (current && selected.length===1 && current.min===1 && current.max===1 &&
-        (current.mode==='single'||current.mode==='multiple')) void answer(false);
+        (current.mode==='single'||current.mode==='multiple') && !current.confirm) void answer(false);
   }
   function move(index, delta) {
     if (inFlight || !isOrder()) return;
@@ -124,9 +125,9 @@
     const watchdog=setTimeout(()=>{
       if(!inFlight||current?.id!==submittingId||requestNumber!==answerGeneration)return;
       inFlight=false;
-      current.error='Forge has not confirmed this choice yet. Refresh its status before trying again.';
+      needsVerification=true;
+      current.error='Forge has not confirmed this choice. Refresh its status to verify it is still pending before submitting again.';
       paint();
-      void window.CommandTableNative.request('engine.status').catch(()=>{});
     },14000);
     try {
       const response = await window.CommandTableNative.request('choice.answer', {
@@ -139,6 +140,7 @@
       });
       if(requestNumber!==answerGeneration)return;
       if (!response || response.accepted !== true) throw new Error('Choice was no longer active');
+      needsVerification=false;
       // The Forge match thread may issue its NEXT discard/target prompt before
       // this HTTP-style bridge request completes. Never clear a newer choice.
       if(current?.id===submittingId) {
@@ -161,6 +163,7 @@
     } catch (e) {
       if(requestNumber!==answerGeneration)return;
       inFlight=false;
+      needsVerification=false;
       if(current?.id!==submittingId)return; // A newer valid choice owns UI.
       showError('Forge could not accept this choice: '+(e?.message||String(e)));
       paint();
@@ -293,16 +296,19 @@
     const ok=action(inFlight?'Applying…':(current.mode==='order'?'Confirm order':'Confirm choice'),
       ()=>answer(false),true);
     ok.disabled=inFlight || (current.mode!=='integer' && current.mode!=='text'
-      && (selected.length<current.min || selected.length>current.max));
+      && (selected.length<current.min || selected.length>current.max)) || needsVerification;
     if(current.mode==='allocation'){
       const total=Object.values(current.allocation||{}).reduce((n,v)=>n+Number(v||0),0);
-      ok.disabled=inFlight||total!==Number(current.amount||0);
-      // Input changes still validate on submission; don't prevent correcting amounts.
-      ok.disabled=inFlight;
+      ok.disabled=inFlight||needsVerification||total!==Number(current.amount||0);
     }
     footer.append(ok);
-    if(inFlight || !!current.error){
-      const refresh=action('↻ Refresh Forge status',()=>{void window.CommandTableNative.request('engine.status').catch(e=>showError('Unable to refresh: '+(e?.message||String(e))));});
+    if(inFlight || !!current.error || needsVerification){
+      const refresh=action('↻ Refresh Forge status',()=>{
+        void window.CommandTableNative.request('engine.status').catch(e=>{
+          showError('Unable to refresh: '+(e?.message||String(e)));
+          paint();
+        });
+      });
       footer.append(refresh);
     }
     if((current.min===0 && current.mode!=='allocation') ||
@@ -321,12 +327,16 @@
     if(event && event.type==='game.choice') {
       const incoming=event.payload||null;
       if(incoming?.id===current?.id){
-        // Engine status can replay an unanswered choice. Keep the player's
-        // existing order/selection rather than replacing it mid-interaction.
+        // A matching replay proves this decision is still pending with Forge.
+        // The stale native request can finish later, so invalidate its UI
+        // acknowledgement; Forge's choice ID keeps the answer idempotent.
+        if(needsVerification){needsVerification=false;answerGeneration++;inFlight=false;
+          current.error='Forge still awaits this decision. Review your selection and confirm again.';}
         if(!inFlight)paint();
         return;
       }
       current=incoming;
+      needsVerification=false;
       selected=current?.mode==='order'
         ? (current.options||[]).map((_,i)=>i) : [];
       if(current) {
@@ -357,13 +367,13 @@
     if(event && event.type==='game.choice.clear') {
       const closingId=event.payload?.choiceId||event.payload?.id;
       if(closingId&&current?.id&&String(closingId)!==String(current.id))return;
-      current=null;selected=[];inFlight=false;view.style.display='none';
+      current=null;selected=[];inFlight=false;needsVerification=false;view.style.display='none';
       return;
     }
     return typeof previous==='function'?previous(payload):undefined;
   };
   window.ctForgeChoice = {close:()=>{
-    current=null;selected=[];inFlight=false;view.style.display='none';
+    current=null;selected=[];inFlight=false;needsVerification=false;view.style.display='none';
   },get hasPending(){return !!current;},get isApplying(){return inFlight;},
   refresh:()=>window.CommandTableNative.request('engine.status')};
 })();

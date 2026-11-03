@@ -1732,6 +1732,13 @@ v32=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-ux-v032.js').read_tex
 assert 'sol-pod-ux-v032' in v32 and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+v32+'\n</script></body>')
 
+
+# v0.33: keep compact hand completely on-screen alongside the two bottom
+# buttons. Do not change the expanded hand or the Forge engine handlers.
+v33=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-ux-v033.js').read_text()
+assert 'sol-pod-ux-v033' in v33 and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+v33+'\n</script></body>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')
