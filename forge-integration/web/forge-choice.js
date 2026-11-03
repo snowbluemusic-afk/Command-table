@@ -201,7 +201,9 @@
     const heading=el('h3',plainTitle,
       'font-size:17px;line-height:1.3;font-weight:750;margin:0 0 7px;white-space:pre-wrap');
     sheet.append(heading);
-    const desc = current.mode==='order'
+    const desc = current.commanderDestination
+      ?'Choose where your commander goes. Forge will apply the zone-change rule; this decision cannot be made for you.'
+      : current.mode==='order'
       ? 'Arrange these cards in the required order.'
       : current.mode==='multiple'
         ? 'Choose '+current.min+(current.min!==current.max?'–'+current.max:'')+' option(s).'
