@@ -192,6 +192,10 @@
           window.ctNativeToast?.('Forge accepted the card. Waiting for the next game update.');
         }
       }catch(failure){
+        // Recovery requests (including ambiguous Forge timeouts) own the
+        // foreground. Reopening this cast preview would hide the actionable
+        // recovery controls and invite a duplicate cast.
+        if(window.ctForgeSafety?.recoveryVisible){hide();return;}
         const message='Forge could not cast this card: '+(failure?.message||String(failure));
         open(choice,message);
         window.ctNativeToast?.(message);
