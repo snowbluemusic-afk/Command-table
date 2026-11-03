@@ -13,6 +13,7 @@ function createHarness(reject=false){
       append(...children){this.children.push(...children);},
       replaceChildren(...children){this.children=[...children];},
       focus(){},
+      addEventListener(){},
       querySelector(){return null;},
       get textContent(){return this.text||'';},
       set textContent(v){this.text=v;}
@@ -62,7 +63,7 @@ function createHarness(reject=false){
   });
   function tap(source){
     const target={closest:selector=>{
-      if(selector.startsWith('.ct10-hand-slot'))return source==='hand'?hand:null;
+      if(selector.startsWith('.ct10-hand-slot .game-card'))return source==='hand'?hand:null;
       if(selector.startsWith('.ct-commander-zone-card'))return source==='commander'?commander:null;
       return null;
     }};
@@ -75,7 +76,7 @@ function createHarness(reject=false){
   // still select its correct copy from the slot position in the DOM.
   const slot={parentElement:null};
   slot.parentElement={children:[{},slot]};
-  const hand={getAttribute:key=>null,closest:selector=>
+  const hand={getAttribute:key=>key==='data-value'?'1':null,closest:selector=>
     selector.includes('.ct10-hand-slot')?slot:null};
   const commander={getAttribute:()=>null};
   return {tap,buttons,overlay,requests,status,win};
@@ -99,7 +100,7 @@ function createHarness(reject=false){
   mulligan.win.app.game.phase='mulligan';
   mulligan.win.ctForgePriority={isHandChoice:true,refresh:()=>{}};
   const tapped=mulligan.tap('hand');
-  await Promise.resolve();
+  await new Promise(resolve=>setImmediate(resolve));
   assert(tapped.stopped,'Mulligan selection must suppress the preview');
   assert.equal(mulligan.overlay().dataset.open,'false');
   assert.deepEqual(JSON.parse(JSON.stringify(mulligan.requests[0])),
@@ -108,7 +109,7 @@ function createHarness(reject=false){
   const discard=createHarness();
   discard.win.ctForgePriority={isHandChoice:true,refresh:()=>{}};
   const discardTap=discard.tap('hand');
-  await Promise.resolve();
+  await new Promise(resolve=>setImmediate(resolve));
   assert(discardTap.stopped,'Discard selection must suppress casting');
   assert.equal(discard.overlay().dataset.open,'false',
     'Faithless Looting discard must not show Cast');

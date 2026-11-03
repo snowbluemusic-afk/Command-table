@@ -35,7 +35,7 @@ function buildHarness({phase,sourceId,targetKind,targetId,legal=true}) {
   }
   const doc={
     createElement:elem,createElementNS:elem,
-    body:elem(),head:elem(),querySelectorAll:()=>[],
+    body:elem(),head:elem(),querySelectorAll:()=>[],getElementById:()=>null,
     elementFromPoint:()=>elementAt,
     addEventListener(type,fn){(docEvents.get(type)||docEvents.set(type,[]).get(type)).push(fn);}
   };
@@ -107,17 +107,19 @@ async function tick(){await new Promise(resolve=>setImmediate(resolve));}
     await tick();
     assert.equal(h.requests.length,0,'Never submit an illegal Forge source');
   }
-  // Distinct attacker taps select different incoming attacks, then a creature
-  // tap assigns a block to the currently chosen attacker in Forge.
+  // Current blocker-first UX: tap YOUR eligible blocker, then the attacking
+  // creature. This sends one atomic Forge combat.block assignment.
   {
     const h=buildHarness({phase:'COMBAT_DECLARE_BLOCKERS',sourceId:103,
       targetKind:'card',targetId:201});
-    h.emit('click',{...h.event(230,180),target:h.attacker});
-    await tick();
     h.emit('click',{...h.event(180,310),target:h.card});
     await tick();
+    assert.equal(h.requests.filter(x=>x.type==='game.command').length,0,
+      'Choosing the blocker alone must not consume a Forge game action');
+    h.emit('click',{...h.event(230,180),target:h.attacker});
+    await tick();
     assert.deepEqual(JSON.parse(JSON.stringify(h.requests.filter(x=>x.type==='game.command').map(x=>x.payload))),
-      [{action:'cardId',value:201},{action:'cardId',value:103}]);
+      [{action:'combat.block',value:{attackerId:201,blockerId:103}}]);
   }
   // Tap attackers individually: does not invoke Forge's Alpha Strike shortcut.
   {

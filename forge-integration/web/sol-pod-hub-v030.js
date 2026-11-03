@@ -7,8 +7,8 @@
  document.head.append(style);
  const hub=document.createElement('section');
  hub.id='sol-pod-hub';
- hub.setAttribute('aria-label','Game events and choices');
- hub.innerHTML='<div id="sol-pod-hub-header"><span>✦ GAME EVENTS & CHOICES</span>'+
+ hub.setAttribute('aria-label','Notifications and legal choices');
+ hub.innerHTML='<div id="sol-pod-hub-header"><span>✦ NOTIFICATIONS & CHOICES</span>'+
    '<button type="button" id="sol-pod-clear-info">Clear notices</button></div>'+
    '<div id="sol-pod-hub-content"></div>';
  document.body.append(hub);
@@ -16,21 +16,14 @@
  const move=()=>{
    const notices=document.getElementById('sol-pod-notices');
    const choices=document.getElementById('ct-forge-legal-actions');
-   // Forge redraws the stack with each state. Replace the old moved instance
-   // rather than accumulating detached/stale event panels inside the hub.
-   const stacks=[...document.querySelectorAll('.ct-native-stack')];
-   const stack=stacks.find(node=>!contents.contains(node))||stacks.at(-1)||null;
+   // Notifications and Forge legal choices belong here. The stack now
+   // has a separate persistent surface and must NEVER be moved into this rail.
    if(notices&&notices.parentNode!==contents)contents.append(notices);
-   if(stack&&stack.parentNode!==contents)contents.append(stack);
-   for(const prior of [...contents.querySelectorAll('.ct-native-stack')]){
-     if(prior!==stack)prior.remove();
-   }
    if(choices&&choices.parentNode!==contents)contents.append(choices);
    const hasInfo=!!notices?.children?.length;
    const hasChoices=!!choices&&choices.style.display!=='none'&&choices.style.display!=='';
-   const hasStack=!!stack&&stack.style.display!=='none'&&!!stack.textContent?.trim();
    hub.querySelector('#sol-pod-clear-info').hidden=!hasInfo;
-   hub.classList.toggle('sol-empty',!hasInfo&&!hasChoices&&!hasStack);
+   hub.classList.toggle('sol-empty',!hasInfo&&!hasChoices);
  };
  hub.querySelector('#sol-pod-clear-info').onclick=()=>{
    // Do not dismiss mandatory decisions or real priority actions.
