@@ -15,7 +15,16 @@
  let nativeChoiceWaiting=false;
  let cancellationPending=false;
  let lastEngineStatus=null;
- const hasRequiredChoice=()=>!!window.ctForgeChoice?.hasPending || nativeChoiceWaiting;
+ const hasRequiredChoice=()=>{
+   if(window.ctForgeChoice?.hasPending || nativeChoiceWaiting)return true;
+   // InputPayMana, targeting and hand selection are driven by Forge
+   // Selection/updateButtons rather than by the game.choice dispatcher.
+   if(window.ctForgePriority?.isManaPayment || window.ctForgePriority?.isHandChoice)return true;
+   if((window.ctForgeSelection?.legalTargets||[]).length)return true;
+   const selection=window.ctForgeSelection?.selectionInfo;
+   return !!selection && Number(selection.min||0)>0 &&
+     (selection.cards||[]).some(c=>!c.actionable);
+ };
  const text=value=>String(value?.message||value||'Forge did not respond');
  const isCasting=payload=>payload?.action==='castById'||
    payload?.action==='castCommander'||payload?.action==='castSelected';
@@ -114,6 +123,8 @@
    retryPanel=null;
    recoveryBusy=false;
    resumeRecovery.style.display='block';
+   window.ctFullscreenTargets?.refresh?.();
+   window.ctForgeRequiredAction?.refresh?.();
  }
  function renderPanel(message){
    lastFailure=message;
@@ -154,6 +165,8 @@
            return;
          }
          clearPanel();
+         window.ctFullscreenTargets?.refresh?.();
+         window.ctForgeRequiredAction?.refresh?.();
        }catch(error){
          renderPanel('Unable to reopen the required Forge decision: '+text(error)+'. Refresh status to try again.');
        }
@@ -191,6 +204,8 @@
      window.ctReceiveForgeState?.(response.game);
      window.ctForgePriority?.refresh?.();
      window.ctForgeSelection?.refresh?.();
+     window.ctFullscreenTargets?.refresh?.();
+     window.ctForgeRequiredAction?.refresh?.();
      if(hasRequiredChoice()){
        recoveryBusy=false;
        renderPanel('Forge is waiting for a required choice. Open that choice to continue.');
@@ -208,6 +223,8 @@
      unknownResult=false;
      cancellationPending=false;
      clearPanel();
+     window.ctFullscreenTargets?.refresh?.();
+     window.ctForgeRequiredAction?.refresh?.();
      window.solPodNotice?.('Forge status refreshed. Review the stack and card zone before trying another action.','info','forge-recovered');
      return true;
    }catch(error){
