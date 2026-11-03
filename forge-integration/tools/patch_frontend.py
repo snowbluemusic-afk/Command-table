@@ -1739,6 +1739,63 @@ v33=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-ux-v033.js').read_tex
 assert 'sol-pod-ux-v033' in v33 and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+v33+'\n</script></body>')
 
+
+# v0.34: keep original Forge hand indices and card IDs unchanged while sorting
+# only the visual hand presentation. Never sort during mulligan or an active
+# choice/discard prompt: positions and choices must remain stable to the player.
+old_hand='const hand=me.hand.map((n,i)=>{'
+assert source.count(old_hand)==1, 'Hand renderer changed'
+new_hand="""const mayRankHand=app.nativeMatch&&g.phase!=='mulligan'&&!g.autoPilot&&
+  !window.ctForgeChoice?.hasPending&&!window.ctForgePriority?.isHandChoice&&
+  !app.pendingCast&&!/discard|mulligan|choose|order|target/i.test(
+    String(window.ctForgeSelection?.prompt||''));
+ const handOrder=me.hand.map((n,i)=>({n,i,ready:mayRankHand&&
+   !!window.ctForgeSelection?.isLegalCard?.(me.handForgeIds?.[i])}));
+ if(mayRankHand)handOrder.sort((a,b)=>Number(b.ready)-Number(a.ready)||a.i-b.i);
+ const hand=handOrder.map(({n,i},visualIndex)=>{"""
+source=source.replace(old_hand,new_hand)
+tilt='const c=card(n),offset=i-(me.hand.length-1)/2;'
+assert source.count(tilt)==1
+source=source.replace(tilt,'const c=card(n),offset=visualIndex-(me.hand.length-1)/2;')
+# Existing card actions keep value:String(i) and dragIndex:i, where i is the
+# original hand index. --order should follow visual position, not Forge index.
+original_style='--order:'+chr(36)+'{i}'
+assert source.count(original_style)==1
+source=source.replace(original_style,'--order:'+chr(36)+'{visualIndex}')
+# Replace the duplicate "Enlarge hand" chrome with one tappable YOUR HAND
+# button (with count) alongside Zones; compact hand tray becomes cards only.
+old_toggle='<button type="button" class="sol-hand-toggle" data-action="toggleHandZoom" aria-pressed="'+chr(36)+'{!!app.handZoom}">'+chr(36)+'{app.handZoom?"✕ Hide hand":"▤ Enlarge hand"}</button>'
+assert source.count(old_toggle)==1, 'v0.33 external hand toggle changed'
+new_toggle='<button type="button" class="sol-hand-toggle sol-hand-pill" data-action="toggleHandZoom" aria-label="Toggle expanded hand" aria-pressed="'+chr(36)+'{!!(app.handZoom||(g.phase==="mulligan"&&me.hand.length>0&&!app.mulliganHandClosed))}">▤ YOUR HAND <b>'+chr(36)+'{me.hand.length}</b> '+chr(36)+'{(app.handZoom||(g.phase==="mulligan"&&me.hand.length>0&&!app.mulliganHandClosed))?"✕":"⤢"}</button>'
+source=source.replace(old_toggle,new_toggle)
+old_count='<span class="sol-hand-count">YOUR HAND <b>'+chr(36)+'{me.hand.length}</b></span>'
+assert source.count(old_count)==1
+source=source.replace(old_count,'<span class="sol-hand-hint">Tap to inspect · Open to cast</span>')
+# Let YOUR HAND collapse a mulligan hand too; start with it expanded until the
+# player explicitly closes it. Reset the preference after the mulligan phase.
+old_mulligan='g.phase==="mulligan"&&me.hand.length>0?"ct10-hand-mulligan":""'
+assert source.count(old_mulligan)==1
+source=source.replace(old_mulligan,
+ 'g.phase==="mulligan"&&me.hand.length>0&&!app.mulliganHandClosed?"ct10-hand-mulligan":""')
+old_action="case 'toggleHandZoom':app.handZoom=!app.handZoom;app.modal='';render();break;"
+assert source.count(old_action)==1
+source=source.replace(old_action,
+ "case 'toggleHandZoom':if(app.game?.phase==='mulligan'){app.mulliganHandClosed=!app.mulliganHandClosed;app.handZoom=false;}else{app.handZoom=!app.handZoom;app.mulliganHandClosed=false;}app.modal='';render();break;")
+# Clear the one-match collapsed mulligan state after normal play begins.
+view_marker='const g=app.game;if(!g)return home();'
+assert source.count(view_marker)==1
+source=source.replace(view_marker,view_marker+"if(g.phase!=='mulligan')app.mulliganHandClosed=false;")
+
+# Source of the tutorial can be stale because previous releases instructed
+# users to use a standalone button, now replaced by the YOUR HAND pill.
+old_help='Use Enlarge hand beside Zones to browse cards. Press Hide hand to return to the board.'
+assert source.count(old_help)==1
+source=source.replace(old_help,
+ 'Tap YOUR HAND beside Zones to browse your cards. Tap it again to return to the board.')
+v34=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-ux-v034.js').read_text()
+assert 'sol-pod-ux-v034' in v34 and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+v34+'\n</script></body>')
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')

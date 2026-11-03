@@ -52,6 +52,7 @@ jobs:
           node tests/verify-sol-pod-v031.cjs 2>&1 | tee recovery-logs/sol-pod-v031.txt
           node tests/verify-sol-pod-v032.cjs 2>&1 | tee recovery-logs/sol-pod-v032.txt
           node tests/verify-sol-pod-v033.cjs 2>&1 | tee recovery-logs/sol-pod-v033.txt
+          node tests/verify-sol-pod-v034.cjs 2>&1 | tee recovery-logs/sol-pod-v034.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Fetch pinned Forge engine and Android source
         run: |
@@ -82,12 +83,13 @@ jobs:
         run: |
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html
           node tests/verify-commandtable-recovery.cjs /tmp/forge/forge-gui-android/assets/command-table.html
+          node tests/verify-sol-pod-v034.cjs /tmp/forge/forge-gui-android/assets/command-table.html
       - name: Check Command Table JavaScript and native gameplay handoff
         run: |
           python3 - <<'PY'
           import pathlib, re, subprocess
           doc=pathlib.Path('/tmp/forge/forge-gui-android/assets/command-table.html').read_text()
-          checks=['ctHydrateForgeState','ctFocusActiveOpponent','solPodPermanentRows','solPodRoster','sol-pod-board-v027','sol-pod-ui-v028','sol-pod-layout-v029','sol-pod-notifications-v029','sol-pod-hub-v030','sol-pod-ux-v031','sol-pod-ux-v032','sol-pod-ux-v033','sol-hand-toggle','ct-forge-decision-sheet','solPodHub','solPodNotice','zoomBoardRow','confirmDeleteDeck','SOL POD','game.prompt','ct-forge-priority-buttons','window.ctForgeCards',
+          checks=['ctHydrateForgeState','ctFocusActiveOpponent','solPodPermanentRows','solPodRoster','sol-pod-board-v027','sol-pod-ui-v028','sol-pod-layout-v029','sol-pod-notifications-v029','sol-pod-hub-v030','sol-pod-ux-v031','sol-pod-ux-v032','sol-pod-ux-v033','sol-pod-ux-v034','sol-hand-toggle','sol-hand-pill','ct-forge-decision-sheet','solPodHub','solPodNotice','zoomBoardRow','confirmDeleteDeck','SOL POD','game.prompt','ct-forge-priority-buttons','window.ctForgeCards',
                   'if(app.nativeMatch && app.view','ctNativeActionValue(act,v)']
           for check in checks:
               assert check in doc, 'Native integration missing: '+check
