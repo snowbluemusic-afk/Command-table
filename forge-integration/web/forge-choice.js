@@ -9,7 +9,7 @@
   let inFlight = false;
   let answerGeneration=0;
   let needsVerification=false;
-  const forcedChoicesSubmitted=new Set();
+
   const view = document.createElement('section');
   view.id = 'ct-forge-decision-sheet';
   view.setAttribute('role', 'dialog');
@@ -77,10 +77,9 @@
         : selected.length < current.max ? [...selected,index] : selected;
     }
     paint();
-    // One legal pick: the card/option tap IS confirmation. No second
-    // full-screen confirm step unless Forge actually requested more picks.
-    if (current && selected.length===1 && current.min===1 && current.max===1 &&
-        (current.mode==='single'||current.mode==='multiple') && !current.confirm) void answer(false);
+    // A tap selects the option; Confirm choice submits it. Do not
+    // immediately close the modal on a single choice: that can look like a
+    // disappearing popup, and gives the player no chance to review or undo.
   }
   function move(index, delta) {
     if (inFlight || !isOrder()) return;
