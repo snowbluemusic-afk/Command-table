@@ -6,6 +6,7 @@ import forge.game.player.PlayerView;
 import forge.game.spellability.StackItemView;
 import forge.gamemodes.match.HostedMatch;
 import forge.gamemodes.match.input.InputPassPriority;
+import forge.gamemodes.match.input.InputLondonMulligan;
 import forge.gui.FThreads;
 import forge.player.PlayerControllerHuman;
 
@@ -47,6 +48,33 @@ public final class CommandTableForgeInput {
             human().selectCard(card, Collections.emptyList(), null);
         });
     }
+    /**
+     * Forge InputLondonMulligan.getSelection() deliberately publishes only
+     * the ALREADY CHOSEN cards, not the selectable hand. Therefore the normal
+     * Selection-based picker cannot display any unchosen candidates.
+     * Expose a dedicated, strictly guarded tap for this specific input.
+     * Forge still owns the count, toggle, ordering and actual zone change.
+     */
+    public void chooseMulliganBottomCard(int cardId) {
+        FThreads.invokeInEdtAndWait(() -> {
+            final var current = human().getInputProxy().getInput();
+            if (!(current instanceof InputLondonMulligan)) {
+                throw new IllegalStateException(
+                    "Forge is no longer asking you to put mulligan cards on the bottom");
+            }
+            CardView selected = null;
+            for (CardView card : view().getPlayers().get(0).getHand()) {
+                if (card.getId() == cardId) { selected = card; break; }
+            }
+            if (selected == null) {
+                throw new IllegalArgumentException("Selected card is not in your current hand");
+            }
+            if (!human().selectCard(selected, Collections.emptyList(), null)) {
+                throw new IllegalStateException("Forge rejected this mulligan card selection");
+            }
+        });
+    }
+
     /**
      * A Cast button must not report success if Forge rejected its selected
      * card. InputPassPriority owns timing and all spell/land permissions.
