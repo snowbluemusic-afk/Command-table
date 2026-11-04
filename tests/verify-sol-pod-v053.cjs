@@ -9,7 +9,7 @@ assert(required.includes("d.attachment?'Choose attachment target'"));
 assert(required.includes("(d.attachment?'Attach to ':'')"));
 assert(required.includes("d.kind==='cards'&&!d.attachment"));
 assert(patch.includes('sol-pod-build-v053.js'));
-assert(build.includes("window.SOL_POD_BUILD='0.55.0'"));
+assert(build.includes("window.SOL_POD_BUILD='0.56.0'"));
 class E{
  constructor(tag='div'){this.tagName=tag.toUpperCase();this.children=[];this.dataset={};
   this.style={};this.id='';this.className='';this.textContent='';this.attributes={};
@@ -58,7 +58,7 @@ options.children[0].onclick();
   'Tapping the named legal target must send exactly its Forge object ID');
  if(process.argv[2]){
   const html=read(process.argv[2]);
-  assert(html.includes("SOL_POD_BUILD='0.55.0'") &&
+  assert(html.includes("SOL_POD_BUILD='0.56.0'") &&
    html.includes("d.attachment?'Choose attachment target'"),
    'Compiled Android UI must include v0.53 attachment action and build marker');
  }
