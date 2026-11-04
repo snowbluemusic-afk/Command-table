@@ -275,7 +275,11 @@
        // A response timeout tells us nothing about whether Forge committed
        // the operation. Require a snapshot before another cast attempt.
        if(error?.code==='FORGE_TIMEOUT')unknownResult=true;
-       showError(error,error?.code==='FORGE_TIMEOUT'?
+       // Expected combat input transitions are handled inline by the
+       // dedicated blocker planner, not a second full-screen recovery modal.
+       const combat=payload?.action==='combat.block'||payload?.action==='confirmBlocks';
+       if(!combat || error?.code==='FORGE_TIMEOUT')
+        showError(error,error?.code==='FORGE_TIMEOUT'?
          'Sol Pod response timed out — do not repeat the action yet':'Sol Pod rejected the action');
      }
      throw error;

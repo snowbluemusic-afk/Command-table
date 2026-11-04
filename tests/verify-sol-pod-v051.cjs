@@ -21,9 +21,9 @@ assert(native.includes('"combat.block".equals(action)') &&
  native.includes('"combat.attack".equals(action)') &&
  native.includes('"mulligan.bottom.select".equals(action)'),
  'Combat/mulligan input must be on the native INTERACTIVE worker');
-assert(input.includes('human().selectCard(attacker, Collections.emptyList(), null)') &&
- input.includes('human().selectCard(blocker, Collections.emptyList(), null)'),
- 'Forge InputBlock owns exact attacker-before-blocker selection');
+assert(input.includes('blockInput.selectCard(attacker, Collections.emptyList(), null)') &&
+ input.includes('blockInput.selectCard(blocker, Collections.emptyList(), null)'),
+ 'Forge active InputBlock must receive the exact attacker-before-blocker selection');
 assert(planner.includes("action:'combat.block'") &&
  planner.includes("window.CommandTableNative.request('game.snapshot')"),
  'Planner must mutate and verify via Forge only');
@@ -85,7 +85,7 @@ const opponent={forgeId:2,battlefield:[
 ]};
 const app={nativeMatch:true,view:'game',modal:null,game:{
  phase:'combat',phaseDetail:'COMBAT_DECLARE_BLOCKERS',turn:8,winner:null,gameOver:false,
- legalBlockersReady:true,legalBlockers:{'901':[101,102],'902':[101,102]},
+ legalBlockersReady:true,blockInputActive:true,legalBlockers:{'901':[101,102],'902':[101,102]},
  players:[own,opponent],combat:[
   {cardId:901,cardName:'Dragon',defenderId:1,blockerIds:[]},
   {cardId:902,cardName:'Wolf',defenderId:1,blockerIds:[]}
@@ -102,10 +102,10 @@ const win={app,ctForgeSafety:{recoveryVisible:false},
    const attack=app.game.combat.find(a=>a.cardId===p.value.attackerId);
    const ids=attack.blockerIds;const k=ids.indexOf(p.value.blockerId);
    if(k>=0)ids.splice(k,1);else ids.push(p.value.blockerId);
-   return {accepted:true};
+   return {blockApplied:k<0};
   }
   if(type==='game.command'&&p.action==='confirmBlocks'){
-   confirmed++;app.game.phaseDetail='COMBAT_DAMAGE';return {accepted:true};
+   confirmed++;app.game.phaseDetail='COMBAT_DAMAGE';app.game.blockInputActive=false;return {blockDecisionAccepted:true};
   }
   if(type==='game.snapshot')return {game:app.game};
   return {accepted:true};

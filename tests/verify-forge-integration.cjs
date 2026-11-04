@@ -337,8 +337,8 @@ assert(selectionUi.includes('selectionVersion++') &&
   'Selection must publish versioned legal players and targets to gesture controller');
 assert(forgeInput.includes('public void attackWith(int attackerId, int defenderId)') &&
        forgeInput.includes('human().selectPlayer(defender, null)') &&
-       forgeInput.includes('public void blockWith(int attackerId, int blockerId)') &&
-       forgeInput.includes('human().selectCard(attacker, Collections.emptyList(), null)') &&
+       forgeInput.includes('public boolean blockWith(int attackerId, int blockerId)') &&
+       forgeInput.includes('blockInput.selectCard(attacker, Collections.emptyList(), null)') &&
        overlay.includes('case "combat.attack":') &&
        overlay.includes('case "combat.block":'),
   'Combat operations must use correct Forge InputAttack/InputBlock ordering');
