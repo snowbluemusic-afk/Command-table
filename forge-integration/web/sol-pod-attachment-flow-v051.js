@@ -32,7 +32,13 @@
  }
  document.addEventListener('click',event=>{
   if(!window.app?.nativeMatch||window.app?.view!=='game'||busy)return;
-  const element=event.target.closest?.('.ct-native-permanent-action [data-action="cardId"]');
+  // Both the compact inspection panel and the large Full details modal
+  // expose an Activate control. The large modal uses a different wrapper;
+  // intercept BOTH to avoid losing the target prompt behind that modal.
+  const element=event.target.closest?.(
+   '.ct-native-permanent-action [data-action="cardId"],'+
+   '.ct-native-activated-action [data-action="cardId"]'
+  );
   if(!element)return;
   const id=Number(element.getAttribute('data-value'));
   const card=window.app?.game?.players?.[0]?.battlefield?.find(
