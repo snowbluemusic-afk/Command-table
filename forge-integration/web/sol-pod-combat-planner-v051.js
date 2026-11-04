@@ -140,6 +140,17 @@
   return [...result.entries()].map(([key,cards])=>({key,cards}));
  };
  const chosen=()=>attacks().find(a=>Number(a.cardId)===Number(selectedAttacker));
+ const legalFor=attackerId=>{
+  const game=state();
+  if(!game?.legalBlockersReady)return null;
+  const ids=game.legalBlockers?.[String(attackerId)];
+  return Array.isArray(ids)?new Set(ids.map(Number)):new Set();
+ };
+ const bounded=(promise,label,ms=10000)=>new Promise((resolve,reject)=>{
+  const timeout=setTimeout(()=>reject(new Error(label+' did not respond. Refresh Sol Pod status before retrying.')),ms);
+  Promise.resolve(promise).then(v=>{clearTimeout(timeout);resolve(v);},
+   error=>{clearTimeout(timeout);reject(error);});
+ });
  const assignedTo=id=>attacks().filter(a=>(a.blockerIds||[])
    .some(b=>Number(b)===Number(id)));
  const notice=(txt,problem=false)=>{
@@ -147,7 +158,7 @@
   status.style.color=problem?'#ffad9e':'#ffe0a7';
  };
  const getArt=name=>{try{return window.ctCardArtUrl?.(name)||'';}catch(_){return '';}};
- function tile(card,id,subtitle,pressed,fn){
+ function tile(card,id,subtitle,pressed,fn,allowed=true){
   const b=create('button','sol-block-card');
   b.type='button';b.dataset.selected=String(pressed);
   b.setAttribute('aria-pressed',String(pressed));
@@ -156,7 +167,7 @@
   const words=create('span');
   words.append(create('strong',null,titleCard(card,id)),
     create('small',null,subtitle));
-  b.append(art,words);b.onclick=fn;b.disabled=busy||uncertain;
+  b.append(art,words);b.onclick=fn;b.disabled=busy||uncertain||!allowed;
   return b;
  }
  function suggested(attacker,creatures){
@@ -176,7 +187,9 @@
    if(Number.isFinite(at)&&Number.isFinite(bp))score-=Math.abs(bp-at)*.2;
    return score;
   };
-  return creatures.filter(c=>!c.tapped&&!assignedTo(c.forgeId).length)
+  const legal=legalFor(attacker.cardId);
+  if(!legal)return [];
+  return creatures.filter(c=>legal.has(Number(c.forgeId))&&!c.tapped&&!assignedTo(c.forgeId).length)
     .sort((a,b)=>score(b)-score(a)||Number(a.forgeId)-Number(b.forgeId))
     .slice(0,3);
  }
@@ -186,15 +199,20 @@
   const blocker=own()?.battlefield?.find(c=>Number(c.forgeId)===Number(blockerId)&&c.creature);
   if(!attacker||!blocker){notice('That attacker or blocker is no longer on the battlefield.',true);return;}
   const previously=(attacker.blockerIds||[]).some(id=>Number(id)===Number(blockerId));
+  const legal=legalFor(attackerId);
+  if(!previously&&(!legal||!legal.has(Number(blockerId)))){
+   notice(legal?'That creature cannot legally block this attacker.':'Checking blocker legality. Refresh the game state.',true);
+   return;
+  }
   busy=true;notice((previously?'Removing':'Assigning')+' '+blocker.name+'…');
   paint();
   try{
-   await window.CommandTableNative.request('game.command',{
+   await bounded(window.CommandTableNative.request('game.command',{
     action:'combat.block',value:{attackerId,blockerId}
-   });
+   }),'Block assignment',10000);
    let confirmed=false,next=null;
    for(let i=0;i<5;i++){
-    const raw=await window.CommandTableNative.request('game.snapshot');
+    const raw=await bounded(window.CommandTableNative.request('game.snapshot'),'Combat snapshot',7000);
     next=raw?.game;
     const updated=(next?.combat||[]).find(a=>Number(a.cardId)===Number(attackerId));
     if(updated && (updated.blockerIds||[]).some(id=>Number(id)===Number(blockerId))!==previously){
