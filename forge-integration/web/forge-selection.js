@@ -416,7 +416,7 @@
       // InputPassPriority in the same named phase must be handled separately,
       // and must not replay a phantom "confirm blocks" action.
       const phase=String(window.app?.game?.phaseDetail||'');
-      const combatPriority=ok && /COMBAT_DECLARE_BLOCKERS/.test(phase) &&
+      const combatPriority=ok && /^COMBAT_/.test(phase) &&
         window.app?.game?.blockInputActive!==true &&
         window.app?.game?.humanInput==='InputPassPriority';
       await window.CommandTableNative.request('game.command',{
@@ -437,16 +437,20 @@
     const otherChoiceOpen=!!forgeChoice && forgeChoice.style.display!=='none';
     const handChoice=!!window.ctForgePriority?.isHandChoice;
     const game=window.app?.game;
+    const combatPhase=/^COMBAT_/.test(String(game?.phaseDetail||''));
     const combatBlockPhase=/COMBAT_DECLARE_BLOCKERS/.test(String(game?.phaseDetail||''));
     const inputName=String(game?.humanInput||'');
+    const incomingAttack=(game?.combat||[]).some(attack=>
+      Number(attack.defenderId)===Number(game?.players?.[0]?.forgeId));
     // A missing input is a transitional state, not a reason to hide every
     // possible control. Present a safe, read-only refresh in this state.
-    const waitingForInput=combatBlockPhase &&
+    const waitingForInput=combatPhase && incomingAttack &&
       !game?.blockInputActive && ['','none','transitioning','InputLockUI'].includes(inputName);
     const active=!!window.app?.nativeMatch &&
       window.app?.view==='game' && game?.winner===null && !window.app?.modal &&
       !window.app?.sideInspect && !otherChoiceOpen &&
-      (!!buttonState.enable1||!!buttonState.enable2||handChoice||combatBlockPhase);
+      (!!buttonState.enable1||!!buttonState.enable2||handChoice||
+        (combatPhase && (incomingAttack||inputName==='InputPassPriority'||game?.blockInputActive===true)));
     decision.classList.toggle('ct-forge-hand-choice',handChoice);
     // A single small dock owns Forge buttons. Never mount a full-width
     // secondary prompt or cover the enlarged card browser.
@@ -487,7 +491,7 @@
     const inAttack=/ATTACKERS/.test(String(game?.phaseDetail||'').toUpperCase());
     const inBlockPhase=/BLOCKERS/.test(String(game?.phaseDetail||'').toUpperCase());
     const inBlock=inBlockPhase && game?.blockInputActive===true;
-    const blockPriority=inBlockPhase && !inBlock && game?.humanInput==='InputPassPriority';
+    const blockPriority=combatPhase && !inBlock && game?.humanInput==='InputPassPriority';
     const confirmedAttackers=Array.isArray(game?.combat)?game.combat.length:0;
     const confirmedBlockers=Array.isArray(game?.combat)?
       new Set(game.combat.flatMap(attack=>attack.blockerIds||[])).size:0;
@@ -506,8 +510,8 @@
         (window.ctForgePriority?.handInstruction||'Choose cards · Press Confirm'))
       : pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
-      : inAttack?'Choose attackers · tap glowing creatures':
-        blockPriority?'Block declaration complete · pass priority to continue combat':
+      : blockPriority?'You have priority during combat · pass to continue':
+        inAttack?'Choose attackers · tap glowing creatures':
         inBlock?('Use Block Planner: choose an incoming attacker, then assign blockers. '+combatCount+' blocks confirmed'+
           (blockerNames.length?' · '+blockerNames.slice(0,3).join(', '):'')+
           (pendingAssignments?' · '+pendingAssignments+' processing…':'')):
@@ -534,7 +538,7 @@
       return;
     }
     if(blockPriority){
-      decisionText.textContent='You have priority after blockers. Continue to combat damage, or play an instant before passing.';
+      decisionText.textContent='You have priority during combat. Play an instant or pass to continue.';
       const pass=document.createElement('button');
       pass.type='button';pass.textContent=busy?'Passing…':'Pass priority';
       pass.disabled=busy||syncBusy;
