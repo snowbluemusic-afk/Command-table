@@ -97,7 +97,10 @@ public final class CommandTableForgeInput {
      */
     public void passCombatPriority() {
         runOnForgeUi(() -> {
-            requirePhase("COMBAT_DECLARE_BLOCKERS");
+            // The human may receive priority after attackers, after blockers,
+            // or during combat damage. Do not hard-code DECLARE_BLOCKERS.
+            if (!String.valueOf(view().getPhase()).startsWith("COMBAT_"))
+                throw new IllegalStateException("Combat has already ended. Refresh Sol Pod.");
             final var active=human().getInputQueue().getInput();
             if (!(active instanceof InputPassPriority))
                 throw new IllegalStateException(
