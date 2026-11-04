@@ -280,7 +280,8 @@ assert(overlay.includes('case "castCommander":') &&
        overlay.includes('commanderInZone(human).getId()') &&
        overlay.includes('c.getId()==wanted'),
   'Commander casting and inspected hand casts must use stable Forge zone IDs');
-assert(frontend.includes("case 'castCommander'")===false &&
+assert(frontend.includes("case 'castCommander'") &&
+       frontend.includes('NATIVE_GAME_COMMANDS') &&
        frontend.includes("'cardId','castCommander','castById'") &&
        frontend.includes("?'castById':act"),
   'Commander actions and cast-by-ID dispatch must use native Forge, not simulator');
