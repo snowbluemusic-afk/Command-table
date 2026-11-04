@@ -47,7 +47,7 @@
       winner:String(snapshot.winner||'')
     };
     if(!previous){
-      push('snapshot','Forge game snapshot received',{turn:current.turn,phase:current.phase,
+      push('snapshot','Sol Pod game snapshot received',{turn:current.turn,phase:current.phase,
         players:players.map(p=>({name:p.name,counts:counts(p)}))});
       previous=current;seenMatch=true;return;
     }
@@ -60,14 +60,14 @@
     for(const p of players){
       const old=previous.players.find(x=>x.id===p.id);
       if(!old){
-        push('seat','Player appeared in Forge state',{player:p.name,counts:counts(p)});
+        push('seat','Player appeared in Sol Pod state',{player:p.name,counts:counts(p)});
         continue;
       }
       for(const k of ['library','graveyard','exile','battlefield','hand','life']){
         if(p[k]!==old[k])push('zone',p.name+' · '+k+' '+old[k]+' → '+p[k],
           {player:p.name,zone:k,from:old[k],to:p[k],delta:p[k]-old[k]});
       }
-      if(!old.lost&&p.lost)push('elimination',p.name+' has lost according to Forge',
+      if(!old.lost&&p.lost)push('elimination',p.name+' has lost according to Sol Pod',
         {player:p.name});
       const oldDamage=old.commanderDamage||{},newDamage=p.commanderDamage||{};
       for(const commander of new Set([...Object.keys(oldDamage),...Object.keys(newDamage)])){
@@ -91,7 +91,7 @@
       if(!nextStack.has(id))push('stack-leave','Left stack: '+item.name,
         {item,note:'Leaving the stack alone does NOT prove it resolved, was countered or was copied.'});
     if(current.gameOver&&!previous.gameOver)
-      push('game-over','Forge declared game over',{winner:current.winner});
+      push('game-over','Sol Pod declared game over',{winner:current.winner});
     previous=current;
   }
   function notice(value){
@@ -104,17 +104,17 @@
       // instruction to pick one of these targets.
       const fingerprint=JSON.stringify(targets.map(t=>[t.kind,t.id]));
       if(fingerprint!==notice.lastTargets){
-        push('target-choice','Forge targets offered',{targets:targets.map(t=>({
+        push('target-choice','Sol Pod targets offered',{targets:targets.map(t=>({
           kind:t.kind,id:t.id,label:t.label,zone:t.zone
         })),chosen:p.chosen||[]});
         notice.lastTargets=fingerprint;
       }
     }else if(type==='game.choice'){
-      push('choice','Forge choice: '+String(p.title||'Make a choice'),
+      push('choice','Sol Pod choice: '+String(p.title||'Make a choice'),
         {id:p.id,mode:p.mode,min:p.min,max:p.max,
           options:(p.options||[]).slice(0,35).map(x=>String(x.label||''))});
     }else if(type==='game.choice.clear'){
-      push('choice-clear','Forge choice completed/cleared',{id:p.choiceId||p.id});
+      push('choice-clear','Sol Pod choice completed/cleared',{id:p.choiceId||p.id});
     }else if(type==='game.notice'){
       const msg=String(p.message||'');
       if(msg)push('forge-notice',msg.slice(0,450));
@@ -136,8 +136,8 @@
   const engine=()=>typeof CommandTableNative!=='undefined'?CommandTableNative:window.CommandTableNative;
   engine()?.onState?.(capture);
   function report(){
-    const header=['Sol Pod Forge rules trace','Observer only — never proof that a trigger fired.',
-      'Native Forge is the rules authority. All changes are observed GameView snapshots.',
+    const header=['Sol Pod rules trace','Observer only — never proof that a trigger fired.',
+      'Native Sol Pod is the rules authority. All changes are observed GameView snapshots.',
       'Snapshots between events may be missed; do not infer card-rule correctness from counts.',
       'Opponent hidden hand and library contents are omitted.',
       ''];
@@ -147,7 +147,7 @@
     try{
       const snapshot=await engine()?.request?.('game.snapshot');
       if(snapshot?.game)capture(snapshot.game);
-    }catch(e){push('sync-warning','Could not refresh final Forge snapshot: '+String(e?.message||e));}
+    }catch(e){push('sync-warning','Could not refresh final Sol Pod snapshot: '+String(e?.message||e));}
     const text=report();
     try{
       if(window.AndroidBridge?.copyText)window.AndroidBridge.copyText(text);
