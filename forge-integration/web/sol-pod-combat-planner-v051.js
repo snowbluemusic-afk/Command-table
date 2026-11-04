@@ -112,9 +112,10 @@
  document.body.append(modal);
  const resume=create('button',null,'🛡 Block planner');
  resume.id='sol-combat-resume';resume.type='button';document.body.append(resume);
- let stage='',shownFor='',selectedAttacker=null,busy=false,uncertain=false;
+ let stage='',shownFor='',selectedAttacker=null,busy=false,uncertain=false,submittedStage='';
  let autoTimer=null,lastMessage='',expandedGroups=new Set();
  const state=()=>window.app?.game;
+ const inputReady=()=>state()?.blockInputActive===true;
  const own=()=>state()?.players?.[0];
  const inStep=()=>!!window.app?.nativeMatch&&window.app?.view==='game'&&
    state()?.winner==null&&!state()?.gameOver&&
@@ -195,6 +196,7 @@
  }
  async function command(attackerId,blockerId){
   if(busy||uncertain||!inStep())return;
+  if(!inputReady()){notice('Forge is not accepting blockers yet. Refresh combat to synchronise.',true);return;}
   const attacker=attacks().find(a=>Number(a.cardId)===Number(attackerId));
   const blocker=own()?.battlefield?.find(c=>Number(c.forgeId)===Number(blockerId)&&c.creature);
   if(!attacker||!blocker){notice('That attacker or blocker is no longer on the battlefield.',true);return;}
@@ -207,9 +209,12 @@
   busy=true;notice((previously?'Removing':'Assigning')+' '+blocker.name+'…');
   paint();
   try{
-   await bounded(window.CommandTableNative.request('game.command',{
+   const result=await bounded(window.CommandTableNative.request('game.command',{
     action:'combat.block',value:{attackerId,blockerId}
    }),'Block assignment',10000);
+   // ACK is backed by live Forge Combat, not a stale InputProxy tap.
+   if(result?.blockApplied!==!previously)
+    throw new Error('Forge did not confirm the blocker change. Refresh combat.');
    let confirmed=false,next=null;
    for(let i=0;i<5;i++){
     const raw=await bounded(window.CommandTableNative.request('game.snapshot'),'Combat snapshot',7000);
@@ -222,8 +227,8 @@
    }
    if(next)window.ctReceiveForgeState?.(next);
    if(!confirmed){
-    uncertain=true;
-    notice('Sol Pod has not confirmed this block. Refresh before making another change.',true);
+    // Live Forge already confirmed. A delayed CombatView is not a failure.
+    notice('Forge accepted the block; refreshing the displayed combat state.');
    }else notice(previously?'Blocker removed. Review other assignments.':
      'Block assigned. You can add more blockers or confirm.');
   }catch(error){
@@ -262,7 +267,7 @@
   if(selected){
    const guide=create('div','sol-block-suggest');
    const legal=legalFor(selected.cardId);
-   const recommended=suggested(selected,creatures);
+   const recommended=inputReady()?suggested(selected,creatures):[];
    if(!legal){
     guide.append(create('b',null,'Checking blocker legality…'),
       create('small',null,'Suggestions are hidden until the rules engine verifies blocks. Use Refresh blocks if needed.'));
@@ -274,14 +279,14 @@
       create('small',null,'Every suggestion is verified by Sol Pod. Ranking uses visible stats only and never auto-assigns.'));
     for(const c of recommended){
      const b=create('button',null,c.name+' · '+stats(c));
-     b.type='button';b.disabled=busy||uncertain;
+     b.type='button';b.disabled=busy||uncertain||!inputReady();
      b.onclick=()=>{void command(selected.cardId,c.forgeId);};
      guide.append(b);
     }
    }
    blocksBody.append(guide);
   }
-  const canUse=(c,a)=>!!a && (
+  const canUse=(c,a)=>inputReady()&&!!a && (
    (a.blockerIds||[]).some(id=>Number(id)===Number(c.forgeId)) ||
    !!legalFor(a.cardId)?.has(Number(c.forgeId))
   );
@@ -310,7 +315,9 @@
      !!selected?.blockerIds?.some(id=>Number(id)===Number(c.forgeId)),
      ()=>{if(selected)void command(selected.cardId,c.forgeId);},canUse(c,selected)));
   }
-  if(!status.textContent)notice('Select an attacker, then choose a blocker. No blocks are also a valid decision.');
+  if(!inputReady())notice('Waiting for Forge to open the actual blocker prompt. Refresh blocks if needed.',true);
+  else if(submittedStage===stage)notice('Forge accepted your block decision. Waiting for combat damage.');
+  else if(!status.textContent)notice('Select an attacker, then choose a blocker. No blocks are also a valid decision.');
   footer.replaceChildren();
   const close=create('button',null,'Review battlefield');
   close.onclick=()=>hide(false);footer.append(close);
@@ -322,18 +329,23 @@
     const snap=await bounded(window.CommandTableNative.request('game.snapshot'),'Combat snapshot',8000);
     if(!snap?.game)throw new Error('Game state is unavailable');
     window.ctReceiveForgeState?.(snap.game);
-    uncertain=false;notice('Assignments refreshed from Sol Pod.');
+    uncertain=false;
+    notice(snap.game.blockInputActive===true?
+      'Assignments refreshed from Forge. You may declare or skip blocks.':
+      'Forge has no active blocker decision. Waiting for the combat step to advance.');
    }catch(e){notice('Unable to refresh blocks: '+(e?.message||e),true);}
    paint();
   };
   footer.append(refresh);
   const count=all.reduce((sum,a)=>sum+(a.blockerIds||[]).length,0);
   const confirm=create('button','sol-primary',
+   submittedStage===stage?'Waiting for combat…':
    count?'Confirm '+count+' blocker'+(count===1?'':'s'):'Skip blocking');
-  confirm.disabled=busy||uncertain||!!window.ctDirectCombat?.pending||
-    !window.ctForgePriority?.canConfirm;
+  confirm.disabled=busy||uncertain||submittedStage===stage||!inputReady()||
+    !!window.ctDirectCombat?.pending||!window.ctForgePriority?.canConfirm;
   confirm.onclick=async()=>{
-   if(busy||uncertain||!inStep()||!window.ctForgePriority?.canConfirm)return;
+   if(busy||uncertain||submittedStage===stage||!inputReady()||
+      !inStep()||!window.ctForgePriority?.canConfirm)return;
    busy=true;
    notice(count?'Confirming the declared blockers…':'Skipping blockers…');
    paint();
@@ -342,23 +354,26 @@
     // Send one explicit native confirmation and bound both awaits.
     if(window.ctDirectCombat?.whenIdle)
      await bounded(window.ctDirectCombat.whenIdle(),'Earlier combat input',6000);
-    await bounded(window.CommandTableNative.request('game.command',{
+    const accepted=await bounded(window.CommandTableNative.request('game.command',{
      action:'confirmBlocks',value:null
     }),'Combat confirmation',10000);
+    if(accepted?.blockDecisionAccepted!==true)
+     throw new Error('Forge did not acknowledge the blocker decision.');
     let advanced=false;
     for(let attempt=0;attempt<5;attempt++){
      const snap=await bounded(window.CommandTableNative.request('game.snapshot'),
        'Combat status',7000);
      if(snap?.game)window.ctReceiveForgeState?.(snap.game);
-     if(!inStep()||window.ctForgeChoice?.hasPending){
+     if(!inStep()||window.ctForgeChoice?.hasPending||snap?.game?.blockInputActive===false){
       advanced=true;break;
      }
      await new Promise(done=>setTimeout(done,180));
     }
-    if(!advanced){
-     uncertain=true;
-     notice('The request was sent but combat has not advanced. Use Refresh blocks to check Sol Pod before retrying.',true);
-    }else notice('Block decision confirmed. Advancing combat.');
+    // Confirmation was accepted by the actual active InputBlock. Never
+    // accidentally confirm the next prompt when its phase is slow to publish.
+    submittedStage=stage;
+    if(!advanced)notice('Forge accepted your decision. Refresh to check the next combat step.');
+    else notice('Block decision accepted by Forge. Advancing combat.');
    }catch(error){
     uncertain=true; // Never silently repeat a possibly accepted native request.
     notice('Could not verify the block decision: '+(error?.message||String(error))+
@@ -386,7 +401,7 @@
     String(own()?.forgeId);
   if(stage!==key){
    stage=key;shownFor='';selectedAttacker=null;lastMessage='';
-   status.textContent='';uncertain=false;expandedGroups.clear();
+   status.textContent='';uncertain=false;submittedStage='';expandedGroups.clear();
   }
   if(modal.dataset.open==='true'){
    // Existing mandatory choices/recovery always own the top interaction.
