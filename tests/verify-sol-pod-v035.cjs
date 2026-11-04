@@ -26,7 +26,7 @@ const checks=[
  ['Mandatory Forge choices block new casting',
   safety.includes('ctForgeChoice?.hasPending')&&safety.includes('ctForgePriority?.isManaPayment')],
  ['Front-end reports rejected and timed-out commands',
-  safety.includes('showError(error,')&&safety.includes('Forge rejected the action')],
+  safety.includes('showError(error,')&&safety.includes('Sol Pod rejected the action')],
  ['Tutorial has 12 steps',patch.includes("['RECOVER FROM ERRORS'")],
  ['Tutorial has blocker-first guidance',patch.includes('Tap YOUR blocker FIRST')],
  ['Tutorial describes stack, activated abilities and Forge recovery',
@@ -95,7 +95,7 @@ vm.runInNewContext(safety,{window:win,document:doc,CommandTableNative:native,Pro
  await assert.rejects(native.request('game.command',{action:'castById',value:12}),/timed out/);
  assert(win.ctForgeSafety.needsRecovery,'Unconfirmed request requires recovery');
  const count=calls.length;
- await assert.rejects(native.request('game.command',{action:'castById',value:12}),/previous Forge action/);
+ await assert.rejects(native.request('game.command',{action:'castById',value:12}),/previous action/);
  assert.equal(calls.length,count,'Unsafe cast must not resubmit after timeout');
  assert(await win.ctForgeSafety.recover(),'Snapshot recovery must work');
  assert(!win.ctForgeSafety.needsRecovery,'Successful refresh releases recovery lock');
