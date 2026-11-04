@@ -130,7 +130,9 @@
     const hint=document.createElement('div');hint.className='ct-cast-hint';
     hint.textContent=source.source==='command'
       ?'Commander tax increases by {2} for each previous command-zone cast. Sol Pod checks the final payable cost, coloured mana, timing and discounts. A commander left in a different zone cannot be recast from the command zone.'
-      :'Sol Pod checks timing, mana, targets and all card rules. Spells resolve after players pass priority.';
+      :/\bAura\b/i.test(type)
+        ?'Cast this Aura, then choose its legal creature or permanent in the full-screen target selector. Simply tapping two cards does not attach an Aura.'
+        :'Sol Pod checks timing, mana, targets and all card rules. Spells resolve after players pass priority.';
     const err=document.createElement('div');err.className='ct-cast-error';
     if(error)err.textContent=error;else err.style.display='none';
     const actions=document.createElement('div');actions.className='ct-cast-actions';
@@ -167,6 +169,9 @@
         // Submit the actual Forge command FIRST. Previously, calling render()
         // before sending it could throw or replace the page and make Cast
         // appear to do nothing without ever reaching the Android bridge.
+        const info=window.ctForgeCards?.[String(choice.name).toLowerCase()]||{};
+        if(/\bAura\b/i.test(String(info.type||'')))
+          window.ctAttachmentFlow?.begin?.({name:choice.name,kind:'aura',sourceId:choice.id});
         request=window.CommandTableNative.request('game.command',{
           action:'castById',value:choice.id
         });
@@ -192,6 +197,7 @@
           window.ctNativeToast?.('Card accepted. Waiting for the next game update.');
         }
       }catch(failure){
+        window.ctAttachmentFlow?.finish?.();
         // Recovery requests (including ambiguous Forge timeouts) own the
         // foreground. Reopening this cast preview would hide the actionable
         // recovery controls and invite a duplicate cast.
