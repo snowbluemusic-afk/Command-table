@@ -173,8 +173,8 @@
     }catch(err) {
       // A failed required selection requires recovery, not a passive log entry.
       if(window.ctForgeSafety?.showError)
-        window.ctForgeSafety.showError(err,'Forge could not select card or target');
-      else window.ctNativeToast?.('Forge selection unavailable: '+(err?.message||String(err)));
+        window.ctForgeSafety.showError(err,'Sol Pod could not select card or target');
+      else window.ctNativeToast?.('Sol Pod selection unavailable: '+(err?.message||String(err)));
       return false;
     }finally{working=false;update();}
   }
@@ -230,8 +230,8 @@
       hasStack&&!(hasCard||hasPlayer)?'spell on stack':
       hasCard&&!(hasPlayer||hasStack)?'card':'target';
     const blockedByRecovery=needsRecovery&&!all.some(isRequiredSelection);
-    title.textContent=(blockedByRecovery?'Refresh Forge before a new action':
-      !declaring?('Choose legal '+category):combatLabel||promptMessage||'Forge choices')+
+    title.textContent=(blockedByRecovery?'Refresh Sol Pod before a new action':
+      !declaring?('Choose legal '+category):combatLabel||promptMessage||'Available choices')+
       ' · '+all.length+(chosen?' · '+chosen+' selected':'');
     // The title is always visible in Game Events. Expand automatically for
     // non-combat target prompts so players are not stuck hunting for a card.
@@ -315,7 +315,7 @@
   const decision=document.createElement('section');
   decision.id='ct-forge-priority-buttons';
   decision.setAttribute('role','group');
-  decision.setAttribute('aria-label','Forge opening and priority decisions');
+  decision.setAttribute('aria-label','Sol Pod opening and priority decisions');
   decision.style.cssText=[
     'position:fixed','left:auto','right:10px',
     'top:auto','bottom:calc(env(safe-area-inset-bottom) + 25dvh)',
@@ -379,8 +379,8 @@
       if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
     }catch(error){
       if(window.ctForgeSafety?.showError)
-        window.ctForgeSafety.showError(error,'Unable to sync Forge required choices');
-      else window.ctNativeToast?.('Unable to sync Forge choices: '+(error?.message||String(error)));
+        window.ctForgeSafety.showError(error,'Unable to sync Sol Pod decisions');
+      else window.ctNativeToast?.('Unable to sync Sol Pod choices: '+(error?.message||String(error)));
     }finally{
       syncBusy=false;
       paintDecision();
@@ -402,8 +402,8 @@
       return true;
     }catch(err){
       if(window.ctForgeSafety?.showError)
-        window.ctForgeSafety.showError(err,'Forge could not apply your decision');
-      else window.ctNativeToast?.('Forge decision rejected: '+(err?.message||String(err)));
+        window.ctForgeSafety.showError(err,'Sol Pod could not apply your decision');
+      else window.ctNativeToast?.('Sol Pod decision rejected: '+(err?.message||String(err)));
       return false;
     }finally{busy=false;paintDecision();}
   }
@@ -483,7 +483,7 @@
       /^cancel$/i.test(String(buttonState.label2).trim());
     if(manaPayment && !buttonState.enable1 && !handChoice){
       decisionText.textContent='Pay mana: tap an untapped land or mana-producing artifact on your battlefield. '+
-        'Auto becomes available when Forge finds a valid payment.';
+        'Auto becomes available when Sol Pod finds a valid payment.';
     }
     buttons.replaceChildren();
     for(const [label,enabled,ok] of [
@@ -539,7 +539,7 @@
       buttons.append(skip);
     }
     if(inBlock && window.ctDirectCombat?.needsRecovery){
-      decisionText.textContent='Combat response timed out. Refresh the Forge state and review blocks before confirming.';
+      decisionText.textContent='Combat response timed out. Refresh the Sol Pod state and review blocks before confirming.';
       const recover=document.createElement('button');
       recover.type='button';
       recover.textContent='↻ Refresh combat';
