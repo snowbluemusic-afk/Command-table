@@ -43,11 +43,10 @@ assert(patch.includes("forge-simple-cast.js") &&
        patch.includes("restoring predictable tap-to-preview") &&
        !patch.includes("Hand index/value render changed"),
   'One-tap casting must be removed in favour of centred full-card preview');
-assert(choice.includes("current.options?.length===1") &&
-       choice.includes("!current.allowSkip && !current.confirm") &&
-       choice.includes("current.min===1 && current.max===1") &&
+assert(!choice.includes("forcedChoicesSubmitted.add(current.id)") &&
+       choice.includes("Confirm choice") &&
        !choice.includes("game.command',{action:'resolve'"),
-  'Only uniquely mandatory Forge choices may auto-advance; priority must not auto-pass');
+  'Mandatory player decisions stay visible until explicit confirmation; priority must not auto-pass');
 assert(priority.includes("if(inBlock&&!ok)continue") &&
        priority.includes("No blocks") &&
        priority.includes("Attack all"),
