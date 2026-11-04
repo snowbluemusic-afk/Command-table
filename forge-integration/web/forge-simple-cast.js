@@ -129,8 +129,8 @@
     const rules=document.createElement('div');rules.className='ct-cast-rules';rules.textContent=fullText;
     const hint=document.createElement('div');hint.className='ct-cast-hint';
     hint.textContent=source.source==='command'
-      ?'Commander tax increases by {2} for each previous command-zone cast. Forge checks the final payable cost, coloured mana, timing and discounts. A commander left in a different zone cannot be recast from the command zone.'
-      :'Forge checks timing, mana, targets and all card rules. Spells resolve after players pass priority.';
+      ?'Commander tax increases by {2} for each previous command-zone cast. Sol Pod checks the final payable cost, coloured mana, timing and discounts. A commander left in a different zone cannot be recast from the command zone.'
+      :'Sol Pod checks timing, mana, targets and all card rules. Spells resolve after players pass priority.';
     const err=document.createElement('div');err.className='ct-cast-error';
     if(error)err.textContent=error;else err.style.display='none';
     const actions=document.createElement('div');actions.className='ct-cast-actions';
@@ -173,15 +173,15 @@
         hide();
         if(window.app){window.app.sideInspect=null;window.app.modal='';}
         try{window.render?.();}catch(renderError){
-          window.ctNativeToast?.('Card sent to Forge; refreshing board failed: '+
+          window.ctNativeToast?.('Card submitted; refreshing the board failed: '+
             (renderError?.message||String(renderError)));
         }
         watchdog=setTimeout(()=>{
-          window.ctNativeToast?.('Forge is still processing '+choice.name+
+          window.ctNativeToast?.('Sol Pod is still processing '+choice.name+
             '. Check for a mana, target or ability choice.');
         },7000);
         await request;
-        window.ctNativeToast?.('Forge selected '+choice.name+
+        window.ctNativeToast?.('Sol Pod selected '+choice.name+
           '. Complete any mana or target choices; players can respond.');
         // Snapshot refresh is best-effort. A transient snapshot error MUST
         // NOT be misreported as a failed cast after Forge accepted the command.
@@ -189,14 +189,14 @@
           const snapshot=await window.CommandTableNative.request('game.snapshot');
           if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
         }catch(refreshError){
-          window.ctNativeToast?.('Forge accepted the card. Waiting for the next game update.');
+          window.ctNativeToast?.('Card accepted. Waiting for the next game update.');
         }
       }catch(failure){
         // Recovery requests (including ambiguous Forge timeouts) own the
         // foreground. Reopening this cast preview would hide the actionable
         // recovery controls and invite a duplicate cast.
         if(window.ctForgeSafety?.recoveryVisible){hide();return;}
-        const message='Forge could not cast this card: '+(failure?.message||String(failure));
+        const message='Sol Pod could not cast this card: '+(failure?.message||String(failure));
         open(choice,message);
         window.ctNativeToast?.(message);
         window.announce?.(message);
@@ -243,7 +243,7 @@
             if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
             window.ctForgePriority?.refresh?.();
           }catch(error){
-            say('Forge could not select this hand card: '+(error?.message||String(error)));
+            say('Sol Pod could not select this hand card: '+(error?.message||String(error)));
           }
         });
         return;
@@ -258,7 +258,7 @@
       event.preventDefault();event.stopImmediatePropagation();
       if(!card){
         const name=currentPlayer()?.commander||'Your commander';
-        say(name+' is in '+commanderLocation()+', not the command zone. A command-zone recast is available only after Forge moves it there.');
+        say(name+' is in '+commanderLocation()+', not the command zone. A command-zone recast is available only after Sol Pod moves it there.');
         return;
       }
       open(card);return;
