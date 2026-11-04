@@ -244,7 +244,7 @@ public final class CommandTableOverlay {
         show();
         try {
             PlayerView human=game.getPlayers().get(0);
-            Map<String,Object> snapshot = CommandTableGameProjection.snapshot(game,human);
+            Map<String,Object> snapshot = CommandTableGameProjection.snapshot(game,human,match==null?null:match.getGame());
             JSONObject gameJson=new JSONObject(snapshot);
             String id=pendingStart;
             if (id!=null) {
@@ -466,7 +466,11 @@ public final class CommandTableOverlay {
                     else if("stack".equals(parts[0]))bridge.selectStack(Integer.parseInt(parts[1]));
                     else throw new IllegalArgumentException("Invalid target type");
                     break;
-                case "resolve":case "toCombat":case "endTurn":case "confirmBlocks":
+                case "confirmBlocks":
+                    // Do not allow an old blocker dialog to pass priority after
+                    // the native InputBlock has already finished.
+                    bridge.confirmBlocks();break;
+                case "resolve":case "toCombat":case "endTurn":
                 case "attack":case "continueCpu":
                     bridge.confirm();break;
                 case "targetPlayer":
@@ -623,7 +627,7 @@ public final class CommandTableOverlay {
                                 respond(id,false,null,"Sol Pod is preparing the Commander game");
                             else {
                                 Map<String,Object> state=CommandTableGameProjection.snapshot(
-                                    current.getGameView(),current.getGameView().getPlayers().get(0));
+                                    current.getGameView(),current.getGameView().getPlayers().get(0),current.getGame());
                                 respond(id,true,new JSONObject().put("game",new JSONObject(state)),null);
                             }
                             break;

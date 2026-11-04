@@ -76,6 +76,8 @@ function ctHydrateForgeState(raw) {
     stack:(Array.isArray(raw.stack)?raw.stack:[]).map((item,i)=>
       typeof item==='string'?{id:i,name:item}:item),
     combat:Array.isArray(raw.combat)?raw.combat:[],
+    legalBlockers:raw.legalBlockers||{},
+    legalBlockersReady:raw.legalBlockersReady===true,
     pending:null, waiting:null, log:[], autoPilot:false, autoPaused:false,
     gameOver:!!raw.gameOver, outcome:raw.gameOver ? (raw.outcome||'draw') : null,
     winner:raw.gameOver ? (raw.winner || 'Draw') : null

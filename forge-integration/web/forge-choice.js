@@ -202,6 +202,8 @@
     sheet.append(heading);
     const desc = current.commanderDestination
       ?'Choose where your commander goes. Sol Pod will apply the zone-change rule; this decision cannot be made for you.'
+      : current.mode==='allocation' && current.combatDamage
+      ? 'Assign damage to the legal recipients. Power is attack strength; toughness is resistance. Sol Pod checks lethal damage ordering, deathtouch and trample.'
       : current.mode==='order'
       ? 'Arrange these cards in the required order.'
       : current.mode==='multiple'
@@ -221,10 +223,20 @@
         'Total to distribute: '+total+' '+(current.unit||'points'),
         'color:#e8cd9e;font-size:13px;font-weight:700;margin-bottom:8px');
       list.append(summary);
+      if(current.combatDamage){
+        const source=el('div',null,
+          'Damage source · '+String(current.sourcePower??'?')+
+          '/'+String(current.sourceToughness??'?')+' (power / toughness)',
+          'color:#f6d393;font:700 13px system-ui;margin:0 0 8px;padding:8px;border:1px solid #9c865e;border-radius:8px');
+        list.append(source);
+      }
       for(let i=0;i<opts.length;i++){
         const label=opts[i]?.label==='null'?'Defending player':opts[i]?.label||('Target '+(i+1));
         const line=el('label',null,'display:flex;gap:10px;align-items:center;padding:8px;border:1px solid #536b72;border-radius:10px');
-        const name=el('span',label,'flex:1;font-size:13px;overflow-wrap:anywhere');
+        const stats=current.combatDamage && Number.isFinite(Number(opts[i]?.power))
+          && Number.isFinite(Number(opts[i]?.toughness))
+          ?' · '+opts[i].power+'/'+opts[i].toughness+' P/T':'';
+        const name=el('span',label+stats,'flex:1;font-size:13px;overflow-wrap:anywhere');
         const input=el('input');
         input.type='number';input.min=String(minimum);input.max=String(total);input.step='1';
         input.value=assigned[i]===null?'':String(assigned[i]??minimum);

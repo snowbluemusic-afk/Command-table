@@ -1,4 +1,4 @@
-/* Sol Pod v0.51: dedicated human blocker assignment surface.
+/* Sol Pod v0.52: dedicated human blocker assignment surface.
  * A read-only CombatView supplies existing assignments. Every mutation is a
  * single Forge game.command combat.block and must be confirmed by GameView.
  * Suggested blocks rank readable stats only and are NEVER auto-applied.
@@ -140,6 +140,17 @@
   return [...result.entries()].map(([key,cards])=>({key,cards}));
  };
  const chosen=()=>attacks().find(a=>Number(a.cardId)===Number(selectedAttacker));
+ const legalFor=attackerId=>{
+  const game=state();
+  if(!game?.legalBlockersReady)return null;
+  const ids=game.legalBlockers?.[String(attackerId)];
+  return Array.isArray(ids)?new Set(ids.map(Number)):new Set();
+ };
+ const bounded=(promise,label,ms=10000)=>new Promise((resolve,reject)=>{
+  const timeout=setTimeout(()=>reject(new Error(label+' did not respond. Refresh Sol Pod status before retrying.')),ms);
+  Promise.resolve(promise).then(v=>{clearTimeout(timeout);resolve(v);},
+   error=>{clearTimeout(timeout);reject(error);});
+ });
  const assignedTo=id=>attacks().filter(a=>(a.blockerIds||[])
    .some(b=>Number(b)===Number(id)));
  const notice=(txt,problem=false)=>{
@@ -147,7 +158,7 @@
   status.style.color=problem?'#ffad9e':'#ffe0a7';
  };
  const getArt=name=>{try{return window.ctCardArtUrl?.(name)||'';}catch(_){return '';}};
- function tile(card,id,subtitle,pressed,fn){
+ function tile(card,id,subtitle,pressed,fn,allowed=true){
   const b=create('button','sol-block-card');
   b.type='button';b.dataset.selected=String(pressed);
   b.setAttribute('aria-pressed',String(pressed));
@@ -156,7 +167,7 @@
   const words=create('span');
   words.append(create('strong',null,titleCard(card,id)),
     create('small',null,subtitle));
-  b.append(art,words);b.onclick=fn;b.disabled=busy||uncertain;
+  b.append(art,words);b.onclick=fn;b.disabled=busy||uncertain||!allowed;
   return b;
  }
  function suggested(attacker,creatures){
@@ -176,7 +187,9 @@
    if(Number.isFinite(at)&&Number.isFinite(bp))score-=Math.abs(bp-at)*.2;
    return score;
   };
-  return creatures.filter(c=>!c.tapped&&!assignedTo(c.forgeId).length)
+  const legal=legalFor(attacker.cardId);
+  if(!legal)return [];
+  return creatures.filter(c=>legal.has(Number(c.forgeId))&&!c.tapped&&!assignedTo(c.forgeId).length)
     .sort((a,b)=>score(b)-score(a)||Number(a.forgeId)-Number(b.forgeId))
     .slice(0,3);
  }
@@ -186,15 +199,20 @@
   const blocker=own()?.battlefield?.find(c=>Number(c.forgeId)===Number(blockerId)&&c.creature);
   if(!attacker||!blocker){notice('That attacker or blocker is no longer on the battlefield.',true);return;}
   const previously=(attacker.blockerIds||[]).some(id=>Number(id)===Number(blockerId));
+  const legal=legalFor(attackerId);
+  if(!previously&&(!legal||!legal.has(Number(blockerId)))){
+   notice(legal?'That creature cannot legally block this attacker.':'Checking blocker legality. Refresh the game state.',true);
+   return;
+  }
   busy=true;notice((previously?'Removing':'Assigning')+' '+blocker.name+'…');
   paint();
   try{
-   await window.CommandTableNative.request('game.command',{
+   await bounded(window.CommandTableNative.request('game.command',{
     action:'combat.block',value:{attackerId,blockerId}
-   });
+   }),'Block assignment',10000);
    let confirmed=false,next=null;
    for(let i=0;i<5;i++){
-    const raw=await window.CommandTableNative.request('game.snapshot');
+    const raw=await bounded(window.CommandTableNative.request('game.snapshot'),'Combat snapshot',7000);
     next=raw?.game;
     const updated=(next?.combat||[]).find(a=>Number(a.cardId)===Number(attackerId));
     if(updated && (updated.blockerIds||[]).some(id=>Number(id)===Number(blockerId))!==previously){
@@ -241,18 +259,32 @@
   if(!creatures.length){
    blocksBody.append(create('p',null,'No creatures available on your battlefield. You can skip blocking.'));
   }
-  if(selected && creatures.length){
+  if(selected){
    const guide=create('div','sol-block-suggest');
-   guide.append(create('b',null,'Suggested matches by power/toughness (optional)'),
-     create('small',null,'These are only suggestions based on visible stats, not guaranteed legal blocks. Sol Pod checks flying, menace, tapped status and all other rules.'));
-   for(const c of suggested(selected,creatures)){
-    const b=create('button',null,c.name+' · '+stats(c));
-    b.type='button';b.disabled=busy||uncertain;
-    b.onclick=()=>{void command(selected.cardId,c.forgeId);};
-    guide.append(b);
+   const legal=legalFor(selected.cardId);
+   const recommended=suggested(selected,creatures);
+   if(!legal){
+    guide.append(create('b',null,'Checking blocker legality…'),
+      create('small',null,'Suggestions are hidden until the rules engine verifies blocks. Use Refresh blocks if needed.'));
+   }else if(!recommended.length){
+    guide.append(create('b',null,'No eligible unassigned blockers'),
+      create('small',null,'Flying or another rule may prevent blocks. You may choose another attacker or skip.'));
+   }else {
+    guide.append(create('b',null,'Suggested legal blockers (optional)'),
+      create('small',null,'Every suggestion is verified by Sol Pod. Ranking uses visible stats only and never auto-assigns.'));
+    for(const c of recommended){
+     const b=create('button',null,c.name+' · '+stats(c));
+     b.type='button';b.disabled=busy||uncertain;
+     b.onclick=()=>{void command(selected.cardId,c.forgeId);};
+     guide.append(b);
+    }
    }
    blocksBody.append(guide);
   }
+  const canUse=(c,a)=>!!a && (
+   (a.blockerIds||[]).some(id=>Number(id)===Number(c.forgeId)) ||
+   !!legalFor(a.cardId)?.has(Number(c.forgeId))
+  );
   for(const group of visible){
    const cards=group.cards;
    if(cards.length>=3 && cards[0].token){
@@ -267,7 +299,7 @@
       'Token #'+(i+1)+(c.tapped?' · tapped':'')+
       (assignedTo(c.forgeId).length?' · assigned':''),
       !!selected?.blockerIds?.some(id=>Number(id)===Number(c.forgeId)),
-      ()=>{if(selected)void command(selected.cardId,c.forgeId);})));
+      ()=>{if(selected)void command(selected.cardId,c.forgeId);},canUse(c,selected))));
     details.append(body);
     details.addEventListener('toggle',()=>{if(details.open)expandedGroups.add(group.key);
       else expandedGroups.delete(group.key);});
@@ -276,7 +308,7 @@
      stats(c)+(c.tapped?' · tapped':'')+
      (assignedTo(c.forgeId).length?' · blocking '+assignedTo(c.forgeId).map(a=>a.cardName).join(', '):''),
      !!selected?.blockerIds?.some(id=>Number(id)===Number(c.forgeId)),
-     ()=>{if(selected)void command(selected.cardId,c.forgeId);}));
+     ()=>{if(selected)void command(selected.cardId,c.forgeId);},canUse(c,selected)));
   }
   if(!status.textContent)notice('Select an attacker, then choose a blocker. No blocks are also a valid decision.');
   footer.replaceChildren();
@@ -286,8 +318,8 @@
   refresh.disabled=busy;
   refresh.onclick=async()=>{
    try{
-    const result=await window.CommandTableNative.request('engine.status');
-    const snap=await window.CommandTableNative.request('game.snapshot');
+    await bounded(window.CommandTableNative.request('engine.status'),'Sol Pod status',8000);
+    const snap=await bounded(window.CommandTableNative.request('game.snapshot'),'Combat snapshot',8000);
     if(!snap?.game)throw new Error('Game state is unavailable');
     window.ctReceiveForgeState?.(snap.game);
     uncertain=false;notice('Assignments refreshed from Sol Pod.');
@@ -301,15 +333,37 @@
   confirm.disabled=busy||uncertain||!!window.ctDirectCombat?.pending||
     !window.ctForgePriority?.canConfirm;
   confirm.onclick=async()=>{
-   if(busy||uncertain||!inStep())return;
-   busy=true;notice('Confirming the declared blockers…');paint();
+   if(busy||uncertain||!inStep()||!window.ctForgePriority?.canConfirm)return;
+   busy=true;
+   notice(count?'Confirming the declared blockers…':'Skipping blockers…');
+   paint();
    try{
-    await window.ctDirectCombat?.whenIdle?.();
-    const accepted=await window.ctForgePriority?.confirm?.();
-    if(accepted===false)throw new Error('Sol Pod did not accept the confirmation');
-    notice('Confirmation sent. Applying the next combat step…');
-   }catch(error){notice('Could not finish declaring blockers: '+(error?.message||error),true);}
-   finally{busy=false;paint();}
+    // The old route waited indefinitely for the phase-control wrapper.
+    // Send one explicit native confirmation and bound both awaits.
+    if(window.ctDirectCombat?.whenIdle)
+     await bounded(window.ctDirectCombat.whenIdle(),'Earlier combat input',6000);
+    await bounded(window.CommandTableNative.request('game.command',{
+     action:'confirmBlocks',value:null
+    }),'Combat confirmation',10000);
+    let advanced=false;
+    for(let attempt=0;attempt<5;attempt++){
+     const snap=await bounded(window.CommandTableNative.request('game.snapshot'),
+       'Combat status',7000);
+     if(snap?.game)window.ctReceiveForgeState?.(snap.game);
+     if(!inStep()||window.ctForgeChoice?.hasPending){
+      advanced=true;break;
+     }
+     await new Promise(done=>setTimeout(done,180));
+    }
+    if(!advanced){
+     uncertain=true;
+     notice('The request was sent but combat has not advanced. Use Refresh blocks to check Sol Pod before retrying.',true);
+    }else notice('Block decision confirmed. Advancing combat.');
+   }catch(error){
+    uncertain=true; // Never silently repeat a possibly accepted native request.
+    notice('Could not verify the block decision: '+(error?.message||String(error))+
+      '. Refresh the game before retrying.',true);
+   }finally{busy=false;paint();}
   };
   footer.append(confirm);
   resume.style.display='none';

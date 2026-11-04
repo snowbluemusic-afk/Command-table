@@ -27,7 +27,7 @@ assert(input.includes('human().selectCard(attacker, Collections.emptyList(), nul
 assert(planner.includes("action:'combat.block'") &&
  planner.includes("window.CommandTableNative.request('game.snapshot')"),
  'Planner must mutate and verify via Forge only');
-assert(planner.includes('Suggested matches by power/toughness (optional)') &&
+assert(planner.includes('Suggested legal blockers (optional)') && planner.includes('legalFor') &&
  !planner.includes("action:'autoBlocks'"),
  'Suggestions must be visual only, never automatic assignments');
 assert(target.includes("window.ctAttachmentFlow?.current?.()") &&
@@ -85,6 +85,7 @@ const opponent={forgeId:2,battlefield:[
 ]};
 const app={nativeMatch:true,view:'game',modal:null,game:{
  phase:'combat',phaseDetail:'COMBAT_DECLARE_BLOCKERS',turn:8,winner:null,gameOver:false,
+ legalBlockersReady:true,legalBlockers:{'901':[101,102],'902':[101,102]},
  players:[own,opponent],combat:[
   {cardId:901,cardName:'Dragon',defenderId:1,blockerIds:[]},
   {cardId:902,cardName:'Wolf',defenderId:1,blockerIds:[]}
@@ -102,6 +103,9 @@ const win={app,ctForgeSafety:{recoveryVisible:false},
    const ids=attack.blockerIds;const k=ids.indexOf(p.value.blockerId);
    if(k>=0)ids.splice(k,1);else ids.push(p.value.blockerId);
    return {accepted:true};
+  }
+  if(type==='game.command'&&p.action==='confirmBlocks'){
+   confirmed++;app.game.phaseDetail='COMBAT_DAMAGE';return {accepted:true};
   }
   if(type==='game.snapshot')return {game:app.game};
   return {accepted:true};
@@ -129,7 +133,19 @@ assert(blockerItems.children.some(x=>x.tagName==='DETAILS'),
 const suggestions=blockerItems.children.find(x=>x.className==='sol-block-suggest');
 assert(suggestions?.children.length>=2,'Optional suggested matches should be visible');
 assert.equal(calls.length,0,'Suggestions must not auto-assign blocks');
-const bear=blockerItems.children.find(x=>x.className==='sol-block-card'&&
+// A flying attacker with no matching reach/flying defender must NOT show
+// a clickable blocker or an invented suggested legal match.
+app.game.legalBlockers['901']=[];
+win.ctCombatPlanner.sync();
+const noLegal=columns.children[1].children[1];
+const grounded=noLegal.children.find(x=>x.className==='sol-block-card'&&
+ x.children[1]?.children?.[0]?.textContent==='Bear');
+assert(grounded?.disabled,'Non-flyer must not be offered as a legal blocker of a flying creature');
+assert(noLegal.children.find(x=>x.className==='sol-block-suggest')?.textContent!==undefined,
+ 'No-legal-blockers message must remain visible');
+app.game.legalBlockers['901']=[101,102];
+win.ctCombatPlanner.sync();
+const bear=columns.children[1].children[1].children.find(x=>x.className==='sol-block-card'&&
  x.children[1]?.children?.[0]?.textContent==='Bear');
 assert(bear,'Individual non-token blocker missing');
 bear.onclick();
@@ -148,6 +164,8 @@ bear.onclick();
  skip.onclick();
  for(let i=0;i<7;i++)await Promise.resolve();
  assert.equal(confirmed,1,'Skip requires explicit player action on native button');
+ assert(calls.some(x=>x.type==='game.command'&&x.p.action==='confirmBlocks'),
+   'Skip must submit one native confirmation, not rely on stale priority UI');
  // Test the token presentation layer independently, with exact card nodes.
  app.game.phase='main1';app.game.phaseDetail='MAIN1';
  const lane=new E('div');lane.className='ct10-lane ct10-creatures ct10-lane-own';

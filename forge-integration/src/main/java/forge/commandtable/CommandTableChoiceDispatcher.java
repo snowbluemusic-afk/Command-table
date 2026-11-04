@@ -127,7 +127,14 @@ public final class CommandTableChoiceDispatcher {
             } else {
                 entry.put("label", description(value, display));
             }
-            if (value instanceof CardView card) entry.put("cardId", card.getId());
+            if (value instanceof CardView card) {
+                entry.put("cardId", card.getId());
+                if(Boolean.TRUE.equals(extras == null ? null : extras.get("combatDamage"))
+                        && card.getCurrentState() != null) {
+                    entry.put("power", card.getCurrentState().getPower());
+                    entry.put("toughness", card.getCurrentState().getToughness());
+                }
+            }
             if (value instanceof PlayerView player) entry.put("playerId", player.getId());
             entries.add(entry);
         }
@@ -345,6 +352,11 @@ public final class CommandTableChoiceDispatcher {
                 extras.put("amount", damage);
                 extras.put("minEach", 0);
                 extras.put("unit", "combat damage");
+                extras.put("combatDamage", true);
+                if(a[0] instanceof CardView source && source.getCurrentState() != null) {
+                    extras.put("sourcePower", source.getCurrentState().getPower());
+                    extras.put("sourceToughness", source.getCurrentState().getToughness());
+                }
                 extras.put("allowSkip", Boolean.TRUE.equals(a[5]));
                 Response result = waitFor("allocation", "Assign " + damage + " combat damage from "
                         + text(a[0]), targets, 0, targets.size(), null, extras);

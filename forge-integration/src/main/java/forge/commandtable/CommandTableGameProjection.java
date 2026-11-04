@@ -1,6 +1,11 @@
 package forge.commandtable;
 
 import forge.game.GameView;
+import forge.game.Game;
+import forge.game.card.Card;
+import forge.game.combat.Combat;
+import forge.game.combat.CombatUtil;
+import forge.game.player.Player;
 import forge.game.combat.CombatView;
 import forge.game.GameEntityView;
 import forge.game.card.CardView;
@@ -46,7 +51,7 @@ public final class CommandTableGameProjection {
         catch (NullPointerException notInitialized) { return false; }
     }
 
-    public static Map<String, Object> snapshot(GameView game, PlayerView local) {
+    public static Map<String, Object> snapshot(GameView game, PlayerView local, Game liveGame) {
         if (game == null || local == null) {
             throw new IllegalArgumentException("Game and local player must be supplied");
         }
@@ -186,6 +191,31 @@ public final class CommandTableGameProjection {
             attacks.add(attack);
         }
         out.put("combat",attacks);
+        Map<String,Object> candidatesByAttacker = new LinkedHashMap<>();
+        boolean candidatesReady = false;
+        if(liveGame != null && "COMBAT_DECLARE_BLOCKERS".equals(String.valueOf(game.getPhase()))) {
+            try {
+                Combat realCombat = liveGame.getCombat();
+                Player defender = liveGame.getPlayer(local.getId());
+                if(realCombat != null && defender != null) {
+                    for(Card attacker : realCombat.getAttackers()) {
+                        if(!defender.equals(realCombat.getDefenderPlayerByAttacker(attacker))) continue;
+                        List<Integer> legal = new ArrayList<>();
+                        for(Card blocker : defender.getCreaturesInPlay()) {
+                            if(realCombat.isBlocking(blocker,attacker) ||
+                                CombatUtil.canBlock(attacker,blocker,realCombat))
+                                legal.add(blocker.getId());
+                        }
+                        candidatesByAttacker.put(String.valueOf(attacker.getId()),legal);
+                    }
+                    candidatesReady = true;
+                }
+            } catch(RuntimeException phaseTransition) {
+                candidatesByAttacker.clear();
+            }
+        }
+        out.put("legalBlockers", candidatesByAttacker);
+        out.put("legalBlockersReady", candidatesReady);
         return out;
     }
 
