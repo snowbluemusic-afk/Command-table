@@ -90,6 +90,23 @@ public final class CommandTableForgeInput {
         runOnForgeUi(() -> human().selectButtonOk());
     }
     /**
+     * Forge may skip declaring blockers altogether while remaining in
+     * COMBAT_DECLARE_BLOCKERS for the normal priority window. An OK during
+     * that window is NOT a blocker confirmation. Address only the actual
+     * InputPassPriority (not a stale asynchronously updated InputProxy).
+     */
+    public void passCombatPriority() {
+        runOnForgeUi(() -> {
+            requirePhase("COMBAT_DECLARE_BLOCKERS");
+            final var active=human().getInputQueue().getInput();
+            if (!(active instanceof InputPassPriority))
+                throw new IllegalStateException(
+                    "No combat priority decision is active (" + inputName() +
+                    "). Refresh the game to see the current decision.");
+            active.selectButtonOK();
+        });
+    }
+    /**
      * A late blocker confirmation must not consume priority or advance a
      * different prompt after Forge has already left the blocker step.
      */
