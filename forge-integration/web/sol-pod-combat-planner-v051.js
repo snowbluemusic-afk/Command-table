@@ -281,6 +281,10 @@
    }
    blocksBody.append(guide);
   }
+  const canUse=(c,a)=>!!a && (
+   (a.blockerIds||[]).some(id=>Number(id)===Number(c.forgeId)) ||
+   !!legalFor(a.cardId)?.has(Number(c.forgeId))
+  );
   for(const group of visible){
    const cards=group.cards;
    if(cards.length>=3 && cards[0].token){
@@ -295,7 +299,7 @@
       'Token #'+(i+1)+(c.tapped?' · tapped':'')+
       (assignedTo(c.forgeId).length?' · assigned':''),
       !!selected?.blockerIds?.some(id=>Number(id)===Number(c.forgeId)),
-      ()=>{if(selected)void command(selected.cardId,c.forgeId);})));
+      ()=>{if(selected)void command(selected.cardId,c.forgeId);},canUse(c,selected))));
     details.append(body);
     details.addEventListener('toggle',()=>{if(details.open)expandedGroups.add(group.key);
       else expandedGroups.delete(group.key);});
@@ -304,7 +308,7 @@
      stats(c)+(c.tapped?' · tapped':'')+
      (assignedTo(c.forgeId).length?' · blocking '+assignedTo(c.forgeId).map(a=>a.cardName).join(', '):''),
      !!selected?.blockerIds?.some(id=>Number(id)===Number(c.forgeId)),
-     ()=>{if(selected)void command(selected.cardId,c.forgeId);}));
+     ()=>{if(selected)void command(selected.cardId,c.forgeId);},canUse(c,selected)));
   }
   if(!status.textContent)notice('Select an attacker, then choose a blocker. No blocks are also a valid decision.');
   footer.replaceChildren();
