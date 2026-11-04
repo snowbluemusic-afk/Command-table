@@ -259,15 +259,25 @@
   if(!creatures.length){
    blocksBody.append(create('p',null,'No creatures available on your battlefield. You can skip blocking.'));
   }
-  if(selected && creatures.length){
+  if(selected){
    const guide=create('div','sol-block-suggest');
-   guide.append(create('b',null,'Suggested matches by power/toughness (optional)'),
-     create('small',null,'These are only suggestions based on visible stats, not guaranteed legal blocks. Sol Pod checks flying, menace, tapped status and all other rules.'));
-   for(const c of suggested(selected,creatures)){
-    const b=create('button',null,c.name+' · '+stats(c));
-    b.type='button';b.disabled=busy||uncertain;
-    b.onclick=()=>{void command(selected.cardId,c.forgeId);};
-    guide.append(b);
+   const legal=legalFor(selected.cardId);
+   const recommended=suggested(selected,creatures);
+   if(!legal){
+    guide.append(create('b',null,'Checking blocker legality…'),
+      create('small',null,'Suggestions are hidden until the rules engine verifies blocks. Use Refresh blocks if needed.'));
+   }else if(!recommended.length){
+    guide.append(create('b',null,'No eligible unassigned blockers'),
+      create('small',null,'Flying or another rule may prevent blocks. You may choose another attacker or skip.'));
+   }else {
+    guide.append(create('b',null,'Suggested legal blockers (optional)'),
+      create('small',null,'Every suggestion is verified by Sol Pod. Ranking uses visible stats only and never auto-assigns.'));
+    for(const c of recommended){
+     const b=create('button',null,c.name+' · '+stats(c));
+     b.type='button';b.disabled=busy||uncertain;
+     b.onclick=()=>{void command(selected.cardId,c.forgeId);};
+     guide.append(b);
+    }
    }
    blocksBody.append(guide);
   }
