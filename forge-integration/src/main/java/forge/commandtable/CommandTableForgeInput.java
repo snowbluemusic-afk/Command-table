@@ -2,6 +2,8 @@ package forge.commandtable;
 
 import forge.game.GameView;
 import forge.game.card.CardView;
+import forge.game.card.Card;
+import forge.game.combat.Combat;
 import forge.game.player.PlayerView;
 import forge.game.spellability.StackItemView;
 import forge.gamemodes.match.HostedMatch;
@@ -94,10 +96,29 @@ public final class CommandTableForgeInput {
     public void confirmBlocks() {
         runOnForgeUi(() -> {
             requirePhase("COMBAT_DECLARE_BLOCKERS");
-            if (!(human().getInputProxy().getInput() instanceof InputBlock))
-                throw new IllegalStateException("There is no active blocker choice. Refresh combat.");
-            human().selectButtonOk();
+            // InputProxy updates on a POSTED UI callback; it can still expose
+            // the previous prompt while the actual InputQueue already owns
+            // InputBlock. The queue itself is Forge's source of truth.
+            final var active = human().getInputQueue().getInput();
+            if (!(active instanceof InputBlock input))
+                throw new IllegalStateException(
+                    "Blocker input is not active (queue=" + inputName() +
+                    "). Refresh combat to follow the current game step.");
+            // Address the exact active input; a stale proxy OK must never
+            // target InputLockUI or the next priority decision instead.
+            input.selectButtonOK();
+            if (human().getInputQueue().getInput() == input)
+                throw new IllegalStateException(
+                    "Forge did not accept the block decision. Check combat restrictions.");
         });
+    }
+
+    public boolean blockInputActive() {
+        return human().getInputQueue().getInput() instanceof InputBlock;
+    }
+    public String inputName() {
+        final var current = human().getInputQueue().getInput();
+        return current == null ? "none" : current.getClass().getSimpleName();
     }
     public void cancel() {
         // The Forge GL/EDT may currently be busy resolving an ability or
@@ -212,18 +233,48 @@ public final class CommandTableForgeInput {
      * Forge InputBlock requires the incoming attacker BEFORE the blocker.
      * This permits different defenders for each attack and multiple blocks.
      */
-    public void blockWith(int attackerId, int blockerId) {
+    /**
+     * Assign/toggle a block in the ACTUAL synchronized InputBlock instance.
+     * The old two-tap route went through InputProxy, whose asynchronously
+     * updated pointer can disagree with the active InputQueue; a request could
+     * ACK while the live combat state remained untouched.
+     *
+     * The returned boolean is the post-action Forge Combat assignment state,
+     * never a prediction based on frontend legality or a delayed GameView.
+     */
+    public boolean blockWith(int attackerId, int blockerId) {
+        AtomicReference<Boolean> result = new AtomicReference<>();
         runOnForgeUi(() -> {
             requirePhase("COMBAT_DECLARE_BLOCKERS");
-            CardView attacker = findCard(attackerId);
-            CardView blocker = findCard(blockerId);
-            if (attacker == null || blocker == null)
+            final var queued = human().getInputQueue().getInput();
+            if (!(queued instanceof InputBlock blockInput))
+                throw new IllegalStateException(
+                    "Cannot block: Forge input queue currently holds " + inputName() +
+                    ", not a blocker decision. Refresh combat.");
+            CardView attackerView = findCard(attackerId);
+            CardView blockerView = findCard(blockerId);
+            if (attackerView == null || blockerView == null)
                 throw new IllegalArgumentException("The attacker or blocker is no longer visible");
-            if (!human().selectCard(attacker, Collections.emptyList(), null))
-                throw new IllegalArgumentException("Sol Pod rejected the selected attacker");
-            if (!human().selectCard(blocker, Collections.emptyList(), null))
-                throw new IllegalArgumentException("Sol Pod rejected the blocker assignment");
+            Card attacker = human().getCard(attackerView);
+            Card blocker = human().getCard(blockerView);
+            Combat combat = human().getGame().getCombat();
+            if (attacker == null || blocker == null || combat == null ||
+                !combat.isAttacking(attacker))
+                throw new IllegalArgumentException("This attacker or blocker has left combat");
+            boolean wasBlocking = combat.isBlocking(blocker, attacker);
+            if (!blockInput.selectCard(attacker, Collections.emptyList(), null))
+                throw new IllegalArgumentException("Forge did not accept the attacking creature");
+            if (!blockInput.selectCard(blocker, Collections.emptyList(), null))
+                throw new IllegalArgumentException("Forge rejected the blocker as illegal");
+            boolean nowBlocking = combat.isBlocking(blocker, attacker);
+            if (wasBlocking == nowBlocking)
+                throw new IllegalStateException(
+                    "Forge did not change the assigned blocker; no action was confirmed.");
+            result.set(nowBlocking);
         });
+        if (result.get() == null)
+            throw new IllegalStateException("No authoritative block assignment was returned");
+        return result.get();
     }
 
     private void requirePhase(String expected) {
