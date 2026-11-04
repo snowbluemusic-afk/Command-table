@@ -343,7 +343,7 @@
     if(window.ctDirectCombat?.whenIdle)
      await bounded(window.ctDirectCombat.whenIdle(),'Earlier combat input',6000);
     await bounded(window.CommandTableNative.request('game.command',{
-     action:'resolve',value:null
+     action:'confirmBlocks',value:null
     }),'Combat confirmation',10000);
     let advanced=false;
     for(let attempt=0;attempt<5;attempt++){
