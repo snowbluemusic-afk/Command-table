@@ -267,6 +267,11 @@
     // Ordinary priority/phase advancement (OK, Cancel, Pass) and combat
     // declaration must remain on the battlefield.
     if(inCombat()&&!mana&&!needCards&&!opening)return null;
+    // Auto-mana is an intentional engine-side action, not a human decision.
+    // When Auto is configured and Forge enables it, the payment will complete
+    // without showing a modal for a split second. Recovery still handles any
+    // request failure.
+    if(mana&&window.ctAutoMana!==false&&buttons.enable1&&!needCards)return null;
     // During startup Forge may publish "mulligan" phase before it publishes
     // any enabled decision buttons. That is LOADING, never a blocking sheet
     // with a generic heading and zero actions.
