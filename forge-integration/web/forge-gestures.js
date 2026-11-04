@@ -34,8 +34,10 @@
   });
   let suppressUntil=0;
   const phase=()=>String(window.app?.game?.phaseDetail||'').toUpperCase();
+  // A COMBAT_DECLARE_BLOCKERS phase may contain only priority, not a
+  // blocker prompt. Forge suppresses InputBlock when no legal blocks exist.
   const mode=()=>/ATTACKERS/.test(phase())?'attack':
-                 /BLOCKERS/.test(phase())?'block':null;
+                 /BLOCKERS/.test(phase())&&window.app?.game?.blockInputActive===true?'block':null;
   const idFromCard=el=>{
     if(!el)return null;
     const raw=String(el.getAttribute('data-value')||'');
