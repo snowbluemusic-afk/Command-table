@@ -9,6 +9,7 @@ const selection=read('forge-integration/web/forge-selection.js');
 const gestures=read('forge-integration/web/forge-gestures.js');
 const frontend=read('forge-integration/tools/patch_frontend.py');
 const native=read('forge-integration/src/main/java/forge/app/CommandTableOverlay.java');
+const input=read('forge-integration/src/main/java/forge/commandtable/CommandTableForgeInput.java');
 const build=read('forge-integration/web/sol-pod-build-v053.js');
 for(const code of [planner,selection,gestures,build])new vm.Script(code);
 assert(planner.includes('const inStep=()=>isBlockPhase()&&inputReady();'),
@@ -28,6 +29,11 @@ assert(selection.includes('const inBlock=inBlockPhase && game?.blockInputActive=
 assert(selection.includes('blockPriority?\'Block declaration complete · pass priority to continue combat\'') &&
        selection.includes("ordinary && blockPriority?'Pass priority'"),
  'Players must get usable Pass priority when blocking was automatically skipped');
+assert(input.includes('public void passCombatPriority()') &&
+       input.includes('active instanceof InputPassPriority') &&
+       native.includes('case "passCombatPriority":') &&
+       selection.includes("combatPriority?'passCombatPriority':'resolve'"),
+ 'Pass priority during skipped blocking must route to the actual InputPassPriority, never InputBlock');
 assert(selection.includes('!waitingForInput') &&
        selection.includes("['none','transitioning']"),
  'The dock must not submit a stale button click while input queue is empty');
