@@ -34,8 +34,10 @@ assert(target.includes("window.ctAttachmentFlow?.current?.()") &&
  target.includes("window.app?.modal==='inspect'"),
  'Required attachment targeting must take priority over stale inspect modal');
 assert(attachment.includes("action:'cardId',value:id") &&
- attachment.includes('event.stopImmediatePropagation()'),
- 'Equipment activation must use native card ID and not double-submit');
+ attachment.includes('event.stopImmediatePropagation()') &&
+ attachment.includes('.ct-native-permanent-action [data-action="cardId"]') &&
+ attachment.includes('.ct-native-activated-action [data-action="cardId"]'),
+ 'Compact and large equipment Activate controls must use native ID without duplicate actions');
 assert(tokens.includes('members.length<4') &&
  tokens.includes('sol-token-collapsed') &&
  tokens.includes('data-value'),
