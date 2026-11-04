@@ -516,6 +516,12 @@ public final class CommandTableOverlay {
                     ("cardId".equals(action) || "permanent".equals(action) ||
                      "selectPlayer".equals(action) || "selectStack".equals(action) ||
                      "chooseCastTarget".equals(action) || "targetPlayer".equals(action) ||
+                     // Must run on INTERACTIVE: these selections are needed
+                     // while the game thread is blocked in InputAttack/Block
+                     // or an attachment/mulligan target prompt. Putting them
+                     // on REQUESTS behind a pending cast causes deadlocks.
+                     "combat.block".equals(action) || "combat.attack".equals(action) ||
+                     "mulligan.bottom.select".equals(action) ||
                      "cancelCastTarget".equals(action) || "resolve".equals(action) ||
                      "confirmBlocks".equals(action) || "endTurn".equals(action) ||
                      "chooseBlock".equals(action))) {

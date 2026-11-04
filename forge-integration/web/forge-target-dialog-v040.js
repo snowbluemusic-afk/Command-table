@@ -12,7 +12,8 @@
     'padding:clamp(6px,1.5vw,16px);box-sizing:border-box;',
     'background:#020710ed;color:#f7e9d1;font-family:system-ui;',
     'pointer-events:auto}',
-    '#ct-fullscreen-targets[data-open="true"]{display:flex}',
+    '#ct-fullscreen-targets[data-open="true"]{display:flex;animation:ct-choice-reveal .17s ease-out .18s both}',
+    '@keyframes ct-choice-reveal{from{opacity:0}to{opacity:1}}',
     '#ct-fullscreen-targets>div{width:min(96vw,1140px);height:min(93dvh,730px);',
     'max-height:93dvh;display:flex;flex-direction:column;min-height:0;',
     'border:2px solid #ddb77b;border-radius:16px;overflow:hidden;',
@@ -105,6 +106,12 @@
     const phase=String(game()?.phaseDetail||'').toUpperCase();
     if(/ATTACKERS|BLOCKERS/.test(phase))return false;
     if(!window.app?.nativeMatch||window.app?.view!=='game'||game()?.winner!==null)return false;
+    // Required targeting takes priority over a stale card inspector.
+    // Closing that read-only preview is not a decision or cast.
+    if(window.app?.modal==='inspect'){
+      window.app.modal='';window.app.sideInspect=null;
+      window.app.inspectForgeId=null;
+    }
     if(window.app?.modal || window.app?.sideInspect)return false;
     if(window.ctForgeChoice?.hasPending || window.ctForgeSafety?.recoveryVisible)return false;
     const sheet=document.getElementById('ct-forge-decision-sheet');
@@ -153,6 +160,7 @@
     const accepted=await action(target.id);
     busy=false;
     if(accepted){
+      window.ctAttachmentFlow?.finish?.();
       // Selection may immediately advance to a SECOND target; if so the
       // version/signature will change and the next prompt should open.
       if(lastSignature===key){dismissed=key;manualReview=false;modal.dataset.open='false';
@@ -166,9 +174,14 @@
     const playerCount=targets.filter(t=>t.kind==='player').length;
     const type=targets.length&&playerCount===targets.length?'player':
       targets.length&&targets.every(t=>t.kind==='card')?'card':'target';
-    title.textContent='Choose '+(type==='player'?'a player':type==='card'?'a card':'a target');
-    subtitle.textContent=String(forge()?.prompt||'')||
-      'Select a legal target for the spell or ability. Sol Pod checks the rules.';
+    const attachment=window.ctAttachmentFlow?.current?.();
+    title.textContent=attachment&&type==='card'
+      ?'Choose a creature to '+(attachment.kind==='aura'?'enchant':'equip')
+      :'Choose '+(type==='player'?'a player':type==='card'?'a card':'a target');
+    subtitle.textContent=attachment&&type==='card'
+      ?'Select a legal target for '+attachment.name+'. Sol Pod will check the targeting and attachment rules.'
+      :String(forge()?.prompt||'')||
+       'Select a legal target for the spell or ability. Sol Pod checks the rules.';
     count.textContent=targets.length+' legal option'+(targets.length===1?'':'s')+
       (chosen.size?' · '+chosen.size+' already selected':'');
     const key=lastSignature;

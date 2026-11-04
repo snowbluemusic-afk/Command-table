@@ -1669,7 +1669,7 @@ for script_name in ('sol-pod-layout-v029.js','sol-pod-notifications-v029.js'):
 render_hook="root.innerHTML=shell(view);syncNativeOrientation();scheduleAuto();if(app.view==='game')window.ctMatchLoading?.ready();if(app.nativeMatch&&app.autoPilot)ctWatchForgeMatch();}"
 assert source.count(render_hook)==1, 'Native render hook changed'
 source=source.replace(render_hook,
-    "root.innerHTML=shell(view);syncNativeOrientation();scheduleAuto();if(app.view==='game')window.ctMatchLoading?.ready();if(app.nativeMatch&&app.autoPilot)ctWatchForgeMatch();window.solPodSyncNotices?.();}")
+    "root.innerHTML=shell(view);syncNativeOrientation();scheduleAuto();if(app.view==='game')window.ctMatchLoading?.ready();if(app.nativeMatch&&app.autoPilot)ctWatchForgeMatch();window.solPodSyncNotices?.();window.solPodGroupTokens?.();window.ctCombatPlanner?.sync?.();}")
 
 # Native in-game notices belong in the single dismissible right rail; suppress
 # the old full-shell notice without affecting import/deck-editor feedback.
@@ -1927,7 +1927,7 @@ guide=r"""const TUTORIAL_STEPS=[
  {title:'Priority and the stack',icon:'ϟ',body:'Phase & Priority is at the lower right; Game Events & Choices is above it. Instants and activated abilities can respond when Forge gives you priority. The stack resolves last-in, first-out after everyone passes.',try:'Use Pass priority when you have nothing to add.'},
  {title:'Activate abilities and sacrifice',icon:'✧',body:'Inspect one of your battlefield permanents and choose Activate ability. Forge checks its cost, legal targets and timing. For a sacrifice ability, the permanent is sacrificed to pay its cost; it does not stay on the battlefield.',try:'Find a card with “Tap:” or “Sacrifice:” in its text.'},
  {title:'Declare attackers',icon:'⚔',body:'At combat, select an eligible attacking creature and the defending player. Glowing cards and attack lines show legal choices. Review your declared attackers before pressing Confirm.',try:'Select an attacker and who it attacks.'},
- {title:'Declare blockers',icon:'♜',body:'Tap YOUR blocker FIRST, then the attacking creature it will block. The selected blocker glows. Repeat for each attack, then Confirm blocks. Skip blocking is a separate action that deliberately declares no blockers.',try:'YOUR blocker → attacking creature → Confirm blocks.'},
+ {title:'Declare blockers',icon:'♜',body:'The Block Planner opens when you defend. Select an incoming attacker and choose which creature blocks it. Review each assignment before confirming or explicitly skipping. Suggested blocks consider basic statistics only and are never applied automatically. Expand token groups to choose individual tokens.',try:'Attacker → blocker → Confirm or Skip.'},
  {title:'Focus a multiplayer pod',icon:'✦',body:'In a three- or four-player pod, the upper battlefield follows the active AI automatically. Players at the upper right lets you inspect another seat. Each AI has its own identifying colour.',try:'Open Players and inspect another opponent.'},
  {title:'Zones and your collection',icon:'♛',body:'Zones opens your commander, library count, graveyard and exile. Battlefield rows can also expand for readable cards. Build, import and delete saved decks from the Decks screen.',try:'Open Zones and look at your graveyard or commander.'},
  {title:'Recover without losing control',icon:'↻',body:'Forge choices appear in Game Events & Choices or a readable decision sheet. Finish or Cancel a pending action before casting again. If something fails or times out, use Refresh game or Cancel pending choice. A timed-out action may still be processing; never blindly send it twice.',try:'Press ? to reopen this guide whenever needed.'}
@@ -1937,7 +1937,7 @@ const LESSONS={
  cast:{title:'Cast with Forge',tag:'HAND & LEGALITY',brief:'Tap YOUR HAND, inspect, then Cast when legal.',detail:TUTORIAL_STEPS[3].body+' '+TUTORIAL_STEPS[4].body,step:3},
  turns:{title:'Priority and the stack',tag:'PHASE & PRIORITY',brief:'Use the controls at the right to respond or advance.',detail:TUTORIAL_STEPS[5].body,step:5},
  attack:{title:'Choose attackers',tag:'COMBAT · ATTACK',brief:'Select your attacker and its defending player.',detail:TUTORIAL_STEPS[7].body,step:7},
- defend:{title:'Block an incoming attack',tag:'COMBAT · BLOCK',brief:'Choose your blocker FIRST, then the attacker.',detail:TUTORIAL_STEPS[8].body,step:8},
+ defend:{title:'Block an incoming attack',tag:'COMBAT · BLOCK',brief:'Use Block Planner to select an attacker and its blocker.',detail:TUTORIAL_STEPS[8].body,step:8},
  response:{title:'Respond to the stack',tag:'STACK & RESPONSES',brief:'Cast an instant or pass priority when Forge allows.',detail:TUTORIAL_STEPS[5].body,step:5},
  target:{title:'Choose legal targets',tag:'TARGETING & ABILITIES',brief:'Use Forge-glowing targets, or cancel the action.',detail:TUTORIAL_STEPS[6].body,step:6},
  watch:{title:'Watch AI players',tag:'WATCH MODE',brief:'The active AI takes focus; Forge owns the rules.',detail:'Watch mode is selected before the game. Game Events explains major actions; the active AI board follows the turn. Press ? for help.',step:9},
@@ -1958,7 +1958,7 @@ images=r"""function tutorialIllustration(step){
   ['PHASE & PRIORITY','YOUR TURN · MAIN','1 ON STACK','PASS PRIORITY'],
   ['ACTIVATE ABILITY','PAY COST','SACRIFICE IF REQUIRED','CHOOSE LEGAL TARGET'],
   ['DECLARE ATTACKERS','YOUR CREATURE → OPPONENT','REVIEW ATTACK LINES','CONFIRM ATTACKERS'],
-  ['DECLARE BLOCKERS','YOUR BLOCKER → ATTACKER','REVIEW BLOCK LINES','CONFIRM / SKIP'],
+  ['DECLARE BLOCKERS','ATTACKER → BLOCKER','REVIEW ASSIGNMENTS','CONFIRM / SKIP'],
   ['PLAYER FOCUS','AI 1 · PURPLE','AI 2 · BLUE','AI 3 · GREEN'],
   ['YOUR ZONES','COMMAND · 1','GRAVEYARD · 0','EXILE · 0'],
   ['RECOVER FROM ERRORS','REFRESH GAME','CANCEL PENDING CHOICE','NEVER BLINDLY RETRY']
@@ -2056,6 +2056,21 @@ final_outcome_hook="  ctFocusActiveOpponent(before,app.game);\n  // The animatio
 assert source.count(final_outcome_hook)==1, 'Match result callback insertion changed'
 source=source.replace(final_outcome_hook,
   "  ctFocusActiveOpponent(before,app.game);\n  window.solPodMatchResult?.onState?.(state);\n  // The animation layer")
+
+# v0.51: the additional UX renders only Forge-owned gameplay state.
+# Token grouping never merges game objects and combat is verified by GameView.
+for script_name, exported in (
+    ('sol-pod-attachment-flow-v051.js','ctAttachmentFlow'),
+    ('sol-pod-token-groups-v051.js','solPodGroupTokens'),
+    ('sol-pod-combat-planner-v051.js','ctCombatPlanner')):
+    script=(Path(__file__).resolve().parent.parent/'web'/script_name).read_text()
+    assert exported in script and source.count('</body>')==1
+    source=source.replace('</body>','<script>\n'+script+'\n</script></body>')
+# Keep separate combat UI updated even before the delayed board repaint.
+combat_hook="  window.solPodMatchResult?.onState?.(state);"
+assert source.count(combat_hook)==1
+source=source.replace(combat_hook,
+    combat_hook+"\n  window.ctCombatPlanner?.sync?.();")
 
 # v0.49 — final presentation-only naming pass, AFTER all anchored v0.15-v0.48
 # patches. Do not rename Forge classes, JavaScript bridge objects, protocol
