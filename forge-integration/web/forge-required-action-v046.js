@@ -453,7 +453,7 @@
     if(d.kind==='mana'||d.kind==='cards')button('Use battlefield',()=>{
       minimized=key;show(false,key);feedback.textContent='';
     });
-    if(!d.enabled && !d.items.length)
+    if(!bottoming && !d.enabled && !d.items.length)
       feedback.textContent='Forge has not enabled a response yet. Check available mana or refresh Forge status.';
   }
   function sync(){
