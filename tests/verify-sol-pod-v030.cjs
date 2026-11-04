@@ -12,7 +12,7 @@ const checks=[
  ['Opening hand wait uses authoritative state, not art or timeout',loading.includes('const requiresInput=')&&loading.includes('hand.length>0')&&loading.includes('hasActionableDecision')&& !loading.includes('elapsed>=3300')],
  ['Play/Draw opening prompt unblocked',priority.includes('get hasActionableDecision()')],
  ['Do not guess dual-land mana eligibility',patch.includes('source=source.replace(old_glow,')&&patch.includes('available:app.nativeMatch?!!window.ctForgeSelection?.isLegalCard?')],
- ['Native card label avoids false Playable claim',html.includes('if(app.nativeMatch)return')&&html.includes('Forge rules · legality checked when cast')],
+ ['Native card label avoids false Playable claim',html.includes('if(app.nativeMatch)return')&&html.includes('Sol Pod checks legality before casting')],
  ['Native cast button explicitly delegates to Forge',patch.includes('Ask Forge to cast')],
  ['Read-only Game Log contains no interactive Forge choice panel',hub.includes("hub.id='sol-pod-hub'")&&!hub.includes("document.getElementById('ct-forge-legal-actions')")],
  ['Mandatory choice is unaffected by clearing history',hub.includes('Log controls never answer, cancel or dismiss a Forge choice')],
@@ -20,7 +20,7 @@ const checks=[
  ['Forge choice stays alongside priority controls',hub.includes('#ct-forge-decision-sheet>div')&&hub.includes('#ct-forge-priority-buttons')],
  ['Multiple blockers can be queued',gestures.includes('selectedBlocker')&&gestures.includes("selectSourceAndTarget(blockerId,{kind:'card',id},'block')")&&gestures.includes('commandQueue=commandQueue.catch(()=>{}).then(task)')],
  ['No stale arrows in current tutorial',!html.includes('Use arrows on the right to cycle opponents')],
- ['Updated Forge commander tutorial',html.includes('Skycloud Expanse')&&html.includes('Forge runs the full Commander rules')],
+ ['Updated Forge commander tutorial',html.includes('Skycloud Expanse')&&html.includes('Sol Pod uses full Commander rules')],
  ['Current blocking instructions',html.includes('select the incoming attacker first')||html.includes('select the incoming attacker then')],
  ['Deck deletion included',patch.includes('confirmDeleteDeck')&&patch.includes('target.prebuilt')],
  ['Main Android package unchanged',read('forge-integration/tools/patch_forge_android.py').includes('com.commandtable.play')]
