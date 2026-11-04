@@ -138,7 +138,7 @@
   backdrop.dataset.open='false';
   backdrop.setAttribute('role','dialog');
   backdrop.setAttribute('aria-modal','true');
-  backdrop.setAttribute('aria-label','Forge requires your decision');
+  backdrop.setAttribute('aria-label','Sol Pod requires your decision');
   const sheet=make('div','ct-required-sheet');
   const heading=make('h2');
   const intro=make('div','ct-required-intro');
@@ -157,7 +157,7 @@
   handViewer.setAttribute('aria-modal','true');
   handViewer.setAttribute('aria-label','Inspect opening-hand card');
   document.body.append(handViewer);
-  const resume=make('button',null,'✦ Continue Forge choice');
+  const resume=make('button',null,'✦ Continue Sol Pod choice');
   resume.id='ct-forge-required-resume';resume.type='button';
   document.body.append(resume);
   let minimized='',key='',submitting=false,lastExplicit='',notice='';
@@ -205,7 +205,7 @@
     const copy=make('div','ct-opening-detail-copy');
     const name=make('h2',null,info.name);
     const meta=make('div',null,[info.manaCost,info.type].filter(Boolean).join(' · '));
-    const rules=make('div','ct-opening-rules',info.rulesText||'Card text is not available in this Forge snapshot.');
+    const rules=make('div','ct-opening-rules',info.rulesText||'Card text is not available in the current game state.');
     const close=make('button',null,'← Back to opening hand');close.type='button';
     close.onclick=closeCardViewer;
     copy.append(name,meta,rules,close);paper.append(art,copy);
@@ -214,11 +214,11 @@
   async function refreshOpeningHand(){
     if(handLoading||!(isKeepMulligan(current)||isBottoming(current)))return;
     handLoading=true;
-    feedback.textContent='Loading your actual opening hand from Forge…';
+    feedback.textContent='Loading your opening hand from Sol Pod…';
     try{
       const result=await window.CommandTableNative?.request?.('game.snapshot');
       if(result?.game)window.ctReceiveForgeState?.(result.game);
-      if(!localHand().length)feedback.textContent='Forge has not exposed your hand yet. Try Refresh hand, or review the game state.';
+      if(!localHand().length)feedback.textContent='Sol Pod has not loaded your hand yet. Try Refresh hand, or review the game state.';
       else feedback.textContent='Your opening hand is ready. Tap any card to inspect it.';
     }catch(error){
       feedback.textContent='Could not load the opening hand: '+(error?.message||String(error));
@@ -238,7 +238,7 @@
     const messages=[buttons.message,buttons.prompt,selector()?.prompt,lastExplicit]
       .filter(Boolean).map(String);
     const prompt=messages.find(v=>/discard|mulligan|bottom|choose|select|pay mana|approve|confirm|sacrifice|exile|return/i.test(v))
-      ||messages[0]||'Forge requires your choice';
+      ||messages[0]||'Sol Pod requires your choice';
     const label1=String(buttons.label1||'OK');
     const label2=String(buttons.label2||'Cancel');
     const mana=/^auto$/i.test(label1.trim()) && /^cancel$/i.test(label2.trim());
@@ -298,54 +298,54 @@
          (ok && (current.remaining!==0 || !current.buttons.enable1)) ||
          (!ok && !current.buttons.enable2))))return;
     submitting=true;
-    feedback.textContent='Sending your decision to Forge…';
+    feedback.textContent='Sending your decision to Sol Pod…';
     paint();
     const answered=ok ? priority()?.confirm?.() : priority()?.cancel?.();
     try{
       const success=await answered;
       if(success===false) {
-        feedback.textContent='Forge did not accept this decision. Use the recovery dialog.';
+        feedback.textContent='Sol Pod did not accept this decision. Use the recovery dialog.';
         return;
       }
       waitingForForgeKey=key;
-      feedback.textContent='Decision sent to Forge. Waiting for the next prompt or game-state update; do not submit it twice.';
+      feedback.textContent='Decision sent to Sol Pod. Waiting for the next prompt or game-state update; do not submit it twice.';
       minimized='';lastExplicit='';notice='';
       // Never assume completion or submit the decision twice; wait for
       // Forge's next selection/prompt/state event to close or replace it.
     }catch(error){
-      feedback.textContent='Forge did not complete the decision: '+(error?.message||error);
-      window.ctForgeSafety?.showError?.(error,'Forge decision unavailable');
+      feedback.textContent='Sol Pod did not complete the decision: '+(error?.message||error);
+      window.ctForgeSafety?.showError?.(error,'Sol Pod decision unavailable');
     }finally{submitting=false;sync();}
   }
   async function chooseCard(item,signature){
     if(submitting||!current||signature!==key)return;
     if(!selector()?.isLegalCard?.(item.id)){
-      feedback.textContent='This card is no longer legal. Review the new Forge choice.';return;
+      feedback.textContent='This card is no longer legal. Review the new Sol Pod choice.';return;
     }
-    submitting=true;paint();feedback.textContent='Selecting '+String(item.label||'card')+' in Forge…';
+    submitting=true;paint();feedback.textContent='Selecting '+String(item.label||'card')+' in Sol Pod…';
     try{
       const success=await selector()?.chooseCard?.(item.id);
       if(success===false)
-        feedback.textContent='Forge did not accept that selection. Refresh the current decision.';
-      else feedback.textContent='Selection received by Forge.';
+        feedback.textContent='Sol Pod did not accept that selection. Refresh the current decision.';
+      else feedback.textContent='Selection received by Sol Pod.';
     }catch(error){
       feedback.textContent='Selection unavailable: '+(error?.message||error);
-      window.ctForgeSafety?.showError?.(error,'Forge selection unavailable');
+      window.ctForgeSafety?.showError?.(error,'Sol Pod selection unavailable');
     }finally{submitting=false;sync();}
   }
   async function chooseBottomCard(card){
     if(submitting||!isBottoming(current)||!card)return;
     if(!current.hand.some(c=>String(c.id)===String(card.id)))return;
     submitting=true;
-    feedback.textContent='Updating selected cards in Forge…';
+    feedback.textContent='Updating selected cards in Sol Pod…';
     paint();
     try{
       await window.CommandTableNative.request('game.command',{
         action:'mulligan.bottom.select',value:Number(card.id)
       });
-      feedback.textContent='Forge updated your selection. Choose the required number, then confirm.';
+      feedback.textContent='Sol Pod updated your selection. Choose the required number, then confirm.';
     }catch(error){
-      feedback.textContent='Forge could not select that card: '+(error?.message||String(error));
+      feedback.textContent='Sol Pod could not select that card: '+(error?.message||String(error));
       window.ctForgeSafety?.showError?.(error,'Could not choose a card to bottom');
     }finally{submitting=false;sync();}
   }
@@ -356,7 +356,7 @@
       d.kind==='mana'?'Pay mana':d.kind==='opening'?'Opening decision':
       d.kind==='cards'?'Choose cards':'Decision required';
     intro.textContent=d.kind==='mana'?
-      'Forge is waiting for mana payment. Use Auto only when Forge enables it, or choose a legal mana source below.':
+      'Sol Pod is waiting for mana payment. Use Auto only when Forge enables it, or choose a legal mana source below.':
       String(d.prompt);
     const chosen=new Set(d.chosen.map(String));
     const bottoming=isBottoming(d);
@@ -364,16 +364,16 @@
     count.textContent=bottoming
       ?('BOTTOM OF LIBRARY · '+chosen.size+' selected'+
         (d.required===null?'':' of '+d.required)+' · '+
-        (d.remaining===null?'Waiting for Forge count':d.remaining+' still to select'))
+        (d.remaining===null?'Waiting for Sol Pod selection count':d.remaining+' still to select'))
       :showingHand
       ?('YOUR OPENING HAND · '+d.hand.length+' card'+(d.hand.length===1?'':'s')+' · Tap a card to read it')
       :d.kind==='cards'?(d.min?d.min+' required · ':'')+chosen.size+' selected'
-      :d.items.length?d.items.length+' Forge-legal options':'';
+      :d.items.length?d.items.length+' legal options':'';
     list.replaceChildren();
     list.classList.toggle('ct-opening-hand-grid',showingHand);
     if(showingHand){
       if(!d.hand.length){
-        list.append(make('div','ct-opening-empty','Loading the opening hand from Forge. Keep and Mulligan are disabled until you can inspect your cards.'));
+        list.append(make('div','ct-opening-empty','Loading the opening hand from Sol Pod. Keep and Mulligan are disabled until you can inspect your cards.'));
       }else for(const raw of d.hand){
         const card=cardInfo(raw);
         const isChosen=chosen.has(String(card.id));
@@ -417,9 +417,9 @@
       list.append(opt);
     }
     feedback.textContent=feedback.textContent||(bottoming
-      ?d.hand.length?'Tap the cards YOU want to bottom. Tap again to undo a selection.':'Waiting for Forge to provide the hand…'
+      ?d.hand.length?'Tap the cards YOU want to bottom. Tap again to undo a selection.':'Waiting for Sol Pod to provide the hand…'
       :showingHand
-      ?d.hand.length?'Inspect your cards, then choose Keep or Mulligan.':'Waiting for Forge to provide your hand…'
+      ?d.hand.length?'Inspect your cards, then choose Keep or Mulligan.':'Waiting for Sol Pod to provide your hand…'
       :'Select an option to continue.');
     footer.replaceChildren();
     const handReady=!showingHand||d.hand.length>0;
@@ -429,7 +429,7 @@
       button('Confirm selected cards',()=>{void apply(true);},
         'ct-required-primary',handReady && d.remaining===0 && !!d.buttons.enable1);
       if(d.buttons.enable2 && /\bauto\b/i.test(String(d.buttons.label2||''))){
-        button('Let Forge choose instead',()=>{void apply(false);},'',handReady);
+        button('Let Sol Pod choose instead',()=>{void apply(false);},'',handReady);
       }
     }else{
       if(d.buttons.enable1)button(String(d.buttons.label1||'Confirm'),()=>{void apply(true);},
@@ -446,7 +446,7 @@
     // A mana cost might require manually tapping battlefield mana sources if
     // Forge's Auto control cannot pay; do not trap the player behind a modal.
     if(waitingForForgeKey===key){
-      const check=make('button',null,'↻ Check Forge status');
+      const check=make('button',null,'↻ Check Sol Pod status');
       check.onclick=()=>{void window.ctForgeSafety?.recover?.();};
       footer.append(check);
     }
@@ -454,7 +454,7 @@
       minimized=key;show(false,key);feedback.textContent='';
     });
     if(!bottoming && !d.enabled && !d.items.length)
-      feedback.textContent='Forge has not enabled a response yet. Check available mana or refresh Forge status.';
+      feedback.textContent='Sol Pod has not enabled a response yet. Check available mana or refresh Sol Pod status.';
   }
   function sync(){
     const d=modeData();
@@ -515,7 +515,7 @@
       lastExplicit=raw;
       sync();
       if(!current)window.ctForgeSafety?.showError?.(
-        new Error(raw),'Forge requires an action, but no legal choices are available yet');
+        new Error(raw),'Sol Pod requires an action, but no legal choices are available yet');
       return true;
     }
   };
