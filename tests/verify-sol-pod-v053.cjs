@@ -58,7 +58,7 @@ options.children[0].onclick();
   'Tapping the named legal target must send exactly its Forge object ID');
  if(process.argv[2]){
   const html=read(process.argv[2]);
-  assert(html.includes("SOL_POD_BUILD='0.54.0'") &&
+  assert(html.includes("SOL_POD_BUILD='0.55.0'") &&
    html.includes("d.attachment?'Choose attachment target'"),
    'Compiled Android UI must include v0.53 attachment action and build marker');
  }
