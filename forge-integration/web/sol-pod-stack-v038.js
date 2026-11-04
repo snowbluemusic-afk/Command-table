@@ -136,7 +136,7 @@
   overlay.dataset.open='false';
   overlay.setAttribute('role','dialog');
   overlay.setAttribute('aria-modal','true');
-  overlay.setAttribute('aria-label','Full-screen Forge stack reader');
+  overlay.setAttribute('aria-label','Full-screen Sol Pod stack reader');
   const sheet=create('div');sheet.id='sol-pod-stack-sheet';
   const modalHead=create('header');modalHead.id='sol-pod-stack-reader-head';
   const modalTitle=create('h2','⚡ STACK · READ & RESPOND');
@@ -170,7 +170,7 @@
     return item?.trigger?'Triggered ability':item?.ability?'Activated ability':'Spell';
   }
   function readable(item){
-    return String(item?.description||item?.name||'No description reported by Forge.');
+    return String(item?.description||item?.name||'No description reported by Sol Pod.');
   }
   function sources(){
     return window.ctForgeCards||{};
@@ -263,7 +263,7 @@
     if((window.app?.game?.players?.[0]?.hand||[]).length){
       window.app.handZoom=true;
       window.render?.();
-      window.solPodNotice?.('Choose an available instant, flash spell or activated ability. Forge checks legality.','info','stack-respond');
+      window.solPodNotice?.('Choose an available instant, flash spell or activated ability. Sol Pod checks legality.','info','stack-respond');
     }else{
       window.solPodNotice?.('You have priority. Inspect a permanent to activate an available ability, or use Pass priority.','info','stack-respond');
     }
@@ -336,7 +336,7 @@
       detail.append(targetSection);
     }
     const note=create('div',null,'sol-stack-section');
-    note.append(create('p','Top item resolves first after all players pass priority. This is a read-only view of Forge; inspecting a spell does not cast it.'));
+    note.append(create('p','Top item resolves first after all players pass priority. This is a read-only view of Sol Pod; inspecting a spell does not cast it.'));
     detail.append(note);
     const actions=create('div');actions.id='sol-pod-stack-reader-actions';
     const response=button('Respond',respond,'primary');
