@@ -277,7 +277,7 @@ assert(frontend.includes('function ctNativeAffordable(c,me,g)') &&
   'Provide conservative mana-affordability hints without bypassing Forge');
 assert(overlay.includes('case "castCommander":') &&
        overlay.includes('case "castById":') &&
-       overlay.includes('human.getCommand().get(0).getId()') &&
+       overlay.includes('commanderInZone(human).getId()') &&
        overlay.includes('c.getId()==wanted'),
   'Commander casting and inspected hand casts must use stable Forge zone IDs');
 assert(frontend.includes("case 'castCommander'")===false &&
