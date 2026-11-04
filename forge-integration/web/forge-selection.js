@@ -474,8 +474,8 @@
       : pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
       : inAttack?'Choose attackers · tap glowing creatures':
-        inBlock?('Select one of YOUR blockers, then select the attacking creature it will block. '+combatCount+' blocks confirmed'+
-          (blockerNames.length?' · '+blockerNames.join(', '):'')+
+        inBlock?('Use Block Planner: choose an incoming attacker, then assign blockers. '+combatCount+' blocks confirmed'+
+          (blockerNames.length?' · '+blockerNames.slice(0,3).join(', '):'')+
           (pendingAssignments?' · '+pendingAssignments+' processing…':'')):
         'Turn '+(game?.turn||1)+' · '+phaseText+
         ' · '+(game?.players?.[0]?.priority?'Your priority':'Respond / advance');
@@ -525,6 +525,15 @@
       ].join(';');
       b.onclick=()=>decide(ok);
       buttons.append(b);
+    }
+    if(inBlock && (game?.combat||[]).some(a=>
+      Number(a.defenderId)===Number(game?.players?.[0]?.forgeId))){
+      const openPlanner=document.createElement('button');
+      openPlanner.type='button';
+      openPlanner.textContent='🛡 Block Planner';
+      openPlanner.style.cssText='flex:1;min-height:38px;border-radius:9px;background:#29586a;color:#ffdfa3;border:2px solid #ddb678;font:800 12px system-ui';
+      openPlanner.onclick=()=>window.ctCombatPlanner?.open?.();
+      buttons.append(openPlanner);
     }
     // No blocks is a valid Forge choice, but it must be EXPLICIT: the
     // disabled Select blocker guide must never secretly confirm no blocks.
