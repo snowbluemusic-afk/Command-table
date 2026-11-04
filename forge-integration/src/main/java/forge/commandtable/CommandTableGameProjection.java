@@ -199,7 +199,7 @@ public final class CommandTableGameProjection {
                 Player defender = liveGame.getPlayer(local.getId());
                 if(realCombat != null && defender != null) {
                     for(Card attacker : realCombat.getAttackers()) {
-                        if(!defender.equals(realCombat.getDefender(attacker))) continue;
+                        if(!defender.equals(realCombat.getDefenderPlayerByAttacker(attacker))) continue;
                         List<Integer> legal = new ArrayList<>();
                         for(Card blocker : defender.getCreaturesInPlay()) {
                             if(realCombat.isBlocking(blocker,attacker) ||
