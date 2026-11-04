@@ -1,4 +1,4 @@
-/* Sol Pod v0.51: dedicated human blocker assignment surface.
+/* Sol Pod v0.52: dedicated human blocker assignment surface.
  * A read-only CombatView supplies existing assignments. Every mutation is a
  * single Forge game.command combat.block and must be confirmed by GameView.
  * Suggested blocks rank readable stats only and are NEVER auto-applied.
