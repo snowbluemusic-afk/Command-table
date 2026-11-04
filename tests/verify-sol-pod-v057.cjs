@@ -21,14 +21,16 @@ assert(selection.includes('if(window.app?.game && typeof p.humanInput===\'string
        selection.includes('window.app.game.blockInputActive=p.blockInputActive===true;') &&
        selection.includes('window.ctCombatPlanner?.sync?.();'),
        'On native prompt, apply the real queue status before repainting both controls');
-assert(selection.includes("!!buttonState.enable1||!!buttonState.enable2||handChoice||combatBlockPhase") &&
+assert(selection.includes("!!buttonState.enable1||!!buttonState.enable2||handChoice||") &&
+       selection.includes("(combatPhase && (incomingAttack||inputName==='InputPassPriority'||game?.blockInputActive===true))") &&
        !selection.includes('!otherChoiceOpen && !waitingForInput &&'),
        'Combat dock must not vanish because cached buttons are disabled');
 assert(selection.includes("if(waitingForInput){") &&
        selection.includes("refresh.textContent=syncBusy?'Refreshing…':'↻ Refresh combat'") &&
        selection.includes('refresh.onclick=()=>{void syncChoices();};'),
        'When InputQueue is transitioning, show a safe explicit Refresh combat action');
-assert(selection.includes('if(blockPriority){') &&
+assert(selection.includes('const blockPriority=combatPhase && !inBlock') &&
+       selection.includes('if(blockPriority){') &&
        selection.includes("pass.textContent=busy?'Passing…':'Pass priority'") &&
        selection.includes('pass.onclick=()=>{void decide(true);};'),
        'Actual InputPassPriority must expose a visible Pass action without cached button flags');
