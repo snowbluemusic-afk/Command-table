@@ -149,12 +149,12 @@
       img.onerror=()=>{img.style.display='none';};
       detail.append(img,element('h3',name));
       if(info.type)detail.append(element('p',info.type));
-      detail.append(element('p',info.text||'Card text unavailable offline. Forge remains authoritative for card rules.'));
+      detail.append(element('p',info.text||'Card text unavailable offline. Sol Pod remains authoritative for card rules.'));
       const id=legalId(entries[chosen]);
       if(id!==null){
-        const select=element('button','Select this card with Forge','ct-zb-selectable-action');
+        const select=element('button','Select this card with Sol Pod','ct-zb-selectable-action');
         select.type='button';
-        select.setAttribute('aria-label','Select '+name+' as a Forge legal choice');
+        select.setAttribute('aria-label','Select '+name+' as a Sol Pod legal choice');
         select.onclick=async()=>{
           select.disabled=true;
           const accepted=await window.ctForgeSelection?.chooseCard?.(id);
