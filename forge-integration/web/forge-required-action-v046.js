@@ -356,7 +356,7 @@
       d.kind==='mana'?'Pay mana':d.kind==='opening'?'Opening decision':
       d.kind==='cards'?'Choose cards':'Decision required';
     intro.textContent=d.kind==='mana'?
-      'Sol Pod is waiting for mana payment. Use Auto only when Forge enables it, or choose a legal mana source below.':
+      'Sol Pod is waiting for mana payment. Use Auto only when Sol Pod enables it, or choose a legal mana source below.':
       String(d.prompt);
     const chosen=new Set(d.chosen.map(String));
     const bottoming=isBottoming(d);
