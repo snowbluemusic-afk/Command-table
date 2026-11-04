@@ -23,7 +23,7 @@ assert(select.includes('get isBottoming()'),
  'Source message determines bottoming, not general phase alone');
 assert(projection.includes('if (p.getId() == local.getId()) seat.put("hand", visibleCards(p.getHand()))'),
  'Do not expose opponents hidden hands');
-assert(ui.includes('Confirm selected cards') && ui.includes('Let Forge choose instead'),
+assert(ui.includes('Confirm selected cards') && ui.includes('Let Sol Pod choose instead'),
  'Primary action must be manual; automatic fallback must be explicit');
 assert(ui.includes("kind=bottoming?'bottoming'"),
  'London bottoming must be handled before generic opening/mana classifications');
@@ -120,7 +120,7 @@ async function run(){
  assert.equal(count().textContent.includes('0 selected of 1'),true);
  assert(findButton('Confirm selected cards').disabled,
   'Confirmation is disabled before selecting required card');
- assert(findButton('Let Forge choose instead'),
+ assert(findButton('Let Sol Pod choose instead'),
   'Forge Auto remains a clearly labelled secondary fallback');
  assert.equal(calls.length,0,'Nothing is automatically bottomed when dialog opens');
  // Card detail can be read without changing selection.
