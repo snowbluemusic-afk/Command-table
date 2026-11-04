@@ -234,6 +234,27 @@ public final class CommandTableOverlay {
         } catch (Exception ignored) {}
     }
 
+    /**
+     * A phase name alone is not proof the local human has an active blocker
+     * prompt. Forge's InputQueue is authoritative and may transition before
+     * GameView publishes a new phase. Surface this distinction to the planner.
+     */
+    private static void addHumanInputStatus(Map<String,Object> snapshot) {
+        CommandTableForgeInput bridge = input;
+        if (bridge == null) {
+            snapshot.put("blockInputActive", false);
+            snapshot.put("humanInput", "none");
+            return;
+        }
+        try {
+            snapshot.put("blockInputActive", bridge.blockInputActive());
+            snapshot.put("humanInput", bridge.inputName());
+        } catch (RuntimeException transition) {
+            snapshot.put("blockInputActive", false);
+            snapshot.put("humanInput", "transitioning");
+        }
+    }
+
     private static void publish(GameView game) {
         // Forge announces a GameView before loading PlayerView commander data
         // and before selecting the starting player. This is normal and NOT a
@@ -245,6 +266,7 @@ public final class CommandTableOverlay {
         try {
             PlayerView human=game.getPlayers().get(0);
             Map<String,Object> snapshot = CommandTableGameProjection.snapshot(game,human,match==null?null:match.getGame());
+            addHumanInputStatus(snapshot);
             JSONObject gameJson=new JSONObject(snapshot);
             String id=pendingStart;
             if (id!=null) {
@@ -384,6 +406,7 @@ public final class CommandTableOverlay {
         }
         Object value=p.opt("value");
         boolean isCast="castById".equals(action) || "castCommander".equals(action);
+        JSONObject actionResult = new JSONObject();
         try {
             if(isCast){castInProgress=true;cancelRequested=false;}
             switch(action) {
@@ -448,7 +471,12 @@ public final class CommandTableOverlay {
                 case "combat.block": {
                     JSONObject pair=p.optJSONObject("value");
                     if(pair==null) throw new IllegalArgumentException("Choose an attacker and a blocker");
-                    bridge.blockWith(pair.getInt("attackerId"),pair.getInt("blockerId"));
+                    boolean assigned=bridge.blockWith(pair.getInt("attackerId"),pair.getInt("blockerId"));
+                    // ACK only after real Forge Combat has changed. The JS UI
+                    // may render a stale GameView before the update arrives.
+                    actionResult.put("blockApplied", assigned)
+                        .put("attackerId",pair.getInt("attackerId"))
+                        .put("blockerId",pair.getInt("blockerId"));
                     break;
                 }
                 case "permanent":case "cardId":
@@ -495,7 +523,7 @@ public final class CommandTableOverlay {
                 default:throw new IllegalArgumentException("Native action not wired: "+action);
             }
             // The real Forge game thread broadcasts its next authoritative state.
-            respond(id,true,new JSONObject(),null);
+            respond(id,true,actionResult,null);
         } catch(Exception ex){respond(id,false,null,ex.getMessage());}
         finally {if(isCast){castInProgress=false;cancelRequested=false;}}
     }
@@ -628,6 +656,7 @@ public final class CommandTableOverlay {
                             else {
                                 Map<String,Object> state=CommandTableGameProjection.snapshot(
                                     current.getGameView(),current.getGameView().getPlayers().get(0),current.getGame());
+                                addHumanInputStatus(state);
                                 respond(id,true,new JSONObject().put("game",new JSONObject(state)),null);
                             }
                             break;
