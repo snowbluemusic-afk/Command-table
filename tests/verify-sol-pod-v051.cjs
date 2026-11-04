@@ -104,7 +104,7 @@ const win={app,ctForgeSafety:{recoveryVisible:false},
    if(k>=0)ids.splice(k,1);else ids.push(p.value.blockerId);
    return {accepted:true};
   }
-  if(type==='game.command'&&p.action==='resolve'){
+  if(type==='game.command'&&p.action==='confirmBlocks'){
    confirmed++;app.game.phaseDetail='COMBAT_DAMAGE';return {accepted:true};
   }
   if(type==='game.snapshot')return {game:app.game};
@@ -133,7 +133,19 @@ assert(blockerItems.children.some(x=>x.tagName==='DETAILS'),
 const suggestions=blockerItems.children.find(x=>x.className==='sol-block-suggest');
 assert(suggestions?.children.length>=2,'Optional suggested matches should be visible');
 assert.equal(calls.length,0,'Suggestions must not auto-assign blocks');
-const bear=blockerItems.children.find(x=>x.className==='sol-block-card'&&
+// A flying attacker with no matching reach/flying defender must NOT show
+// a clickable blocker or an invented suggested legal match.
+app.game.legalBlockers['901']=[];
+win.ctCombatPlanner.sync();
+const noLegal=columns.children[1].children[1];
+const grounded=noLegal.children.find(x=>x.className==='sol-block-card'&&
+ x.children[1]?.children?.[0]?.textContent==='Bear');
+assert(grounded?.disabled,'Non-flyer must not be offered as a legal blocker of a flying creature');
+assert(noLegal.children.find(x=>x.className==='sol-block-suggest')?.textContent!==undefined,
+ 'No-legal-blockers message must remain visible');
+app.game.legalBlockers['901']=[101,102];
+win.ctCombatPlanner.sync();
+const bear=columns.children[1].children[1].children.find(x=>x.className==='sol-block-card'&&
  x.children[1]?.children?.[0]?.textContent==='Bear');
 assert(bear,'Individual non-token blocker missing');
 bear.onclick();
@@ -152,7 +164,7 @@ bear.onclick();
  skip.onclick();
  for(let i=0;i<7;i++)await Promise.resolve();
  assert.equal(confirmed,1,'Skip requires explicit player action on native button');
- assert(calls.some(x=>x.type==='game.command'&&x.p.action==='resolve'),
+ assert(calls.some(x=>x.type==='game.command'&&x.p.action==='confirmBlocks'),
    'Skip must submit one native confirmation, not rely on stale priority UI');
  // Test the token presentation layer independently, with exact card nodes.
  app.game.phase='main1';app.game.phaseDetail='MAIN1';
