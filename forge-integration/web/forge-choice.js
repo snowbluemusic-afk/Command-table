@@ -13,7 +13,7 @@
   const view = document.createElement('section');
   view.id = 'ct-forge-decision-sheet';
   view.setAttribute('role', 'dialog');
-  view.setAttribute('aria-label', 'Forge game choice');
+  view.setAttribute('aria-label', 'Sol Pod game choice');
   view.setAttribute('aria-modal', 'true');
   view.style.cssText = [
     'display:none','position:fixed','inset:0','z-index:2147483000',
@@ -140,7 +140,7 @@
       if(!inFlight||current?.id!==submittingId||requestNumber!==answerGeneration)return;
       inFlight=false;
       needsVerification=true;
-      current.error='Forge has not confirmed this choice. Refresh its status to verify it is still pending before submitting again.';
+      current.error='Sol Pod has not confirmed this choice. Refresh its status to verify it is still pending before submitting again.';
       paint();
     },14000);
     try {
@@ -179,7 +179,7 @@
       inFlight=false;
       needsVerification=false;
       if(current?.id!==submittingId)return; // A newer valid choice owns UI.
-      showError('Forge could not accept this choice: '+(e?.message||String(e)));
+      showError('Sol Pod could not accept this choice: '+(e?.message||String(e)));
       paint();
     } finally{clearTimeout(watchdog);}
   }
@@ -192,7 +192,7 @@
   function paint() {
     sheet.replaceChildren();
     if (!current) return;
-    const subtitle=el('p','YOUR DECISION · FORGE RULES',
+    const subtitle=el('p','YOUR DECISION · SOL POD',
       'color:#c6ab83;font-size:10px;font-weight:800;letter-spacing:.15em;margin:0 0 6px');
     sheet.append(subtitle);
     const plainTitle=String(current.title||'Choose an option')
@@ -202,7 +202,7 @@
       'font-size:17px;line-height:1.3;font-weight:750;margin:0 0 7px;white-space:pre-wrap');
     sheet.append(heading);
     const desc = current.commanderDestination
-      ?'Choose where your commander goes. Forge will apply the zone-change rule; this decision cannot be made for you.'
+      ?'Choose where your commander goes. Sol Pod will apply the zone-change rule; this decision cannot be made for you.'
       : current.mode==='order'
       ? 'Arrange these cards in the required order.'
       : current.mode==='multiple'
@@ -329,7 +329,7 @@
     }
     footer.append(ok);
     if(inFlight || !!current.error || needsVerification){
-      const refresh=action('↻ Refresh Forge status',()=>{
+      const refresh=action('↻ Refresh Sol Pod status',()=>{
         void window.CommandTableNative.request('engine.status').catch(e=>{
           showError('Unable to refresh: '+(e?.message||String(e)));
           paint();
@@ -357,7 +357,7 @@
         // The stale native request can finish later, so invalidate its UI
         // acknowledgement; Forge's choice ID keeps the answer idempotent.
         if(needsVerification){needsVerification=false;answerGeneration++;inFlight=false;
-          current.error='Forge still awaits this decision. Review your selection and confirm again.';}
+          current.error='Sol Pod still awaits this decision. Review your selection and confirm again.';}
         if(!inFlight)paint();
         return;
       }
