@@ -494,6 +494,9 @@ public final class CommandTableOverlay {
                     else if("stack".equals(parts[0]))bridge.selectStack(Integer.parseInt(parts[1]));
                     else throw new IllegalArgumentException("Invalid target type");
                     break;
+                case "passCombatPriority":
+                    bridge.passCombatPriority();
+                    break;
                 case "confirmBlocks":
                     // Do not allow an old blocker dialog to pass priority after
                     // the native InputBlock has already finished.
@@ -557,7 +560,8 @@ public final class CommandTableOverlay {
                      "combat.block".equals(action) || "combat.attack".equals(action) ||
                      "mulligan.bottom.select".equals(action) ||
                      "cancelCastTarget".equals(action) || "resolve".equals(action) ||
-                     "confirmBlocks".equals(action) || "endTurn".equals(action) ||
+                     "confirmBlocks".equals(action) || "passCombatPriority".equals(action) ||
+                     "endTurn".equals(action) ||
                      "chooseBlock".equals(action))) {
                     worker=INTERACTIVE;
                 } else {

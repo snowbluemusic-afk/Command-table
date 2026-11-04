@@ -122,8 +122,16 @@ vm.runInNewContext(planner,{window:win,document:doc,...clock},
  {filename:'sol-pod-combat-planner-v051.js'});
 const modal=doc.getElementById('sol-combat-planner');
 assert.equal(modal.dataset.open,'false','Do not flash combat modal immediately before phase settles');
+// Forge skips InputBlock entirely if zero blockers can legally block, while
+// the PhaseHandler may still report COMBAT_DECLARE_BLOCKERS during priority.
+// The sheet must NOT trap the player in that valid auto-skipped situation.
+app.game.blockInputActive=false;
 pendingTimers.shift()?.();
-assert.equal(modal.dataset.open,'true','Stable blocker step should open full-screen planner');
+assert.equal(modal.dataset.open,'false','No active InputBlock must never open a phantom blocker planner');
+app.game.blockInputActive=true;
+win.ctCombatPlanner.sync();
+pendingTimers.shift()?.();
+assert.equal(modal.dataset.open,'true','Real InputBlock must open the full-screen blocker planner');
 const sheet=modal.children[0],columns=sheet.children[2];
 const attackItems=columns.children[0].children[1];
 const blockerItems=columns.children[1].children[1];

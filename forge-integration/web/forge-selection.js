@@ -210,7 +210,8 @@
     // or represented only by a stack entry. Combat keeps its concise
     // battlefield-first gestures, with this picker as a manual fallback.
     const phaseDetail=String(window.app?.game?.phaseDetail||'').toUpperCase();
-    const declaring=/ATTACKERS|BLOCKERS/.test(phaseDetail);
+    const declaring=/ATTACKERS/.test(phaseDetail) ||
+      (/BLOCKERS/.test(phaseDetail) && window.app?.game?.blockInputActive===true);
     const hasPlayer=all.some(item=>item.kind==='player');
     const hasCard=all.some(item=>item.kind==='card');
     const hasStack=all.some(item=>item.kind==='stack');
@@ -395,8 +396,16 @@
     if(window.ctDirectCombat?.pending)await window.ctDirectCombat.whenIdle();
     paintDecision();
     try{
+      // No legal blocks means Forge never opened InputBlock. Its ordinary
+      // InputPassPriority in the same named phase must be handled separately,
+      // and must not replay a phantom "confirm blocks" action.
+      const phase=String(window.app?.game?.phaseDetail||'');
+      const combatPriority=ok && /COMBAT_DECLARE_BLOCKERS/.test(phase) &&
+        window.app?.game?.blockInputActive!==true &&
+        window.app?.game?.humanInput==='InputPassPriority';
       await window.CommandTableNative.request('game.command',{
-        action:ok?'resolve':'cancelCastTarget',value:null
+        action:ok?(combatPriority?'passCombatPriority':'resolve'):'cancelCastTarget',
+        value:null
       });
       // Acknowledges the command; Forge remains responsible for resolution.
       return true;
@@ -411,9 +420,12 @@
     const forgeChoice=document.getElementById('ct-forge-decision-sheet');
     const otherChoiceOpen=!!forgeChoice && forgeChoice.style.display!=='none';
     const handChoice=!!window.ctForgePriority?.isHandChoice;
+    const waitingForInput=/COMBAT_DECLARE_BLOCKERS/.test(
+      String(window.app?.game?.phaseDetail||'')) &&
+      ['none','transitioning'].includes(String(window.app?.game?.humanInput||''));
     const active=!!window.app?.nativeMatch &&
       window.app?.view==='game' && window.app?.game?.winner===null && !window.app?.modal &&
-      !window.app?.sideInspect && !otherChoiceOpen &&
+      !window.app?.sideInspect && !otherChoiceOpen && !waitingForInput &&
       (!!buttonState.enable1||!!buttonState.enable2||handChoice);
     decision.classList.toggle('ct-forge-hand-choice',handChoice);
     // A single small dock owns Forge buttons. Never mount a full-width
@@ -454,7 +466,9 @@
       detail.includes('damage')?'Combat damage':
       phases[game?.phase]||game?.phase||'Priority';
     const inAttack=/ATTACKERS/.test(String(game?.phaseDetail||'').toUpperCase());
-    const inBlock=/BLOCKERS/.test(String(game?.phaseDetail||'').toUpperCase());
+    const inBlockPhase=/BLOCKERS/.test(String(game?.phaseDetail||'').toUpperCase());
+    const inBlock=inBlockPhase && game?.blockInputActive===true;
+    const blockPriority=inBlockPhase && !inBlock && game?.humanInput==='InputPassPriority';
     const confirmedAttackers=Array.isArray(game?.combat)?game.combat.length:0;
     const confirmedBlockers=Array.isArray(game?.combat)?
       new Set(game.combat.flatMap(attack=>attack.blockerIds||[])).size:0;
@@ -474,6 +488,7 @@
       : pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
       : inAttack?'Choose attackers · tap glowing creatures':
+        blockPriority?'Block declaration complete · pass priority to continue combat':
         inBlock?('Use Block Planner: choose an incoming attacker, then assign blockers. '+combatCount+' blocks confirmed'+
           (blockerNames.length?' · '+blockerNames.slice(0,3).join(', '):'')+
           (pendingAssignments?' · '+pendingAssignments+' processing…':'')):
@@ -510,6 +525,7 @@
           ? (combatCount?'Confirm '+combatCount+' attacker'+(combatCount===1?'':'s'):'No attacks'):
         ok && !pregame && ordinary && inBlock
           ? (combatCount?'Confirm '+combatCount+' block'+(combatCount===1?'':'s'):'Select blocker'):
+        ok && !pregame && ordinary && blockPriority?'Pass priority':
         ok && !pregame && ordinary
           ? (stack.length?'Pass priority':window.app?.game?.active===0?'Next phase':'Pass'):
           original;

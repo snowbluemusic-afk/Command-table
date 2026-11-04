@@ -117,10 +117,14 @@
  const state=()=>window.app?.game;
  const inputReady=()=>state()?.blockInputActive===true;
  const own=()=>state()?.players?.[0];
- const inStep=()=>!!window.app?.nativeMatch&&window.app?.view==='game'&&
+ // A phase is not a prompt: CombatUtil.canBlock() skips InputBlock
+ // entirely when no legal blocks exist. The phase may still wait for
+ // InputPassPriority, which must remain accessible on the battlefield.
+ const isBlockPhase=()=>!!window.app?.nativeMatch&&window.app?.view==='game'&&
    state()?.winner==null&&!state()?.gameOver&&
    /COMBAT_DECLARE_BLOCKERS/i.test(String(state()?.phaseDetail||'')) &&
    (state()?.combat||[]).some(a=>Number(a.defenderId)===Number(own()?.forgeId));
+ const inStep=()=>isBlockPhase()&&inputReady();
  const attacks=()=>((state()?.combat)||[]).filter(a=>
    Number(a.defenderId)===Number(own()?.forgeId));
  const combatCards=()=>state()?.players?.flatMap(p=>p.battlefield||[])||[];
@@ -315,8 +319,7 @@
      !!selected?.blockerIds?.some(id=>Number(id)===Number(c.forgeId)),
      ()=>{if(selected)void command(selected.cardId,c.forgeId);},canUse(c,selected)));
   }
-  if(!inputReady())notice('Waiting for Forge to open the actual blocker prompt. Refresh blocks if needed.',true);
-  else if(submittedStage===stage)notice('Forge accepted your block decision. Waiting for combat damage.');
+  if(submittedStage===stage)notice('Forge accepted your block decision. Waiting for combat damage.');
   else if(!status.textContent)notice('Select an attacker, then choose a blocker. No blocks are also a valid decision.');
   footer.replaceChildren();
   const close=create('button',null,'Review battlefield');
