@@ -370,6 +370,22 @@
   let autoManaIssued=false;
   let promptSequence=0;
   let syncBusy=false;
+  let combatSyncTimer=null,combatSyncAttempts=0,combatSyncKey='';
+  // InputQueue can transition from no input -> priority after the last
+  // GameView/phase event. Retry snapshots briefly while that happens, even
+  // if a UI prompt notification was missed; never replay a game action.
+  function queueCombatStatusCheck(key){
+    if(combatSyncKey!==key){
+      combatSyncKey=key;combatSyncAttempts=0;
+    }
+    if(syncBusy||combatSyncTimer!==null||combatSyncAttempts>=6)return;
+    combatSyncTimer=setTimeout(()=>{
+      combatSyncTimer=null;combatSyncAttempts++;
+      if(window.app?.game?.humanInput==='InputPassPriority' ||
+         window.app?.game?.blockInputActive===true)return;
+      void syncChoices();
+    },700);
+  }
   async function syncChoices(){
     if(syncBusy)return;
     syncBusy=true;
@@ -507,6 +523,7 @@
     // The real Forge InputQueue is authoritative; queued prompt buttons can
     // lag behind input changes and must not hide the only priority action.
     if(waitingForInput){
+      queueCombatStatusCheck(String(game?.turn)+'|'+String(game?.phaseDetail));
       decisionText.textContent='Checking combat decision…';
       const refresh=document.createElement('button');
       refresh.type='button';refresh.textContent=syncBusy?'Refreshing…':'↻ Refresh combat';
