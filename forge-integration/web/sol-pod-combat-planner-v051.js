@@ -318,8 +318,8 @@
   refresh.disabled=busy;
   refresh.onclick=async()=>{
    try{
-    const result=await window.CommandTableNative.request('engine.status');
-    const snap=await window.CommandTableNative.request('game.snapshot');
+    await bounded(window.CommandTableNative.request('engine.status'),'Sol Pod status',8000);
+    const snap=await bounded(window.CommandTableNative.request('game.snapshot'),'Combat snapshot',8000);
     if(!snap?.game)throw new Error('Game state is unavailable');
     window.ctReceiveForgeState?.(snap.game);
     uncertain=false;notice('Assignments refreshed from Sol Pod.');
@@ -333,15 +333,37 @@
   confirm.disabled=busy||uncertain||!!window.ctDirectCombat?.pending||
     !window.ctForgePriority?.canConfirm;
   confirm.onclick=async()=>{
-   if(busy||uncertain||!inStep())return;
-   busy=true;notice('Confirming the declared blockers…');paint();
+   if(busy||uncertain||!inStep()||!window.ctForgePriority?.canConfirm)return;
+   busy=true;
+   notice(count?'Confirming the declared blockers…':'Skipping blockers…');
+   paint();
    try{
-    await window.ctDirectCombat?.whenIdle?.();
-    const accepted=await window.ctForgePriority?.confirm?.();
-    if(accepted===false)throw new Error('Sol Pod did not accept the confirmation');
-    notice('Confirmation sent. Applying the next combat step…');
-   }catch(error){notice('Could not finish declaring blockers: '+(error?.message||error),true);}
-   finally{busy=false;paint();}
+    // The old route waited indefinitely for the phase-control wrapper.
+    // Send one explicit native confirmation and bound both awaits.
+    if(window.ctDirectCombat?.whenIdle)
+     await bounded(window.ctDirectCombat.whenIdle(),'Earlier combat input',6000);
+    await bounded(window.CommandTableNative.request('game.command',{
+     action:'resolve',value:null
+    }),'Combat confirmation',10000);
+    let advanced=false;
+    for(let attempt=0;attempt<5;attempt++){
+     const snap=await bounded(window.CommandTableNative.request('game.snapshot'),
+       'Combat status',7000);
+     if(snap?.game)window.ctReceiveForgeState?.(snap.game);
+     if(!inStep()||window.ctForgeChoice?.hasPending){
+      advanced=true;break;
+     }
+     await new Promise(done=>setTimeout(done,180));
+    }
+    if(!advanced){
+     uncertain=true;
+     notice('The request was sent but combat has not advanced. Use Refresh blocks to check Sol Pod before retrying.',true);
+    }else notice('Block decision confirmed. Advancing combat.');
+   }catch(error){
+    uncertain=true; // Never silently repeat a possibly accepted native request.
+    notice('Could not verify the block decision: '+(error?.message||String(error))+
+      '. Refresh the game before retrying.',true);
+   }finally{busy=false;paint();}
   };
   footer.append(confirm);
   resume.style.display='none';
