@@ -39,7 +39,7 @@ assert(projection.includes('for(Card actual:realCombat.getBlockers(liveAttacker)
        projection.includes('blockerIds.add(actual.getId())'),
        'Combat projection must not rely solely on delayed GameView blockers');
 assert(frontend.includes('blockInputActive:raw.blockInputActive===true') &&
-       frontend.includes("SOL_POD_BUILD='0.55.0'"),
+       frontend.includes("SOL_POD_BUILD='0.56.0'"),
        'Native-to-web adaptation must publish input queue readiness and correct build');
 assert(planner.includes('const inputReady=()=>state()?.blockInputActive===true;') &&
        planner.includes('if(result?.blockApplied!==!previously)') &&
@@ -48,14 +48,14 @@ assert(planner.includes('const inputReady=()=>state()?.blockInputActive===true;'
        'Planner must require active input and live ACK, and avoid a duplicate confirmation');
 assert(safety.includes("payload?.action==='combat.block'||payload?.action==='confirmBlocks'"),
        'Combat input-transition failures must be handled inline, not by a second modal');
-assert(build.includes("SOL_POD_BUILD='0.55.0'") &&
-       build.includes("tag.textContent='v0.55'"));
+assert(build.includes("SOL_POD_BUILD='0.56.0'") &&
+       build.includes("tag.textContent='v0.56'"));
 if(process.argv[2]){
  const html=read(process.argv[2]);
  assert(html.includes('blockInputActive:raw.blockInputActive===true') &&
         html.includes('blockDecisionAccepted') &&
         html.includes('blockApplied') &&
-        html.includes("SOL_POD_BUILD='0.55.0'"),
+        html.includes("SOL_POD_BUILD='0.56.0'"),
         'The built Android HTML lacks the v0.55 blocker handshake');
 }
 console.log('PASS Sol Pod v0.55: live InputQueue/Combat, verified blocker and confirm ACKs, stale-state UI recovery');
