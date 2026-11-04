@@ -466,7 +466,11 @@ public final class CommandTableOverlay {
                     else if("stack".equals(parts[0]))bridge.selectStack(Integer.parseInt(parts[1]));
                     else throw new IllegalArgumentException("Invalid target type");
                     break;
-                case "resolve":case "toCombat":case "endTurn":case "confirmBlocks":
+                case "confirmBlocks":
+                    // Do not allow an old blocker dialog to pass priority after
+                    // the native InputBlock has already finished.
+                    bridge.confirmBlocks();break;
+                case "resolve":case "toCombat":case "endTurn":
                 case "attack":case "continueCpu":
                     bridge.confirm();break;
                 case "targetPlayer":
