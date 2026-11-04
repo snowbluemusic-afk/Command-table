@@ -281,9 +281,14 @@
     const keepMulliganButtons=/\bkeep\b/i.test(label1+' '+label2) &&
       /\bmulligan\b/i.test(label1+' '+label2);
     const kind=bottoming?'bottoming':keepMulliganButtons?'opening':needCards?'cards':mana?'mana':opening?'opening':'approval';
+    // In an Equipment or Aura target prompt the listed creature itself
+    // is the engine-approved selection. Hiding it behind "Use battlefield"
+    // was confusing and could leave the player waiting indefinitely.
+    const attachment=kind==='cards' &&
+      /\b(?:equip(?:ment|ped)?|enchant(?:ed)?|attach(?:ing)?|target creature you control)\b/i.test(prompt);
     const available=needCards?usable:(mana?cards:[]);
     const hand=(kind==='opening'||kind==='bottoming')?localHand():[];
-    return {kind,buttons,items:available,prompt,chosen,min,enabled,hand,
+    return {kind,attachment,buttons,items:available,prompt,chosen,min,enabled,hand,
       remaining, required:remaining===null?null:remaining+chosen.length,
       key:JSON.stringify([kind,label1,label2,select.min,select.max,
         available.map(c=>[c.id,c.label,c.actionable]),
@@ -364,10 +369,13 @@
     const d=current;
     heading.textContent=isBottoming(d)?'Choose cards to put on the bottom':
       d.kind==='mana'?'Pay mana':d.kind==='opening'?'Opening decision':
+      d.attachment?'Choose attachment target':
       d.kind==='cards'?'Choose cards':'Decision required';
     intro.textContent=d.kind==='mana'?
       'Sol Pod is waiting for mana payment. Use Auto only when Sol Pod enables it, or choose a legal mana source below.':
-      String(d.prompt);
+      d.attachment
+        ?'Tap the creature you want to attach to. Sol Pod shows engine-approved targets.\n'+String(d.prompt)
+        :String(d.prompt);
     const chosen=new Set(d.chosen.map(String));
     const bottoming=isBottoming(d);
     const showingHand=isKeepMulligan(d)||bottoming;
@@ -418,7 +426,8 @@
       const opt=make('button');
       opt.type='button';
       const label=String(item.label||('Card #'+item.id));
-      opt.textContent=(chosen.has(String(item.id))?'✓ ':'')+label+
+      opt.textContent=(chosen.has(String(item.id))?'✓ ':'')+
+        (d.attachment?'Attach to ':'')+label+
         (item.zone?' · '+item.zone:'');
       opt.dataset.chosen=String(chosen.has(String(item.id)));
       opt.disabled=submitting||waitingForForgeKey===key||
@@ -430,6 +439,7 @@
       ?d.hand.length?'Tap the cards YOU want to bottom. Tap again to undo a selection.':'Waiting for Sol Pod to provide the hand…'
       :showingHand
       ?d.hand.length?'Inspect your cards, then choose Keep or Mulligan.':'Waiting for Sol Pod to provide your hand…'
+      :d.attachment?'Tap a listed creature to attach this card. The choice is submitted directly to Sol Pod.'
       :'Select an option to continue.');
     footer.replaceChildren();
     const handReady=!showingHand||d.hand.length>0;
@@ -460,7 +470,7 @@
       check.onclick=()=>{void window.ctForgeSafety?.recover?.();};
       footer.append(check);
     }
-    if(d.kind==='mana'||d.kind==='cards')button('Use battlefield',()=>{
+    if(d.kind==='mana'||(d.kind==='cards'&&!d.attachment))button('Use battlefield',()=>{
       minimized=key;show(false,key);feedback.textContent='';
     });
     if(!bottoming && !d.enabled && !d.items.length)
