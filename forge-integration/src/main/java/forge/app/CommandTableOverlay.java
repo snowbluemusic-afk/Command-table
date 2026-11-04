@@ -497,7 +497,9 @@ public final class CommandTableOverlay {
                 case "confirmBlocks":
                     // Do not allow an old blocker dialog to pass priority after
                     // the native InputBlock has already finished.
-                    bridge.confirmBlocks();break;
+                    bridge.confirmBlocks();
+                    actionResult.put("blockDecisionAccepted",true);
+                    break;
                 case "resolve":case "toCombat":case "endTurn":
                 case "attack":case "continueCpu":
                     bridge.confirm();break;
