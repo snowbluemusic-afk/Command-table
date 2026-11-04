@@ -48,6 +48,17 @@
     'display:flex;align-items:stretch;overflow-x:auto;overflow-y:hidden;',
     'flex-wrap:nowrap;max-height:none;min-height:0;gap:10px;',
     'padding:4px 3px 11px;scroll-snap-type:x proximity}',
+    '#ct-required-forge-action .ct-bottom-card-wrap{',
+    'display:flex;flex:0 0 clamp(112px,12vw,170px);max-width:170px;',
+    'min-width:0;flex-direction:column;gap:5px}',
+    '#ct-required-forge-action .ct-bottom-card-wrap .ct-opening-card{',
+    'flex:1 1 auto;width:100%;max-width:100%}',
+    '#ct-required-forge-action .ct-bottom-card-wrap button.ct-bottom-preview{',
+    'min-height:29px;padding:5px 9px;font:750 11px system-ui;',
+    'text-align:center;background:#213b45;border:1px solid #a68e67}',
+    '#ct-required-forge-action .ct-opening-card[data-chosen="true"]{',
+    'background:#3d5e53;border:3px solid #f6c978;',
+    'box-shadow:0 0 13px #f4c27c77}',
     '#ct-required-forge-action .ct-opening-card{',
     'flex:0 0 clamp(112px,12vw,170px);min-width:0;max-width:170px;',
     'display:flex;flex-direction:column;gap:5px;align-items:stretch;',
@@ -172,6 +183,7 @@
       ...c,id:c.id??me.handForgeIds?.[i]??i,name:String(c.name)
     }));
   };
+  const isBottoming=d=>d?.kind==='bottoming';
   const isKeepMulligan=d=>d?.kind==='opening' &&
     /\bkeep\b/i.test(String(d.buttons?.label1||'')+' '+String(d.buttons?.label2||'')) &&
     /\bmulligan\b/i.test(String(d.buttons?.label1||'')+' '+String(d.buttons?.label2||''));
@@ -184,7 +196,7 @@
   };
   function closeCardViewer(){handViewer.dataset.open='false';handViewerCardId='';handViewer.replaceChildren();}
   function inspectOpeningCard(card){
-    if(!card || !isKeepMulligan(current))return;
+    if(!card || !(isKeepMulligan(current)||isBottoming(current)))return;
     const info=cardInfo(card);
     handViewerCardId=String(info.id);handViewer.replaceChildren();
     const paper=make('div','ct-opening-detail');
@@ -200,7 +212,7 @@
     handViewer.append(paper);handViewer.dataset.open='true';
   }
   async function refreshOpeningHand(){
-    if(handLoading||!isKeepMulligan(current))return;
+    if(handLoading||!(isKeepMulligan(current)||isBottoming(current)))return;
     handLoading=true;
     feedback.textContent='Loading your actual opening hand from Forge…';
     try{
@@ -236,6 +248,14 @@
     const usable=cards.filter(c=>!c.actionable);
     const needCards=usable.length>0 && (min>0 ||
       /\b(?:discard|bottom|return|choose|select|sacrifice)\b/i.test(prompt));
+    // Forge InputLondonMulligan publishes ONLY Selection.chosen, never the
+    // selectable cards. Bottoming must be recognised from its real prompt,
+    // and its choices sourced from the owner's Forge-projected hand.
+    const bottoming=!!priority()?.isBottoming ||
+      (window.app.game.phase==='mulligan' &&
+        /\b(?:return|put)\b.*\bbottom\b.*\b(?:library|deck)\b/i.test(prompt));
+    const remainingMatch=bottoming ? prompt.match(/\b(?:return|put)\s+(\d+)\s+cards?\b/i) : null;
+    const remaining=remainingMatch?Number(remainingMatch[1]):null;
     // Forge supplies choices of stack/board/player targets separately. The
     // already full-screen target UI owns those; never display two overlays.
     if(targets.length>0)return null;
@@ -250,14 +270,15 @@
     if(!opening&&!mana&&!needCards&&!unusual)return null;
     const keepMulliganButtons=/\bkeep\b/i.test(label1+' '+label2) &&
       /\bmulligan\b/i.test(label1+' '+label2);
-    const kind=keepMulliganButtons?'opening':needCards?'cards':mana?'mana':opening?'opening':'approval';
+    const kind=bottoming?'bottoming':keepMulliganButtons?'opening':needCards?'cards':mana?'mana':opening?'opening':'approval';
     const available=needCards?usable:(mana?cards:[]);
-    const hand=kind==='opening'?localHand():[];
+    const hand=(kind==='opening'||kind==='bottoming')?localHand():[];
     return {kind,buttons,items:available,prompt,chosen,min,enabled,hand,
+      remaining, required:remaining===null?null:remaining+chosen.length,
       key:JSON.stringify([kind,label1,label2,select.min,select.max,
         available.map(c=>[c.id,c.label,c.actionable]),
         chosen.map(String),prompt,buttons.sequence||0,
-        hand.map(c=>[c.id,c.name])])};
+        hand.map(c=>[c.id,c.name]),remaining])};
   };
   function show(value,signature){
     backdrop.dataset.open=value?'true':'false';
@@ -272,7 +293,10 @@
   };
   async function apply(ok){
     if(submitting||!current||waitingForForgeKey===key ||
-       (isKeepMulligan(current)&&!current.hand.length))return;
+       (isKeepMulligan(current)&&!current.hand.length) ||
+       (isBottoming(current) && (!current.hand.length ||
+         (ok && (current.remaining!==0 || !current.buttons.enable1)) ||
+         (!ok && !current.buttons.enable2))))return;
     submitting=true;
     feedback.textContent='Sending your decision to Forge…';
     paint();
@@ -309,17 +333,39 @@
       window.ctForgeSafety?.showError?.(error,'Forge selection unavailable');
     }finally{submitting=false;sync();}
   }
+  async function chooseBottomCard(card){
+    if(submitting||!isBottoming(current)||!card)return;
+    if(!current.hand.some(c=>String(c.id)===String(card.id)))return;
+    submitting=true;
+    feedback.textContent='Updating selected cards in Forge…';
+    paint();
+    try{
+      await window.CommandTableNative.request('game.command',{
+        action:'mulligan.bottom.select',value:Number(card.id)
+      });
+      feedback.textContent='Forge updated your selection. Choose the required number, then confirm.';
+    }catch(error){
+      feedback.textContent='Forge could not select that card: '+(error?.message||String(error));
+      window.ctForgeSafety?.showError?.(error,'Could not choose a card to bottom');
+    }finally{submitting=false;sync();}
+  }
   function paint(){
     if(!current)return;
     const d=current;
-    heading.textContent=d.kind==='mana'?'Pay mana':d.kind==='opening'?'Opening decision':
+    heading.textContent=isBottoming(d)?'Choose cards to put on the bottom':
+      d.kind==='mana'?'Pay mana':d.kind==='opening'?'Opening decision':
       d.kind==='cards'?'Choose cards':'Decision required';
     intro.textContent=d.kind==='mana'?
       'Forge is waiting for mana payment. Use Auto only when Forge enables it, or choose a legal mana source below.':
       String(d.prompt);
     const chosen=new Set(d.chosen.map(String));
-    const showingHand=isKeepMulligan(d);
-    count.textContent=showingHand
+    const bottoming=isBottoming(d);
+    const showingHand=isKeepMulligan(d)||bottoming;
+    count.textContent=bottoming
+      ?('BOTTOM OF LIBRARY · '+chosen.size+' selected'+
+        (d.required===null?'':' of '+d.required)+' · '+
+        (d.remaining===null?'Waiting for Forge count':d.remaining+' still to select'))
+      :showingHand
       ?('YOUR OPENING HAND · '+d.hand.length+' card'+(d.hand.length===1?'':'s')+' · Tap a card to read it')
       :d.kind==='cards'?(d.min?d.min+' required · ':'')+chosen.size+' selected'
       :d.items.length?d.items.length+' Forge-legal options':'';
@@ -330,18 +376,31 @@
         list.append(make('div','ct-opening-empty','Loading the opening hand from Forge. Keep and Mulligan are disabled until you can inspect your cards.'));
       }else for(const raw of d.hand){
         const card=cardInfo(raw);
+        const isChosen=chosen.has(String(card.id));
+        const group=bottoming?make('div','ct-bottom-card-wrap'):null;
         const tile=make('button','ct-opening-card');tile.type='button';
-        tile.setAttribute('aria-label','Inspect '+card.name+' in opening hand');
+        tile.dataset.chosen=String(isChosen);
+        tile.setAttribute('aria-pressed',String(isChosen));
+        tile.setAttribute('aria-label',bottoming
+          ?(isChosen?'Remove ':'Select ')+card.name+' for bottom of library'
+          :'Inspect '+card.name+' in opening hand');
         const art=make('img');art.alt=card.name;
         const placeholder=make('span','ct-opening-placeholder','Artwork unavailable');
         art.src=window.ctCardArtUrl?.(card.name)||'';
         art.onerror=()=>{art.style.display='none';placeholder.style.display='block';};
         if(!art.src){art.style.display='none';placeholder.style.display='block';}
-        const title=make('span','ct-opening-name',card.name);
+        const index=d.chosen.map(String).indexOf(String(card.id));
+        const title=make('span','ct-opening-name',
+          (bottoming && isChosen?'✓ '+(index+1)+'. ':'')+card.name);
         const cost=make('span','ct-opening-cost',card.manaCost||card.type||'');
         tile.append(art,placeholder,title,cost);
-        tile.onclick=()=>inspectOpeningCard(raw);
-        list.append(tile);
+        tile.disabled=submitting;
+        tile.onclick=bottoming?()=>{void chooseBottomCard(raw);}:()=>inspectOpeningCard(raw);
+        if(group){
+          const inspect=make('button','ct-bottom-preview','Read card');
+          inspect.type='button';inspect.onclick=()=>inspectOpeningCard(raw);
+          group.append(tile,inspect);list.append(group);
+        }else list.append(tile);
       }
     }
     const signature=d.key;
@@ -357,15 +416,27 @@
       opt.onclick=()=>{void chooseCard(item,signature);};
       list.append(opt);
     }
-    feedback.textContent=feedback.textContent||(showingHand
+    feedback.textContent=feedback.textContent||(bottoming
+      ?d.hand.length?'Tap the cards YOU want to bottom. Tap again to undo a selection.':'Waiting for Forge to provide the hand…'
+      :showingHand
       ?d.hand.length?'Inspect your cards, then choose Keep or Mulligan.':'Waiting for Forge to provide your hand…'
       :'Select an option to continue.');
     footer.replaceChildren();
     const handReady=!showingHand||d.hand.length>0;
-    if(d.buttons.enable1)button(String(d.buttons.label1||'Confirm'),()=>{void apply(true);},
-      'ct-required-primary',handReady);
-    if(d.buttons.enable2)button(String(d.buttons.label2||'Cancel'),()=>{void apply(false);},
-      '',handReady);
+    if(bottoming){
+      // Forge only enables OK after exactly N cards have been chosen.
+      // Never replace that engine legality with a locally guessed threshold.
+      button('Confirm selected cards',()=>{void apply(true);},
+        'ct-required-primary',handReady && d.remaining===0 && !!d.buttons.enable1);
+      if(d.buttons.enable2 && /\bauto\b/i.test(String(d.buttons.label2||''))){
+        button('Let Forge choose instead',()=>{void apply(false);},'',handReady);
+      }
+    }else{
+      if(d.buttons.enable1)button(String(d.buttons.label1||'Confirm'),()=>{void apply(true);},
+        'ct-required-primary',handReady);
+      if(d.buttons.enable2)button(String(d.buttons.label2||'Cancel'),()=>{void apply(false);},
+        '',handReady);
+    }
     if(showingHand&&!d.hand.length){
       const retry=make('button',null,handLoading?'Loading hand…':'↻ Refresh hand');
       retry.disabled=handLoading;
@@ -382,7 +453,7 @@
     if(d.kind==='mana'||d.kind==='cards')button('Use battlefield',()=>{
       minimized=key;show(false,key);feedback.textContent='';
     });
-    if(!d.enabled && !d.items.length)
+    if(!bottoming && !d.enabled && !d.items.length)
       feedback.textContent='Forge has not enabled a response yet. Check available mana or refresh Forge status.';
   }
   function sync(){
@@ -398,7 +469,7 @@
     if(opened)paint();
     // Pregame prompt events can arrive before GameView has projected the hand.
     // Snapshot is read-only; never guess or synthesize cards for the player.
-    if(isKeepMulligan(d)&&!d.hand.length&&requestedHandFor!==key){
+    if((isKeepMulligan(d)||isBottoming(d))&&!d.hand.length&&requestedHandFor!==key){
       requestedHandFor=key;
       Promise.resolve().then(()=>{void refreshOpeningHand();});
     }
