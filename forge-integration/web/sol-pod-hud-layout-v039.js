@@ -91,7 +91,7 @@
 
   const hud=document.createElement('aside');
   hud.id='sol-pod-hud-layout';
-  hud.setAttribute('aria-label','Gameplay information and Forge actions');
+  hud.setAttribute('aria-label','Sol Pod gameplay information and actions');
   document.body.append(hud);
 
   function layout(){
