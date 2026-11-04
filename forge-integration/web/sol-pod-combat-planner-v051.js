@@ -344,11 +344,13 @@
   const confirm=create('button','sol-primary',
    submittedStage===stage?'Waiting for combat…':
    count?'Confirm '+count+' blocker'+(count===1?'':'s'):'Skip blocking');
+  // Native confirmBlocks() checks the actual InputBlock and its rules.
+  // Cached Forge button labels are asynchronous and must not suppress a
+  // legitimate block confirmation after the queue has become active.
   confirm.disabled=busy||uncertain||submittedStage===stage||!inputReady()||
-    !!window.ctDirectCombat?.pending||!window.ctForgePriority?.canConfirm;
+    !!window.ctDirectCombat?.pending;
   confirm.onclick=async()=>{
-   if(busy||uncertain||submittedStage===stage||!inputReady()||
-      !inStep()||!window.ctForgePriority?.canConfirm)return;
+   if(busy||uncertain||submittedStage===stage||!inputReady()||!inStep())return;
    busy=true;
    notice(count?'Confirming the declared blockers…':'Skipping blockers…');
    paint();
