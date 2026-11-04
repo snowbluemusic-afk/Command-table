@@ -7,6 +7,7 @@ import forge.game.spellability.StackItemView;
 import forge.gamemodes.match.HostedMatch;
 import forge.gamemodes.match.input.InputPassPriority;
 import forge.gamemodes.match.input.InputLondonMulligan;
+import forge.gamemodes.match.input.InputBlock;
 import forge.gui.FThreads;
 import forge.player.PlayerControllerHuman;
 
@@ -29,6 +30,18 @@ public final class CommandTableForgeInput {
 
     public void confirm() {
         FThreads.invokeInEdtAndWait(() -> human().selectButtonOk());
+    }
+    /**
+     * A late blocker confirmation must not consume priority or advance a
+     * different prompt after Forge has already left the blocker step.
+     */
+    public void confirmBlocks() {
+        FThreads.invokeInEdtAndWait(() -> {
+            requirePhase("COMBAT_DECLARE_BLOCKERS");
+            if (!(human().getInputProxy().getInput() instanceof InputBlock))
+                throw new IllegalStateException("There is no active blocker choice. Refresh combat.");
+            human().selectButtonOk();
+        });
     }
     public void cancel() {
         // The Forge GL/EDT may currently be busy resolving an ability or
