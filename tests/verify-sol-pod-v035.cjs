@@ -28,7 +28,7 @@ const checks=[
  ['Front-end reports rejected and timed-out commands',
   safety.includes('showError(error,')&&safety.includes('Sol Pod rejected the action')],
  ['Tutorial has 12 steps',patch.includes("['RECOVER FROM ERRORS'")],
- ['Tutorial has blocker-first guidance',patch.includes('Tap YOUR blocker FIRST')],
+ ['Tutorial documents the new attacker-first block planner',patch.includes('The Block Planner opens when you defend')],
  ['Tutorial describes stack, activated abilities and Forge recovery',
   patch.includes('The stack resolves last-in, first-out')&&patch.includes('Activate ability')&&patch.includes('A timed-out action may still be processing')]
 ];
