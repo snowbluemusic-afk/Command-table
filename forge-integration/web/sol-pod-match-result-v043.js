@@ -59,7 +59,7 @@
   modal.dataset.open='false';
   modal.setAttribute('role','dialog');
   modal.setAttribute('aria-modal','true');
-  modal.setAttribute('aria-label','Forge match result');
+  modal.setAttribute('aria-label','Sol Pod match result');
   const card=document.createElement('article');
   card.className='sol-result-card';
   const kicker=document.createElement('div');kicker.className='sol-result-kicker';
@@ -114,7 +114,7 @@
       'The match ended without a winner.';
     stats.textContent='Turn '+(Number(next.turn)||1)+' · Your final life: '+
       (next.life??'—');
-    modal.setAttribute('aria-label',label+' — Forge match complete');
+    modal.setAttribute('aria-label',label+' — Sol Pod match complete');
     display();
   }
   review.onclick=()=>{reviewing=true;display();};

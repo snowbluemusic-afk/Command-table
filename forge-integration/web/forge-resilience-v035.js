@@ -25,20 +25,20 @@
    return !!selection && Number(selection.min||0)>0 &&
      (selection.cards||[]).some(c=>!c.actionable);
  };
- const text=value=>String(value?.message||value||'Forge did not respond');
+ const text=value=>String(value?.message||value||'Sol Pod did not respond');
  const isCasting=payload=>payload?.action==='castById'||
    payload?.action==='castCommander'||payload?.action==='castSelected';
  const isGame=()=>!!window.app?.nativeMatch&&window.app?.view==='game';
  const currentPlayer=()=>window.app?.game?.players?.[0];
  function checkCast(card){
-   if(!isGame())return {ok:false,reason:'Start a Forge match to play this card.'};
-   if(unknownResult)return {ok:false,reason:'The previous Forge action is not confirmed. Refresh the game before another cast.'};
-   if(castInFlight)return {ok:false,reason:'Forge is already processing a cast. Finish or cancel that interaction first.'};
+   if(!isGame())return {ok:false,reason:'Start a Sol Pod match to play this card.'};
+   if(unknownResult)return {ok:false,reason:'The previous action is not confirmed. Refresh the game before another cast.'};
+   if(castInFlight)return {ok:false,reason:'Sol Pod is already processing a cast. Finish or cancel that interaction first.'};
    const game=window.app?.game,me=currentPlayer();
-   if(!me||!game)return {ok:false,reason:'The current game state is unavailable. Refresh Forge.'};
+   if(!me||!game)return {ok:false,reason:'The current game state is unavailable. Refresh Sol Pod.'};
    if(game.winner!=null)return {ok:false,reason:'The match has ended.'};
    if(game.phase==='mulligan')return {ok:false,reason:'Complete your opening-hand decision before casting.'};
-   if(window.ctForgeChoice?.hasPending)return {ok:false,reason:'Finish the required Forge choice before casting another card.'};
+   if(window.ctForgeChoice?.hasPending)return {ok:false,reason:'Finish the required choice before casting another card.'};
    if(window.ctForgePriority?.isHandChoice)return {ok:false,reason:'Finish the discard or hand selection first.'};
    if(window.ctForgePriority?.isManaPayment)return {ok:false,reason:'Complete or cancel the current mana payment first.'};
    if(window.ctDirectCombat?.pending>0)return {ok:false,reason:'Finish pending combat assignments first.'};
@@ -93,8 +93,8 @@
  const resumeRecovery=document.createElement('button');
  resumeRecovery.id='ct-forge-recovery-resume';
  resumeRecovery.type='button';
- resumeRecovery.textContent='✦ Resume Forge recovery';
- resumeRecovery.onclick=()=>renderPanel(lastFailure||'Forge still requires recovery.');
+ resumeRecovery.textContent='✦ Resume Sol Pod recovery';
+ resumeRecovery.onclick=()=>renderPanel(lastFailure||'Sol Pod still requires recovery.');
  document.body.append(resumeRecovery);
  function mountPanel(){
    if(!retryPanel){
@@ -102,7 +102,7 @@
      retryPanel.id='ct-forge-safety';
      retryPanel.setAttribute('role','dialog');
      retryPanel.setAttribute('aria-modal','true');
-     retryPanel.setAttribute('aria-label','Forge gameplay recovery requires your action');
+     retryPanel.setAttribute('aria-label','Sol Pod recovery requires your action');
    }
    // The Game Log has display:none when collapsed. Never attach interactive
    // recovery controls there or inside a clipped HUD/stack container.
@@ -134,14 +134,14 @@
    dialog.className='ct-safety-dialog';
    const header=document.createElement('strong');
    header.className='ct-safety-heading';
-   header.textContent='Forge needs your attention';
+   header.textContent='Sol Pod needs your attention';
    const body=document.createElement('div');
    body.className='ct-safety-details';
    body.textContent=message;
    const hint=document.createElement('div');
    hint.textContent=hasRequiredChoice()
-     ? 'A Forge choice is waiting. Open it to continue the game.'
-     : 'Refresh checks Forge without replaying a spell. Cancel requests cancellation of the current action; it does not automatically cast again.';
+     ? 'A required choice is waiting. Open it to continue the game.'
+     : 'Refresh checks the game without replaying a spell. Cancel requests cancellation of the current action; it does not automatically cast again.';
    const controls=document.createElement('div');
    controls.className='ct-safety-buttons';
    const action=(label,fn)=>{
@@ -151,9 +151,9 @@
      button.disabled=recoveryBusy;
      controls.append(button);return button;
    };
-   action('↻ Refresh Forge status',recover);
+   action('↻ Refresh Sol Pod status',recover);
    if(hasRequiredChoice()){
-     action('Open required Forge choice',async()=>{
+     action('Open required choice',async()=>{
        // Replay only the current decision; never answer it automatically.
        // Do not silently dismiss recovery if Forge no longer has a choice
        // or the control channel could not replay it.
@@ -161,14 +161,14 @@
          const status=await nativeRequest('engine.status');
          nativeChoiceWaiting=!!status?.choicePending;
          if(!hasRequiredChoice()){
-           renderPanel('Forge no longer reports a pending choice. Refresh the game to verify the current stack and priority.');
+           renderPanel('Sol Pod no longer reports a pending choice. Refresh the game to verify the current stack and priority.');
            return;
          }
          clearPanel();
          window.ctFullscreenTargets?.refresh?.();
          window.ctForgeRequiredAction?.refresh?.();
        }catch(error){
-         renderPanel('Unable to reopen the required Forge decision: '+text(error)+'. Refresh status to try again.');
+         renderPanel('Unable to reopen the required decision: '+text(error)+'. Refresh status to try again.');
        }
      });
    }else if(cancellationPending){
@@ -193,14 +193,14 @@
    if(!isGame()){clearPanel();return true;}
    if(recoveryBusy)return false;
    recoveryBusy=true;
-   renderPanel('Checking the live Forge game. No card is being cast again…');
+   renderPanel('Checking the live Sol Pod game. No card is being cast again…');
    try{
      const status=await nativeRequest('engine.status');
      lastEngineStatus=status;
      nativeChoiceWaiting=!!status?.choicePending;
      cancellationPending=!!status?.cancelRequested;
      const response=await nativeRequest('game.snapshot');
-     if(!response?.game)throw new Error('Forge has not returned an authoritative game state');
+     if(!response?.game)throw new Error('Sol Pod has not returned a valid game state');
      window.ctReceiveForgeState?.(response.game);
      window.ctForgePriority?.refresh?.();
      window.ctForgeSelection?.refresh?.();
@@ -208,14 +208,14 @@
      window.ctForgeRequiredAction?.refresh?.();
      if(hasRequiredChoice()){
        recoveryBusy=false;
-       renderPanel('Forge is waiting for a required choice. Open that choice to continue.');
+       renderPanel('Sol Pod is waiting for a required choice. Open that choice to continue.');
        return false;
      }
      if(status?.castInProgress){
        recoveryBusy=false;
        renderPanel(cancellationPending
-         ?'Cancellation was requested, but Forge has not stopped the cast. Check status again or review the battlefield; do not recast yet.'
-         :'Forge is still processing the previous cast. You can request cancellation or check again, but do not recast yet.');
+         ?'Cancellation was requested, but Sol Pod has not stopped the cast. Check status again or review the battlefield; do not recast yet.'
+         :'Sol Pod is still processing the previous cast. You can request cancellation or check again, but do not recast yet.');
        return false;
      }
      // The native command has stopped processing and the authoritative
@@ -225,11 +225,11 @@
      clearPanel();
      window.ctFullscreenTargets?.refresh?.();
      window.ctForgeRequiredAction?.refresh?.();
-     window.solPodNotice?.('Forge status refreshed. Review the stack and card zone before trying another action.','info','forge-recovered');
+     window.solPodNotice?.('Sol Pod status refreshed. Review the stack and card zone before trying another action.','info','forge-recovered');
      return true;
    }catch(error){
      recoveryBusy=false;
-     renderPanel('Unable to refresh Forge: '+text(error)+'. No spell has been submitted again.');
+     renderPanel('Unable to refresh Sol Pod: '+text(error)+'. No spell has been submitted again.');
      return false;
    }
  }
@@ -237,19 +237,19 @@
    if(!isGame()){clearPanel();return false;}
    if(recoveryBusy)return false;
    if(hasRequiredChoice()){
-     renderPanel('Forge is waiting for a required decision. Open that choice; cancellation may not be legal.');
+     renderPanel('Sol Pod is waiting for a required decision. Open that choice; cancellation may not be legal.');
      return false;
    }
    recoveryBusy=true;
-   renderPanel('Requesting cancellation from Forge. Checking the result…');
+   renderPanel('Requesting cancellation from Sol Pod. Checking the result…');
    try{
      await nativeRequest('game.command',{action:'cancelCastTarget',value:null});
      cancellationPending=true;
      recoveryBusy=false;
-     renderPanel('Cancellation request acknowledged by the native bridge. Forge may still be processing; checking status…');
+     renderPanel('Cancellation request received. Sol Pod may still be processing; checking status…');
    }catch(error){
      recoveryBusy=false;
-     renderPanel('Forge did not confirm cancellation: '+text(error)+'. Refresh before trying to cast again.');
+     renderPanel('Sol Pod did not confirm cancellation: '+text(error)+'. Refresh before trying to cast again.');
      return false;
    }
    recoveryBusy=false;
@@ -276,7 +276,7 @@
        // the operation. Require a snapshot before another cast attempt.
        if(error?.code==='FORGE_TIMEOUT')unknownResult=true;
        showError(error,error?.code==='FORGE_TIMEOUT'?
-         'Forge response timed out — do not repeat the action yet':'Forge rejected the action');
+         'Sol Pod response timed out — do not repeat the action yet':'Sol Pod rejected the action');
      }
      throw error;
    }).finally(()=>{if(cast)castInFlight=false;});

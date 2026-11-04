@@ -178,7 +178,7 @@ assert(cards.children[0].children[1].children[1].textContent.includes('39 life')
  if(generated){
   const html=read(generated);
   assert(html.includes('ct-fullscreen-targets'),'Generated Android UI missing fullscreen target selection');
-  assert(html.includes('Copy Forge rules diagnostics'),'Generated Android history missing copy action');
+  assert(html.includes('Copy Sol Pod rules diagnostics'),'Generated Android history missing copy action');
   assert(html.includes('ctRulesTrace'),'Generated Android UI missing mechanics trace');
  }
  console.log('PASS v0.40: fullscreen Forge player targeting, combat suppression, interruption, recovery, cross-mechanic stack/zone/trigger trace');

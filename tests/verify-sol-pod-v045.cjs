@@ -92,7 +92,7 @@ function buttons(){
  await assert.rejects(native.request('game.command',{action:'castById',value:42}),/timed out/);
  assert(window.ctForgeSafety.needsRecovery);
  assert.equal(notices.length,0,'Actionable errors must not be relegated to Game Log');
- assert(buttons().includes('↻ Refresh Forge status'));
+ assert(buttons().includes('↻ Refresh Sol Pod status'));
  assert(buttons().includes('Cancel pending action'));
  assert(hidden>0,'Recovery should hide stale cast preview');
  const submitted=calls.filter(x=>x.type==='game.command'&&x.payload.action==='castById').length;
@@ -103,13 +103,13 @@ function buttons(){
   'Refresh must not submit any new spell');
  choicePending=true;
  window.ctForgeSafety.showError(new Error('A choice is pending'));
- assert(buttons().includes('Open required Forge choice'));
+ assert(buttons().includes('Open required choice'));
  assert(!buttons().includes('Cancel pending action'),
   'Cannot cancel a potentially mandatory choice');
  choicePending=false;nativeBusy=false;nativeChoice=true;forceTimeout=false;
  assert.equal(await window.ctForgeSafety.recover(),false,
   'Native Forge may have an unanswered decision even when the JS sheet is not rendered');
- assert(buttons().includes('Open required Forge choice'),
+ assert(buttons().includes('Open required choice'),
   'Native pending choice must never lead to an unsafe Cancel suggestion');
  nativeChoice=false;
  assert.equal(await window.ctForgeSafety.recover(),true);
@@ -124,7 +124,7 @@ function buttons(){
  const bundled=process.argv[2];
  if(bundled){
   const html=read(bundled);
-  assert(html.includes('ct-forge-safety')&&html.includes('Refresh Forge status'),
+  assert(html.includes('ct-forge-safety')&&html.includes('Refresh Sol Pod status'),
    'Embedded APK must include full-screen recovery controls');
   assert(html.includes('status?.castInProgress'),
    'Embedded APK must check live native cast progress');

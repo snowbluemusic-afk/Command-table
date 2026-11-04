@@ -180,7 +180,7 @@ public final class CommandTableOverlay {
         try {
             obj.put("v",1).put("id",id).put("ok",ok);
             if (payload != null) obj.put("payload",payload);
-            if (!ok) obj.put("error",error == null ? "Forge command failed" : error);
+            if (!ok) obj.put("error",error == null ? "Sol Pod command failed" : error);
             send(obj);
         } catch(Exception ignored) {}
     }
@@ -260,7 +260,7 @@ public final class CommandTableOverlay {
             if(id!=null){
                 pendingStart=null;
                 respond(id,false,null,
-                    "Forge game-state projection failed: "+
+                    "Sol Pod game-state projection failed: "+
                     ex.getClass().getSimpleName()+": "+ex.getMessage());
             }
         }
@@ -278,7 +278,7 @@ public final class CommandTableOverlay {
 
     private static void validateCommanderDeck(String id, JSONObject deckJson) {
         if (!initialized()) {
-            respond(id, false, null, "Forge is still loading its card database");
+            respond(id, false, null, "Sol Pod is still loading its card database");
             return;
         }
         try {
@@ -301,7 +301,7 @@ public final class CommandTableOverlay {
     }
 
     private static void begin(String id, JSONObject p) {
-        if (!initialized()) {respond(id,false,null,"Forge card assets are still initializing");return;}
+        if (!initialized()) {respond(id,false,null,"Sol Pod card assets are still initializing");return;}
         try {
             JSONObject deckObject=p.getJSONObject("deck");
             final Deck own=decodeDeck(deckObject);
@@ -347,7 +347,7 @@ public final class CommandTableOverlay {
                 } catch(Throwable err) {
                     android.util.Log.e("CommandTable", "Forge match start failed", err);
                     pendingStart=null;
-                    respond(id,false,null,"Forge match start failed: "+
+                    respond(id,false,null,"Sol Pod match start failed: "+
                         err.getClass().getSimpleName()+": "+err.getMessage());
                 }
             });
@@ -363,7 +363,7 @@ public final class CommandTableOverlay {
             if (card != null && card.isCommander()) return card;
         }
         throw new IllegalArgumentException(
-            "Your commander is not in the command zone. Check your graveyard, exile or hand, and the Forge destination decision.");
+            "Your commander is not in the command zone. Check your graveyard, exile or hand, and the Sol Pod destination decision.");
     }
 
     private static void command(String id, JSONObject p) {
@@ -378,7 +378,7 @@ public final class CommandTableOverlay {
                 if(previous!=null)FThreads.invokeInEdtNowOrLater(previous::endCurrentGame);
                 respond(id,true,new JSONObject(),null);
             } else {
-                respond(id,false,null,"Forge is piloting this deck. Start a manual match to choose cards.");
+                respond(id,false,null,"Sol Pod is piloting this deck. Start a manual match to choose cards.");
             }
             return;
         }
@@ -480,7 +480,7 @@ public final class CommandTableOverlay {
                 }
                 case "autoBlocks":
                     throw new IllegalArgumentException(
-                        "Choose blockers yourself with Forge's legal target buttons");
+                        "Choose blockers yourself with Sol Pod's legal target buttons");
                 case "cancelCastTarget":
                     // This acknowledges a request to cancel, not completion.
                     // A pending Forge prompt may have to exit before GL/EDT
@@ -524,7 +524,7 @@ public final class CommandTableOverlay {
                     worker=REQUESTS;
                 }
             } catch(Exception malformed) {
-                respond("",false,null,"Invalid Forge request");
+                respond("",false,null,"Invalid Sol Pod request");
                 return;
             }
             worker.execute(() -> {
@@ -554,7 +554,7 @@ public final class CommandTableOverlay {
                             validateCommanderDeck(id,p.getJSONObject("deck"));break;
                         case "deck.repairPrebuilt": {
                             if (!initialized()) {
-                                respond(id,false,null,"Forge card library is still loading");
+                                respond(id,false,null,"Sol Pod card library is still loading");
                                 break;
                             }
                             JSONObject incoming=p.getJSONObject("deck");
@@ -569,7 +569,7 @@ public final class CommandTableOverlay {
                             break;
                         }
                         case "card.search": {
-                            if(!initialized()){respond(id,false,null,"Forge card catalog is still starting");break;}
+                            if(!initialized()){respond(id,false,null,"Sol Pod card catalog is still starting");break;}
                             List<Map<String,Object>> cards=CommandTableCardCatalog.search(
                                 p.optString("query",""),p.optBoolean("commanderOnly",false),
                                 p.optInt("limit",50));
@@ -577,7 +577,7 @@ public final class CommandTableOverlay {
                             break;
                         }
                         case "cards.resolve": {
-                            if(!initialized()){respond(id,false,null,"Forge card catalog is still starting");break;}
+                            if(!initialized()){respond(id,false,null,"Sol Pod card catalog is still starting");break;}
                             JSONArray incoming=p.optJSONArray("names");
                             List<String> names=new ArrayList<>();
                             if(incoming!=null)for(int i=0;i<incoming.length();i++)
@@ -614,7 +614,7 @@ public final class CommandTableOverlay {
                             if(current==null || current.getGameView()==null)
                                 respond(id,false,null,"No active Commander game");
                             else if(!CommandTableGameProjection.ready(current.getGameView()))
-                                respond(id,false,null,"Forge is preparing the Commander game");
+                                respond(id,false,null,"Sol Pod is preparing the Commander game");
                             else {
                                 Map<String,Object> state=CommandTableGameProjection.snapshot(
                                     current.getGameView(),current.getGameView().getPlayers().get(0));
@@ -658,7 +658,7 @@ public final class CommandTableOverlay {
             });
         }
         @JavascriptInterface public void showNativePrompts() {
-            publishNotice("Use Command Table's on-screen choices to interact with Forge.");
+            publishNotice("Use Command Table's on-screen choices to interact with Sol Pod.");
             show();
         }
         @JavascriptInterface public void returnToCommandTable() {show();}

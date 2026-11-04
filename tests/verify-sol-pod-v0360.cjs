@@ -120,7 +120,7 @@ const records=[
  win.ctZoneBrowser.open('graveyard');
  assert.equal(zoneBackdrop.dataset.open,'true');
  const sheet=zoneBackdrop.children[0],detail=sheet.children[2].children[1];
- const chosen=detail.children.find(n=>n.textContent==='Select this card with Forge');
+ const chosen=detail.children.find(n=>n.textContent==='Select this card');
  // Only exile is currently selected; graveyard is not legal.
  assert(!chosen,'A graveyard card was marked legal while only exile was selectable');
  win.ctZoneBrowser.close();
@@ -129,7 +129,7 @@ const records=[
  const newSheet=zoneBackdrop.children[0],grid=newSheet.children[2].children[0];
  grid.children[1].onclick();
  const detail2=zoneBackdrop.children[0].children[2].children[1];
- const pick=detail2.children.find(n=>n.textContent==='Select this card with Forge');
+ const pick=detail2.children.find(n=>n.textContent==='Select this card');
  assert(pick,'Exact legal graveyard choice button missing');
  pick.onclick();await flush();
  assert.deepEqual(calls.at(-1),{action:'cardId',id:302},'Zone action used name or index, not exact Forge ID');

@@ -78,7 +78,7 @@
   const modal=create('section');modal.id='ct-fullscreen-targets';
   modal.dataset.open='false';modal.setAttribute('role','dialog');
   modal.setAttribute('aria-modal','true');
-  modal.setAttribute('aria-label','Choose a legal Forge target');
+  modal.setAttribute('aria-label','Choose a legal Sol Pod target');
   const sheet=create('div');
   const header=create('header');
   const title=create('h2','Choose a target');
@@ -94,7 +94,7 @@
   modal.append(sheet);document.body.append(modal);
   // Full-screen target choices can be temporarily hidden to review the board;
   // this separate resume affordance never lives inside the Game Log.
-  const resume=create('button','✦ Continue Forge targeting');
+  const resume=create('button','✦ Continue targeting');
   resume.id='ct-fullscreen-target-resume';resume.type='button';
   document.body.append(resume);
   let lastSignature='',dismissed='',busy=false,previousFocus=null,suspended=false,manualReview=false;
@@ -148,7 +148,7 @@
     const action=target.kind==='player'?api.choosePlayer:
       target.kind==='stack'?api.chooseStack:api.chooseCard;
     if(typeof action!=='function')return;
-    busy=true;status.textContent='Sending your choice to Forge…';
+    busy=true;status.textContent='Sending your choice to Sol Pod…';
     renderOptions();
     const accepted=await action(target.id);
     busy=false;
@@ -157,7 +157,7 @@
       // version/signature will change and the next prompt should open.
       if(lastSignature===key){dismissed=key;manualReview=false;modal.dataset.open='false';
         resume.style.display='none';}
-    }else status.textContent='Forge could not select this target. Try again or refresh.';
+    }else status.textContent='Sol Pod could not select this target. Try again or refresh.';
     sync();
   }
   function renderOptions(){
@@ -168,7 +168,7 @@
       targets.length&&targets.every(t=>t.kind==='card')?'card':'target';
     title.textContent='Choose '+(type==='player'?'a player':type==='card'?'a card':'a target');
     subtitle.textContent=String(forge()?.prompt||'')||
-      'Select a legal target for the spell or ability. Forge validates the rules.';
+      'Select a legal target for the spell or ability. Sol Pod checks the rules.';
     count.textContent=targets.length+' legal option'+(targets.length===1?'':'s')+
       (chosen.size?' · '+chosen.size+' already selected':'');
     const key=lastSignature;
@@ -188,7 +188,7 @@
         const life=player&&Number.isFinite(Number(player.life))?' · '+player.life+' life':'';
         desc=(isSelf?'You':'Player')+life+(desc?' · '+desc:'');
       }else if(t.kind==='stack')desc='Spell or ability on stack'+(desc?' · '+desc:'');
-      if(t.kind==='card' && !desc)desc='Card (Forge-legal)';
+      if(t.kind==='card' && !desc)desc='Card (legal target)';
       text.append(create('span',desc,'ct-target-meta'));
       tile.append(icon,text);
       tile.disabled=busy||(!!window.ctForgeSafety?.needsRecovery&&
@@ -199,7 +199,7 @@
     if(window.ctForgeSafety?.needsRecovery &&
        !targets.some(t=>forge()?.isRequiredSelection?.(t)))
       status.textContent='Refresh before initiating a new action.';
-    else if(!busy)status.textContent='Only Forge-legal targets are shown. Returning to the battlefield does not cancel this choice.';
+    else if(!busy)status.textContent='Only legal targets are shown. Returning to the battlefield does not cancel this choice.';
   }
   function sync(event){
     if(!available()){

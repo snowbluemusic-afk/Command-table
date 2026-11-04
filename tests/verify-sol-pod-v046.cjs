@@ -12,7 +12,7 @@ const patch=read('forge-integration/tools/patch_frontend.py');
 for(const x of [router,selection,hub,notices,resilience])new vm.Script(x);
 assert(patch.includes("'forge-required-action-v046.js'"),
  'Android HTML must embed full-screen Forge action router');
-assert(hub.includes('Read-only history of Forge game events') &&
+assert(hub.includes('Read-only history of Sol Pod game events') &&
  !hub.includes("document.getElementById('ct-forge-legal-actions')"),
  'Game Log must never host Forge legal choices');
 assert(hub.includes('#ct-forge-legal-actions{display:none!important}'),
@@ -28,7 +28,7 @@ assert(selection.includes('cancel:()=>decide(false)'),
  'Approvals need functional Forge Cancel, not an inert label');
 assert(overlay.includes('.put("cancelRequested",cancelRequested)'),
  'Native status must distinguish cancellation request from completion');
-assert(resilience.includes('Cancellation was requested, but Forge has not stopped'),
+assert(resilience.includes('Cancellation was requested, but Sol Pod has not stopped'),
  'Pending cancellation must remain visibly unresolved');
 
 class E {

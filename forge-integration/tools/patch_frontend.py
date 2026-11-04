@@ -2054,6 +2054,72 @@ assert source.count(final_outcome_hook)==1, 'Match result callback insertion cha
 source=source.replace(final_outcome_hook,
   "  ctFocusActiveOpponent(before,app.game);\n  window.solPodMatchResult?.onState?.(state);\n  // The animation layer")
 
+# v0.49 — final presentation-only naming pass, AFTER all anchored v0.15-v0.48
+# patches. Do not rename Forge classes, JavaScript bridge objects, protocol
+# fields, IDs, CSS selectors, card names, oracle text or rule metadata.
+# Only complete, known copy phrases are replaced in generated player UI.
+player_copy={
+  "This action must be handled by Forge: ": "This action is not available in Sol Pod: ",
+  "Advanced Forge decisions": "Advanced Sol Pod decisions",
+  "Forge rules · legality checked when cast": "Sol Pod checks legality before casting",
+  "Forge runs the full Commander rules": "Sol Pod uses full Commander rules",
+  "Copy Forge rules diagnostics": "Copy Sol Pod rules diagnostics",
+  "Forge is still loading the rules and card resources": "Sol Pod is still loading the rules and card resources",
+  "Starting native Forge match…": "Starting Sol Pod match…",
+  "Starting Forge Commander match…": "Starting Sol Pod Commander match…",
+  "Forge could not start this game: ": "Sol Pod could not start this game: ",
+  "Forge match start timed out before a playable board was created": "Sol Pod match start timed out before a playable board was created",
+  "Forge could not validate the starter": "Sol Pod could not validate the starter",
+  "Forge repaired ": "Sol Pod repaired ",
+  "Forge is still loading its card database": "Sol Pod is still loading its card library",
+  "Validate with Forge ✓": "Validate with Sol Pod ✓",
+  "Use Validate with Forge for an authoritative Commander legality check.": "Use Validate with Sol Pod for a Commander legality check.",
+  "the Forge Commander rules engine": "Sol Pod's Commander rules",
+  "the complete Forge rules engine": "Sol Pod's complete rules engine",
+  "installed Forge catalog": "installed Sol Pod card library",
+  "Forge card database included with Command Table": "Sol Pod card library included with the app",
+  "Forge validation failed: ": "Sol Pod validation failed: ",
+  "Forge: ": "Sol Pod: ",
+  "Deck saved. Card details will be resolved from the installed Forge catalog": "Deck saved. Card details will be resolved from the Sol Pod card library",
+  "FORGE BUILT-IN · v0.19.0": "SOL POD · v0.19.0",
+  'window.CommandTableEngine?"Forge":check.unsupported': 'window.CommandTableEngine?"Sol Pod":check.unsupported',
+  "Select a legal Forge card or target from the Command Table choice panel.": "Select a legal card or target using the Sol Pod decision screen.",
+  "The Forge match has ended.": "The Sol Pod match has ended.",
+  "COMMAND TABLE · MATCH COMPLETE": "SOL POD · MATCH COMPLETE",
+  "Forge is managing this match.": "Sol Pod is managing this match.",
+  "Forge checks mana and legality": "Sol Pod checks mana and legality",
+  "Forge controls the attack and blocking steps.": "Sol Pod controls the attack and blocking steps.",
+  "Resolve to apply damage in Forge.": "Resolve to apply combat damage.",
+  "Card text is loading; Forge handles the rules.": "Card text is loading; Sol Pod handles the rules.",
+  "Ask Forge to cast": "Cast",
+  "Activated abilities: Forge checks costs, sacrifice requirements and targets.": "Sol Pod checks activation costs, sacrifices and targets.",
+  "Forge did not respond to ": "Sol Pod did not respond to ",
+  "Forge owns actual": "Sol Pod handles actual",
+  "The Forge rules engine decides timing, mana, targets, combat and legal actions.": "Sol Pod checks timing, mana, targets, combat and legal actions.",
+  "the embedded Forge rules engine decides timing, mana, targets, combat and legal actions.": "Sol Pod applies timing, mana, targeting, combat and other game rules.",
+  "The cards you put on the bottom are selected through Forge, not by casting.": "Choose the cards to put on the bottom yourself; this is not a cast.",
+  "Each card keeps its own Forge identity": "Each card keeps its own unique identity",
+  "Forge checks real coloured costs": "Sol Pod checks real coloured costs",
+  "Pay through a Forge prompt": "Use a Sol Pod payment choice",
+  "when Forge gives you priority": "when you have priority",
+  "Forge checks its cost": "Sol Pod checks its cost",
+  "Forge choices appear in Game Events & Choices or a readable decision sheet.": "Required actions appear in full-screen Sol Pod dialogs, not the Game Log.",
+  "Game Events & Choices is above it.": "The Game Log is read-only and separate from your choices.",
+  "Game Events explains major actions": "The Game Log records major actions",
+  "Cast with Forge": "Casting cards",
+  "when Forge allows": "when legal",
+  "Forge-glowing targets": "highlighted legal targets",
+  "Forge owns the rules": "Sol Pod handles the rules",
+  "FORGE CONTROLS THE DECISION": "SOL POD CONTROLS THE DECISION",
+  "SOL POD · FORGE RULES ENGINE": "SOL POD · COMMANDER GAME",
+  "Copy Forge rules diagnostics": "Copy Sol Pod rules diagnostics",
+  "Refresh the Forge state": "Refresh the Sol Pod state",
+  "Forge is preparing the game": "Sol Pod is preparing the game",
+}
+for original, replacement in player_copy.items():
+    if original in source:
+        source=source.replace(original,replacement)
+
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(source)
 print(f'Patched Command Table HTML: {len(source)} characters')

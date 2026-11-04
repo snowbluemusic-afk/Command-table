@@ -60,7 +60,7 @@ public final class CommandTableForgeInput {
             final var current = human().getInputProxy().getInput();
             if (!(current instanceof InputLondonMulligan)) {
                 throw new IllegalStateException(
-                    "Forge is no longer asking you to put mulligan cards on the bottom");
+                    "Sol Pod is no longer asking you to put mulligan cards on the bottom");
             }
             CardView selected = null;
             for (CardView card : view().getPlayers().get(0).getHand()) {
@@ -70,7 +70,7 @@ public final class CommandTableForgeInput {
                 throw new IllegalArgumentException("Selected card is not in your current hand");
             }
             if (!human().selectCard(selected, Collections.emptyList(), null)) {
-                throw new IllegalStateException("Forge rejected this mulligan card selection");
+                throw new IllegalStateException("Sol Pod rejected this mulligan card selection");
             }
         });
     }
@@ -91,20 +91,20 @@ public final class CommandTableForgeInput {
             final var current = human().getInputProxy().getInput();
             if (!(current instanceof InputPassPriority priority))
                 throw new IllegalStateException(
-                    "You cannot cast yet. Forge is waiting for " +
+                    "You cannot cast yet. Sol Pod is waiting for " +
                     (current == null ? "a game decision" :
                         current.getClass().getSimpleName().replace("Input", "")));
 
             if (!human().selectCard(card, Collections.emptyList(), null))
                 throw new IllegalStateException(
-                    "Forge rejected this card. Check available mana, your turn and spell timing.");
+                    "Sol Pod rejected this card. Check available mana, your turn and spell timing.");
 
             // Forge InputPassPriority intentionally returns true even when
             // the ability picker was cancelled. Avoid an erroneous success.
             final var chosen = priority.getChosenSa();
             if (chosen == null || chosen.isEmpty())
                 throw new IllegalStateException(
-                    "No spell or land play was selected. Forge has not cast this card.");
+                    "No spell or land play was selected. Sol Pod has not cast this card.");
         });
     }
 
@@ -135,7 +135,7 @@ public final class CommandTableForgeInput {
                 throw new IllegalArgumentException("Attacking creature is not on the battlefield");
             human().selectPlayer(defender, null);
             if (!human().selectCard(attacker, Collections.emptyList(), null))
-                throw new IllegalArgumentException("Forge rejected this attacker");
+                throw new IllegalArgumentException("Sol Pod rejected this attacker");
         });
     }
 
@@ -151,9 +151,9 @@ public final class CommandTableForgeInput {
             if (attacker == null || blocker == null)
                 throw new IllegalArgumentException("The attacker or blocker is no longer visible");
             if (!human().selectCard(attacker, Collections.emptyList(), null))
-                throw new IllegalArgumentException("Forge rejected the selected attacker");
+                throw new IllegalArgumentException("Sol Pod rejected the selected attacker");
             if (!human().selectCard(blocker, Collections.emptyList(), null))
-                throw new IllegalArgumentException("Forge rejected the blocker assignment");
+                throw new IllegalArgumentException("Sol Pod rejected the blocker assignment");
         });
     }
 
@@ -180,12 +180,12 @@ public final class CommandTableForgeInput {
 
     private PlayerControllerHuman human() {
         if (match.getHumanControllers().isEmpty())
-            throw new IllegalStateException("No Forge human player controller");
+            throw new IllegalStateException("No Sol Pod human player controller");
         return match.getHumanControllers().get(0);
     }
     private GameView view() {
         GameView view=match.getGameView();
-        if (view==null) throw new IllegalStateException("No active Forge game");
+        if (view==null) throw new IllegalStateException("No active Sol Pod game");
         return view;
     }
     private CardView findCard(int id) {

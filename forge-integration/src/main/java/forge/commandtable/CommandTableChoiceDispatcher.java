@@ -90,7 +90,7 @@ public final class CommandTableChoiceDispatcher {
             for (Object x : iterable) copy.add(x);
             return copy;
         }
-        throw new IllegalArgumentException("Expected a Forge selection list");
+        throw new IllegalArgumentException("Expected a Sol Pod selection list");
     }
 
     private static int number(Object value, int fallback) {
@@ -139,9 +139,9 @@ public final class CommandTableChoiceDispatcher {
             return ticket.result.get();
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
-            throw new IllegalStateException("Forge player choice interrupted", interrupted);
+            throw new IllegalStateException("Sol Pod player choice interrupted", interrupted);
         } catch (ExecutionException failure) {
-            throw new IllegalStateException("Forge player choice cancelled", failure.getCause());
+            throw new IllegalStateException("Sol Pod player choice cancelled", failure.getCause());
         } finally {
             pending.remove(id);
             if (lastEvent == event) lastEvent=null;
@@ -158,7 +158,7 @@ public final class CommandTableChoiceDispatcher {
         if (unique.size() != selected.size()) throw new IllegalArgumentException("Duplicate choice index");
         for (Integer i : selected) {
             if (i == null || i < 0 || i >= ticket.original.size())
-                throw new IllegalArgumentException("Unknown Forge choice index");
+                throw new IllegalArgumentException("Unknown Sol Pod choice index");
         }
         if (!cancelled && !"text".equals(ticket.mode) && !"integer".equals(ticket.mode)
                 && selected.size() < ticket.min)
@@ -274,12 +274,12 @@ public final class CommandTableChoiceDispatcher {
             }
             case "getInteger": {
                 int min = number(a[1], 0), max = number(a[2], 0);
-                if (max < min) throw new IllegalArgumentException("Forge integer bounds invalid");
+                if (max < min) throw new IllegalArgumentException("Sol Pod integer bounds invalid");
                 Map<String, Object> extra = Map.of("minValue", min, "maxValue", max, "initial", min);
                 Response result = waitFor("integer", text(a[0]), List.of(), 0, 0, null, extra);
                 if (result.cancelled()) return null;
                 int n = Integer.parseInt(result.text());
-                if (n < min || n > max) throw new IllegalArgumentException("Integer outside Forge range");
+                if (n < min || n > max) throw new IllegalArgumentException("Integer outside Sol Pod range");
                 return n;
             }
             case "one":

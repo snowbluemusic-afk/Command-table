@@ -12,7 +12,7 @@
  document.head.append(style);
  const hub=document.createElement('section');
  hub.id='sol-pod-hub';
- hub.setAttribute('aria-label','Read-only history of Forge game events');
+ hub.setAttribute('aria-label','Read-only history of Sol Pod game events');
  hub.innerHTML='<div id="sol-pod-hub-header"><span class="sol-log-title">✦ GAME LOG</span>'+
    '<button type="button" id="sol-pod-log-toggle" aria-expanded="false">View log</button>'+
    '<button type="button" id="sol-pod-clear-info">Clear</button></div>'+

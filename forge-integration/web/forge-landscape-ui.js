@@ -39,19 +39,19 @@
   '<div class="ct-loading-message">Shuffling decks and loading card artwork…</div>'+
   '<div class="ct-loading-track" aria-hidden="true"></div>'+
   '<div class="ct-loading-recovery" hidden style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">'+
-  '<button type="button" id="ct-loading-retry" style="padding:9px 14px;border:1px solid #d3b47b;background:#213d4b;color:#f9e2ae;border-radius:9px">Refresh Forge</button>'+
+  '<button type="button" id="ct-loading-retry" style="padding:9px 14px;border:1px solid #d3b47b;background:#213d4b;color:#f9e2ae;border-radius:9px">Refresh Sol Pod</button>'+
   '<button type="button" id="ct-loading-exit" style="padding:9px 14px;border:1px solid #9babb0;background:#25333f;color:white;border-radius:9px">Back to decks</button></div></div>';
  document.body.append(screen);
  let active=false,token=0,startTime=0;
  const message=screen.querySelector('.ct-loading-message');
  const recovery=screen.querySelector('.ct-loading-recovery');
  screen.querySelector('#ct-loading-retry').onclick=async()=>{
-   message.textContent='Checking Forge and restoring any pending opening decision…';
+   message.textContent='Checking Sol Pod and restoring any pending opening decision…';
    try{
      await window.CommandTableNative?.request?.('engine.status');
      const result=await window.CommandTableNative?.request?.('game.snapshot');
      if(result?.game)window.ctReceiveForgeState?.(result.game);
-   }catch(error){message.textContent='Forge did not respond: '+(error?.message||String(error));}
+   }catch(error){message.textContent='Sol Pod did not respond: '+(error?.message||String(error));}
  };
  screen.querySelector('#ct-loading-exit').onclick=()=>{
    hide();
@@ -84,7 +84,7 @@
    const elapsed=Date.now()-startTime;
    if(elapsed>20000){recovery.hidden=false;recovery.style.display='flex';}
    message.textContent=elapsed>8000?
-     'Forge is preparing your opening hand. The game will appear when ready…':
+     'Sol Pod is preparing your opening hand. The game will appear when ready…':
      'Shuffling decks and preparing your opening hand…';
    // No 3-second timeout: the real Forge game state controls readiness.
    setTimeout(check,180);

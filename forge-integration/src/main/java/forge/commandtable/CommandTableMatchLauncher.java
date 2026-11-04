@@ -74,7 +74,7 @@ public final class CommandTableMatchLauncher {
             Collections.singleton(GameType.Commander);
         rules.setAppliedVariants(appliedVariants);
         if (!rules.hasAppliedVariant(GameType.Commander) || !rules.hasCommander()) {
-            throw new IllegalStateException("Forge Commander rules variant was not activated");
+            throw new IllegalStateException("Sol Pod Commander rules variant was not activated");
         }
         rules.setWarnAboutAICards(false);
         // Forge's InputPassPriority.getActionable() returns NO highlights

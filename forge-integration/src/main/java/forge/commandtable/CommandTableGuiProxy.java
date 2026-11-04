@@ -90,9 +90,9 @@ public final class CommandTableGuiProxy {
                     || "chooseSingleEntityForEffect".equals(name)
                     || "sideboard".equals(name);
                 if (blockingChoice) {
-                    onNotice.accept("Forge needs a choice Command Table cannot yet display: " + name);
+                    onNotice.accept("Sol Pod needs a choice Command Table cannot yet display: " + name);
                     throw new UnsupportedOperationException(
-                        "Missing Command Table Forge choice handler: " + name);
+                        "Missing Sol Pod choice handler: " + name);
                 }
                 Object result;
                 try {
