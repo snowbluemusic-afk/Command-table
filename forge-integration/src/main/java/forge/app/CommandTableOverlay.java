@@ -404,6 +404,15 @@ public final class CommandTableOverlay {
                     }
                     break;
                 }
+                case "mulligan.bottom.select": {
+                    if(value==null || JSONObject.NULL.equals(value))
+                        throw new IllegalArgumentException("Choose a card from your opening hand");
+                    // Never use castById/selectHand for this. London mulligan
+                    // accepts a card toggle despite not publishing the hand
+                    // as Selection.cards; it exposes only Selection.chosen.
+                    bridge.chooseMulliganBottomCard(Integer.parseInt(String.valueOf(value)));
+                    break;
+                }
                 case "castCommander": {
                     GameView view=match.getGameView();
                     if(view==null)throw new IllegalStateException("Game not ready");
