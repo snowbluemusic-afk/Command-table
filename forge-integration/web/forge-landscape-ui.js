@@ -42,7 +42,7 @@
   '<button type="button" id="ct-loading-retry" style="padding:9px 14px;border:1px solid #d3b47b;background:#213d4b;color:#f9e2ae;border-radius:9px">Refresh Sol Pod</button>'+
   '<button type="button" id="ct-loading-exit" style="padding:9px 14px;border:1px solid #9babb0;background:#25333f;color:white;border-radius:9px">Back to decks</button></div></div>';
  document.body.append(screen);
- let active=false,token=0,startTime=0;
+ let active=false,token=0,startTime=0,checkingToken=-1,openingWait=false;
  const message=screen.querySelector('.ct-loading-message');
  const recovery=screen.querySelector('.ct-loading-recovery');
  screen.querySelector('#ct-loading-retry').onclick=async()=>{
@@ -58,38 +58,54 @@
    if(typeof action==='function')action('quitGame');
  };
  function show(){
-  token++;active=true;startTime=Date.now();
+  token++;active=true;startTime=Date.now();checkingToken=-1;openingWait=false;
   message.textContent='Shuffling decks and loading card artwork…';
   recovery.hidden=true;recovery.style.display='none';
   screen.hidden=false;
   try{window.AndroidBridge?.setOrientation?.('landscape');}catch(_){}
  }
- function hide(){active=false;token++;screen.hidden=true;}
+ function hide(){active=false;openingWait=false;token++;checkingToken=-1;screen.hidden=true;}
+ // A mulligan/starting-player handoff with NO valid player buttons is a
+ // loading state, not an "Opening decision" with an empty footer.
+ function waitForOpening(){
+   if(window.app?.view!=='game'||window.app?.game?.phase!=='mulligan')return;
+   if(!active)show();
+   openingWait=true;
+   message.textContent='Preparing your next Sol Pod decision…';
+   ready();
+ }
  function ready(){
   if(!active)return;
   const current=token;
+  if(checkingToken===current)return;
+  checkingToken=current;
   function check(){
-   if(!active||current!==token||(typeof app==='undefined'||app.view!=='game'))return;
+   if(!active||current!==token)return;
+   if(typeof app==='undefined'||app.view!=='game'){checkingToken=-1;return;}
    const game=app.game;
    const hand=game?.players?.[0]?.hand||[];
    const opening=game?.phase==='mulligan'||game?.turn===0;
-   // Do not expose the interim 0-card state while the native engine shuffles.
-   // A Forge Play/Draw or Mulligan prompt takes priority: it must be reachable
-   // rather than hidden behind this non-interactive startup screen.
+   // A dealt opening hand does not prove that Forge's next buttons
+   // have been published. Wait for a real actionable decision.
    const requiresInput=!!window.ctForgePriority?.hasActionableDecision ||
-     window.ctForgeChoice?.hasPending===true;
-   if(requiresInput||hand.length>0||(!opening&&game?.native&&game?.players?.length)){
+     window.ctForgeChoice?.hasPending===true ||
+     window.ctForgeRequiredAction?.required===true;
+   if(requiresInput||(!opening&&game?.native&&game?.players?.length)){
      hide();return;
    }
    const elapsed=Date.now()-startTime;
    if(elapsed>20000){recovery.hidden=false;recovery.style.display='flex';}
-   message.textContent=elapsed>8000?
-     'Sol Pod is preparing your opening hand. The game will appear when ready…':
-     'Shuffling decks and preparing your opening hand…';
+   message.textContent=openingWait?
+     (elapsed>8000?'Sol Pod is still preparing your next choice…':
+       'Preparing your next Sol Pod decision…'):
+     (elapsed>8000?'Sol Pod is preparing your opening hand. The game will appear when ready…':
+       'Shuffling decks and preparing your opening hand…');
    // No 3-second timeout: the real Forge game state controls readiness.
    setTimeout(check,180);
   }
   requestAnimationFrame(()=>setTimeout(check,100));
  }
- window.ctMatchLoading={show,ready,hide,get active(){return active;}};
+ window.ctMatchLoading={show,ready,hide,waitForOpening,
+    get active(){return active;},
+    get awaitingOpening(){return openingWait;}};
 })();

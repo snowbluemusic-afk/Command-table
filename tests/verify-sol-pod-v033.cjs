@@ -19,7 +19,7 @@ const checks=[
  ['Buttons moved to left',bottom.includes('left:17.2%!important')&&bottom.includes('left:28.1%!important')],
  ['Hand constrained to free space left of priority',bottom.includes('left:39.3%!important;width:35.2%!important')],
  ['Expanded hand remains available',bottom.includes('.sol-battlefield.ct10-hand-zoom .ct10-hand-wrap')],
- ['Forge choices require explicit confirmation when requested',choice.includes("&& !current.confirm) void answer(false)")],
+ ['Forge choices require explicit confirmation when requested',!choice.includes("&& !current.confirm) void answer(false)")&&choice.includes("Confirm choice")],
  ['Allocation cannot confirm an invalid total',choice.includes('ok.disabled=inFlight||needsVerification||!allocationStatus().valid')],
  ['Retry choice is blocked until status has been replayed',choice.includes('needsVerification=true')&&choice.includes('if(needsVerification){needsVerification=false;answerGeneration++')],
  ['Rapid blocking is queued instead of silently rejected',!gesture.includes('The previous block is being applied. Select another blocker once Forge confirms it.')],

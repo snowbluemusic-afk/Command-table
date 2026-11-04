@@ -267,7 +267,16 @@
     // Ordinary priority/phase advancement (OK, Cancel, Pass) and combat
     // declaration must remain on the battlefield.
     if(inCombat()&&!mana&&!needCards&&!opening)return null;
-    if(!opening&&!mana&&!needCards&&!unusual)return null;
+    // Auto-mana is an intentional engine-side action, not a human decision.
+    // When Auto is configured and Forge enables it, the payment will complete
+    // without showing a modal for a split second. Recovery still handles any
+    // request failure.
+    if(mana&&window.ctAutoMana!==false&&buttons.enable1&&!needCards)return null;
+    // During startup Forge may publish "mulligan" phase before it publishes
+    // any enabled decision buttons. That is LOADING, never a blocking sheet
+    // with a generic heading and zero actions.
+    if(!enabled&&!needCards&&!bottoming)return null;
+    if(!opening&&!mana&&!needCards&&!unusual&&!bottoming)return null;
     const keepMulliganButtons=/\bkeep\b/i.test(label1+' '+label2) &&
       /\bmulligan\b/i.test(label1+' '+label2);
     const kind=bottoming?'bottoming':keepMulliganButtons?'opening':needCards?'cards':mana?'mana':opening?'opening':'approval';
@@ -458,12 +467,25 @@
   }
   function sync(){
     const d=modeData();
-    if(!d){current=null;key='';minimized='';lastExplicit='';waitingForForgeKey='';show(false,'');closeCardViewer();return;}
+    if(!d){
+      current=null;key='';minimized='';lastExplicit='';waitingForForgeKey='';
+      show(false,'');closeCardViewer();
+      const game=window.app?.game;
+      const loadingOpening=window.app?.nativeMatch && window.app?.view==='game' &&
+        game?.phase==='mulligan' && game?.winner==null && !game?.gameOver &&
+        !forgeChoice() && !window.ctForgeSafety?.recoveryVisible &&
+        !window.ctForgePriority?.hasActionableDecision;
+      if(loadingOpening)window.ctMatchLoading?.waitForOpening?.();
+      return;
+    }
     if(d.key!==key){
       key=d.key;minimized='';waitingForForgeKey='';feedback.textContent='';
       closeCardViewer();
     }
     current=d;
+    // Never let a stale loader block the now-actionable Forge decision.
+    if(window.ctMatchLoading?.awaitingOpening)
+      window.ctMatchLoading.hide();
     const opened=minimized!==key;
     show(opened,key);
     if(opened)paint();

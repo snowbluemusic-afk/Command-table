@@ -9,7 +9,7 @@
   let inFlight = false;
   let answerGeneration=0;
   let needsVerification=false;
-  const forcedChoicesSubmitted=new Set();
+
   const view = document.createElement('section');
   view.id = 'ct-forge-decision-sheet';
   view.setAttribute('role', 'dialog');
@@ -77,10 +77,9 @@
         : selected.length < current.max ? [...selected,index] : selected;
     }
     paint();
-    // One legal pick: the card/option tap IS confirmation. No second
-    // full-screen confirm step unless Forge actually requested more picks.
-    if (current && selected.length===1 && current.min===1 && current.max===1 &&
-        (current.mode==='single'||current.mode==='multiple') && !current.confirm) void answer(false);
+    // A tap selects the option; Confirm choice submits it. Do not
+    // immediately close the modal on a single choice: that can look like a
+    // disappearing popup, and gives the player no chance to review or undo.
   }
   function move(index, delta) {
     if (inFlight || !isOrder()) return;
@@ -375,24 +374,16 @@
         }
       }
       inFlight=false;
-      // Only one mandatory choice exists and Forge has not offered Skip:
-      // no user decision is lost by returning the one possible answer.
-      // Do NOT auto-answer yes/no, modal options, targeting, mana colours
-      // or optional choices that could conceal a meaningful decision.
-      const forced=current && current.mode==='single' &&
-        current.min===1 && current.max===1 &&
-        current.options?.length===1 && !current.allowSkip && !current.confirm;
-      if(forced && !forcedChoicesSubmitted.has(current.id)){
-        forcedChoicesSubmitted.add(current.id);
-        selected=[0];
-        void answer(false);
-      }else paint();
-      if(forcedChoicesSubmitted.size>140)forcedChoicesSubmitted.clear();
+      // Every required decision remains on screen until the player answers.
+      // Automatically submitting even a single-option choice made some
+      // dialogs appear and then vanish before players could read them.
+      paint();
       return;
     }
     if(event && event.type==='game.choice.clear') {
       const closingId=event.payload?.choiceId||event.payload?.id;
-      if(closingId&&current?.id&&String(closingId)!==String(current.id))return;
+      // Ignore missing/stale IDs: never close a newer human choice.
+      if(!closingId || (current?.id && String(closingId)!==String(current.id)))return;
       current=null;selected=[];inFlight=false;needsVerification=false;view.style.display='none';
       return;
     }

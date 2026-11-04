@@ -9,7 +9,7 @@ const hub=read('forge-integration/web/sol-pod-hub-v030.js');
 const patch=read('forge-integration/tools/patch_frontend.py');
 const html=read('android/app/src/main/assets/index.html');
 const checks=[
- ['Opening hand wait uses authoritative state, not art or timeout',loading.includes('const requiresInput=')&&loading.includes('hand.length>0')&&loading.includes('hasActionableDecision')&& !loading.includes('elapsed>=3300')],
+ ['Opening hand wait uses authoritative state, not art or timeout',loading.includes('const requiresInput=')&&loading.includes('waitForOpening')&&loading.includes('hasActionableDecision')&& !loading.includes('elapsed>=3300')],
  ['Play/Draw opening prompt unblocked',priority.includes('get hasActionableDecision()')],
  ['Do not guess dual-land mana eligibility',patch.includes('source=source.replace(old_glow,')&&patch.includes('available:app.nativeMatch?!!window.ctForgeSelection?.isLegalCard?')],
  ['Native card label avoids false Playable claim',html.includes('if(app.nativeMatch)return')&&(html.includes('Forge rules · legality checked when cast')||html.includes('Sol Pod checks legality before casting'))],

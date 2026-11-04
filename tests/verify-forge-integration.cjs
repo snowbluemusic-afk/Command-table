@@ -219,9 +219,9 @@ assert(choiceUi.includes("'display:none','position:fixed','inset:0'") &&
        choiceUi.includes("width:min(94vw,1000px)") &&
        choiceUi.includes("ct-forge-decision-sheet"),
   'Mandatory Forge choices must render full-screen');
-assert(choiceUi.includes("current.min===1 && current.max===1") &&
-       choiceUi.includes("void answer(false)"),
-  'A single required Forge card choice must complete with one tap');
+assert(!choiceUi.includes('forcedChoicesSubmitted.add(current.id)') &&
+       !choiceUi.includes('selected.length===1 && current.min===1'),
+  'Required choices must remain open for explicit player confirmation');
 assert(choiceUi.includes("window.AndroidBridge?.artworkUrl?.(simpleName)"),
   'Forge discard and card-choice options must have optional card art');
 assert(selectionUi.includes('ctForgeSelection') &&
@@ -280,7 +280,8 @@ assert(overlay.includes('case "castCommander":') &&
        overlay.includes('commanderInZone(human).getId()') &&
        overlay.includes('c.getId()==wanted'),
   'Commander casting and inspected hand casts must use stable Forge zone IDs');
-assert(frontend.includes("case 'castCommander'")===false &&
+assert(frontend.includes("case 'castCommander'") &&
+       frontend.includes('NATIVE_GAME_COMMANDS') &&
        frontend.includes("'cardId','castCommander','castById'") &&
        frontend.includes("?'castById':act"),
   'Commander actions and cast-by-ID dispatch must use native Forge, not simulator');
@@ -362,7 +363,7 @@ assert(frontend.includes("const g=app.game,name=app.nativeMatch?app.sideInspect"
 assert(selectionScript.includes("get isBottoming()") &&
        selectionScript.includes("get isHandChoice()") &&
        castingScript.includes("window.ctForgePriority?.isHandChoice") &&
-       castingScript.includes("action:'cardId',value:card.id"),
+       castingScript.includes("action:'cardId',value:exactId"),
   'Mulligan card taps must reach Forge without Cast');
 assert(selectionScript.includes("||handChoice") &&
        selectionScript.includes("syncChoices()") &&

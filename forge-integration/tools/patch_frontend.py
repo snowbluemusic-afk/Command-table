@@ -663,7 +663,10 @@ function ctNativeToast(message){
   notice.textContent=txt;
   notice.style.display='block';
   if(ctForgeToastTimer!==null)clearTimeout(ctForgeToastTimer);
-  ctForgeToastTimer=setTimeout(()=>{notice.style.display='none';ctForgeToastTimer=null;},3700);
+  // Informational notifications must remain readable; errors need longer.
+  // These are passive status toasts only, never required human actions.
+  const duration=/error|failed|rejected|timed out|unable|cannot/i.test(txt)?15000:9000;
+  ctForgeToastTimer=setTimeout(()=>{notice.style.display='none';ctForgeToastTimer=null;},duration);
 }
 """
 assert source.count("function applyAuthoritativeGame(state) {")==1

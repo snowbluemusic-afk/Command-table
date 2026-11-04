@@ -39,8 +39,9 @@ assert(choices.includes('case "confirm"') &&
 assert(choices.includes('Move to command zone') &&
        choices.includes('Keep the normal destination'),
  'Owner must have both legitimate destination responses');
-assert(ui.includes('current.options?.length===1 && !current.allowSkip && !current.confirm'),
- 'Only a single forced non-confirmation option may auto-answer; Commander yes/no must require explicit choice');
+assert(!ui.includes('current.options?.length===1 && !current.allowSkip && !current.confirm') &&
+       ui.includes('Confirm choice'),
+ 'All human decisions, including Commander destination, require explicit confirmation');
 assert(overlay.includes('private static void publishChoice(Map<String, Object> prompt)') &&
        overlay.includes('            show();\n            send(new JSONObject().put("v", 1).put("type", "game.choice")'),
  'Mandatory choice must show Sol Pod WebView before publishing to JS');
