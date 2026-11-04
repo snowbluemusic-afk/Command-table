@@ -396,8 +396,16 @@
     if(window.ctDirectCombat?.pending)await window.ctDirectCombat.whenIdle();
     paintDecision();
     try{
+      // No legal blocks means Forge never opened InputBlock. Its ordinary
+      // InputPassPriority in the same named phase must be handled separately,
+      // and must not replay a phantom "confirm blocks" action.
+      const phase=String(window.app?.game?.phaseDetail||'');
+      const combatPriority=ok && /COMBAT_DECLARE_BLOCKERS/.test(phase) &&
+        window.app?.game?.blockInputActive!==true &&
+        window.app?.game?.humanInput==='InputPassPriority';
       await window.CommandTableNative.request('game.command',{
-        action:ok?'resolve':'cancelCastTarget',value:null
+        action:ok?(combatPriority?'passCombatPriority':'resolve'):'cancelCastTarget',
+        value:null
       });
       // Acknowledges the command; Forge remains responsible for resolution.
       return true;
