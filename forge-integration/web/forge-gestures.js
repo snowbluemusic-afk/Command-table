@@ -29,7 +29,7 @@
   let commandQueue=Promise.resolve();
   let unresolved=false;
   const nativeDeadline=(promise,label,ms=18000)=>new Promise((resolve,reject)=>{
-    const timer=setTimeout(()=>{const err=new Error(label+' did not respond; resynchronise Forge before confirming combat.');err.nativeTimeout=true;reject(err);},ms);
+    const timer=setTimeout(()=>{const err=new Error(label+' did not respond; resynchronise Sol Pod before confirming combat.');err.nativeTimeout=true;reject(err);},ms);
     Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value);},err=>{clearTimeout(timer);reject(err);});
   });
   let suppressUntil=0;
@@ -94,7 +94,7 @@
       busy=true;
       try {
         if(unresolved){
-          feedback('Combat has an unanswered Forge request. Use Refresh combat before making more assignments.');
+          feedback('Combat has an unanswered Sol Pod request. Use Refresh combat before making more assignments.');
           return;
         }
         if(mode()!==dragMode){
@@ -132,7 +132,7 @@
         if(snapshot?.game&&typeof window.ctReceiveForgeState==='function')
           window.ctReceiveForgeState(snapshot.game);
         if(!confirmed){
-          feedback('Forge did not confirm that '+(dragMode==='block'?'blocker':'attacker')+
+          feedback('Sol Pod did not confirm that '+(dragMode==='block'?'blocker':'attacker')+
             '. Check the highlighted combat connection before pressing Confirm.');
         }else if(dragMode==='block'){
           const count=(snapshot?.game?.combat||[]).reduce((sum,c)=>sum+(c.blockerIds||[]).length,0);
@@ -140,7 +140,7 @@
         }
       }catch(error){
         if(error?.nativeTimeout)unresolved=true;
-        feedback('Forge could not apply this '+(dragMode==='attack'?'attack':'block')+
+        feedback('Sol Pod could not apply this '+(dragMode==='attack'?'attack':'block')+
           ': '+(error?.message||String(error)));
       }finally{
         busy=false;queued--;
@@ -189,7 +189,7 @@
     const state=drag;
     const target=state.moving?targetAt(event.clientX,event.clientY,state.kind):null;
     clear();
-    if(!state.moving)return; // Ordinary tap keeps its native Forge behavior.
+    if(!state.moving)return; // Ordinary tap keeps its native Sol Pod behavior.
     if(event.cancelable)event.preventDefault();
     event.stopImmediatePropagation();
     suppressClick=state.el;
@@ -228,7 +228,7 @@
         if(!isOwnCreature(id))return;
         event.preventDefault();event.stopImmediatePropagation();
         if(unresolved){
-          feedback('Refresh combat first: Forge has not confirmed an earlier assignment.');
+          feedback('Refresh combat first: Sol Pod has not confirmed an earlier assignment.');
           return;
         }
         selectedBlocker=id===selectedBlocker?null:id;
@@ -249,7 +249,7 @@
           return;
         }
         if(unresolved){
-          feedback('Refresh combat first: Forge has not confirmed an earlier assignment.');
+          feedback('Refresh combat first: Sol Pod has not confirmed an earlier assignment.');
           return;
         }
         const blockerId=selectedBlocker;
@@ -281,7 +281,7 @@
         const snapshot=await window.CommandTableNative.request('game.snapshot').catch(()=>null);
         if(snapshot?.game)window.ctReceiveForgeState?.(snapshot.game);
       }catch(error){
-        feedback('Forge rejected your attack selection: '+(error?.message||String(error)));
+        feedback('Sol Pod rejected your attack selection: '+(error?.message||String(error)));
       }finally{
         queued--;busy=false;
         if(typeof window.dispatchEvent==='function'&&typeof window.Event==='function')
@@ -318,9 +318,9 @@
     whenIdle:()=>commandQueue.catch(()=>{}),
     recover:async()=>{
       try{
-        const status=await nativeDeadline(window.CommandTableNative.request('engine.status'),'Forge status',12000);
-        const result=await nativeDeadline(window.CommandTableNative.request('game.snapshot'),'Forge snapshot',12000);
-        if(!result?.game)throw new Error('Forge did not return a game snapshot');
+        const status=await nativeDeadline(window.CommandTableNative.request('engine.status'),'Sol Pod status',12000);
+        const result=await nativeDeadline(window.CommandTableNative.request('game.snapshot'),'Sol Pod snapshot',12000);
+        if(!result?.game)throw new Error('Sol Pod did not return a game snapshot');
         window.ctReceiveForgeState?.(result.game);
         unresolved=false;
         feedback('Combat resynchronised. Review the displayed blocks before confirming.');
