@@ -139,14 +139,14 @@ function createHarness(reject=false){
   assert(source.indexOf("request=window.CommandTableNative.request('game.command'") <
        source.indexOf("try{window.render?.();}"),
     'A card must reach the Android bridge BEFORE any render that could throw');
-  assert(source.includes('Forge is still processing') &&
-       source.includes('Forge could not cast this card:'),
+  assert(source.includes('Sol Pod is still processing') &&
+       source.includes('Sol Pod could not cast this card:'),
     'Slow or rejected Forge casts must never be silent');
   assert(source.includes("action:'castById',value:choice.id"),
     'Casting must use the exact Forge card instance');
   assert(source.includes('ctNativeToast'),
     'Cast acknowledgements should be visible to the player');
-  assert(source.includes('Forge checks timing, mana, targets'));
+  assert(source.includes('Sol Pod checks timing, mana, targets'));
 
   console.log('PASS: mulligan selection, cast preview, cancel, duplicate IDs, commander and errors');
 })().catch(error=>{console.error(error);process.exitCode=1;});
