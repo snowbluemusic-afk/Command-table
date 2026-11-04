@@ -16,9 +16,11 @@ assert(input.includes('human().getInputQueue().getInput()') &&
        input.includes('queued instanceof InputBlock blockInput') &&
        input.includes('active instanceof InputBlock input'),
        'Both blocker commands must consume the real Forge input queue');
-assert(!input.includes('human().getInputProxy().getInput() instanceof InputBlock') &&
-       !input.includes('human().selectCard(attacker, Collections.emptyList(), null)'),
-       'Do not reintroduce stale InputProxy routing');
+const blockMethod=input.split('public boolean blockWith(int attackerId, int blockerId)')[1]
+  .split('private void requirePhase')[0];
+assert(!blockMethod.includes('human().getInputProxy().getInput()') &&
+       !blockMethod.includes('human().selectCard('),
+       'The block method must bypass InputProxy; attack commands may still use it');
 assert(input.includes('blockInput.selectCard(attacker, Collections.emptyList(), null)') &&
        input.includes('blockInput.selectCard(blocker, Collections.emptyList(), null)') &&
        input.includes('boolean nowBlocking = combat.isBlocking(blocker, attacker)') &&
