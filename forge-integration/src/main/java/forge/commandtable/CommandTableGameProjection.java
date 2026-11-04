@@ -187,6 +187,27 @@ public final class CommandTableGameProjection {
             if(combat.getBlockers(attacker)!=null) {
                 for(CardView blocker:combat.getBlockers(attacker)) blockerIds.add(blocker.getId());
             }
+            // CardView events are async to the actual InputBlock interaction.
+            // During declaration the live Forge Combat map is authoritative;
+            // otherwise a successfully assigned block can appear unblocked
+            // for multiple snapshots and the UI incorrectly locks itself.
+            if(liveGame != null &&
+                "COMBAT_DECLARE_BLOCKERS".equals(String.valueOf(game.getPhase()))) {
+                try {
+                    Combat realCombat=liveGame.getCombat();
+                    if(realCombat != null) {
+                        for(Card liveAttacker:realCombat.getAttackers()) {
+                            if(liveAttacker.getId()!=attacker.getId()) continue;
+                            blockerIds.clear();
+                            for(Card actual:realCombat.getBlockers(liveAttacker))
+                                blockerIds.add(actual.getId());
+                            break;
+                        }
+                    }
+                } catch(RuntimeException transition) {
+                    // Retain the last published CombatView across a transition.
+                }
+            }
             attack.put("blockerIds",blockerIds);
             attacks.add(attack);
         }
