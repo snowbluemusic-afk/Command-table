@@ -420,13 +420,17 @@
     const forgeChoice=document.getElementById('ct-forge-decision-sheet');
     const otherChoiceOpen=!!forgeChoice && forgeChoice.style.display!=='none';
     const handChoice=!!window.ctForgePriority?.isHandChoice;
-    const waitingForInput=/COMBAT_DECLARE_BLOCKERS/.test(
-      String(window.app?.game?.phaseDetail||'')) &&
-      ['none','transitioning'].includes(String(window.app?.game?.humanInput||''));
+    const game=window.app?.game;
+    const combatBlockPhase=/COMBAT_DECLARE_BLOCKERS/.test(String(game?.phaseDetail||''));
+    const inputName=String(game?.humanInput||'');
+    // A missing input is a transitional state, not a reason to hide every
+    // possible control. Present a safe, read-only refresh in this state.
+    const waitingForInput=combatBlockPhase &&
+      !game?.blockInputActive && ['','none','transitioning','InputLockUI'].includes(inputName);
     const active=!!window.app?.nativeMatch &&
-      window.app?.view==='game' && window.app?.game?.winner===null && !window.app?.modal &&
-      !window.app?.sideInspect && !otherChoiceOpen && !waitingForInput &&
-      (!!buttonState.enable1||!!buttonState.enable2||handChoice);
+      window.app?.view==='game' && game?.winner===null && !window.app?.modal &&
+      !window.app?.sideInspect && !otherChoiceOpen &&
+      (!!buttonState.enable1||!!buttonState.enable2||handChoice||combatBlockPhase);
     decision.classList.toggle('ct-forge-hand-choice',handChoice);
     // A single small dock owns Forge buttons. Never mount a full-width
     // secondary prompt or cover the enlarged card browser.
@@ -436,7 +440,6 @@
     const pregame=window.app?.game?.phase==='mulligan' ||
       window.app?.view!=='game';
     decision.classList.toggle('ct-forge-pregame',pregame);
-    const game=window.app?.game;
     const steps=[
       ['untap','↻','Untap'],['upkeep','✧','Upkeep'],['draw','▤','Draw'],
       ['main1','◆','Main'],['combat','⚔','Combat'],
@@ -501,6 +504,28 @@
         'Auto becomes available when Sol Pod finds a valid payment.';
     }
     buttons.replaceChildren();
+    // The real Forge InputQueue is authoritative; queued prompt buttons can
+    // lag behind input changes and must not hide the only priority action.
+    if(waitingForInput){
+      decisionText.textContent='Checking combat decision…';
+      const refresh=document.createElement('button');
+      refresh.type='button';refresh.textContent=syncBusy?'Refreshing…':'↻ Refresh combat';
+      refresh.disabled=busy||syncBusy;
+      refresh.style.cssText='flex:1;min-height:36px;padding:6px 9px;border-radius:9px;border:1px solid #bda17d;background:#294452;color:#f4e3c9;font:700 12px system-ui';
+      refresh.onclick=()=>{void syncChoices();};
+      buttons.append(refresh);
+      return;
+    }
+    if(blockPriority){
+      decisionText.textContent='You have priority after blockers. Continue to combat damage, or play an instant before passing.';
+      const pass=document.createElement('button');
+      pass.type='button';pass.textContent=busy?'Passing…':'Pass priority';
+      pass.disabled=busy||syncBusy;
+      pass.style.cssText='flex:1;min-height:38px;border-radius:9px;border:1px solid #dfbd8a;background:#e6b46c;color:#14252a;font:750 13px system-ui';
+      pass.onclick=()=>{void decide(true);};
+      buttons.append(pass);
+      return;
+    }
     for(const [label,enabled,ok] of [
       [buttonState.label1,buttonState.enable1,true],
       [buttonState.label2,buttonState.enable2,false]
@@ -597,7 +622,15 @@
       for(const key of ['label1','label2','enable1','enable2']){
         if(Object.prototype.hasOwnProperty.call(p,key))buttonState[key]=p[key];
       }
+      // Native prompt events now carry the CURRENT InputQueue identity.
+      // Applying it before painting avoids a stale GameView leaving the
+      // blocker sheet and the priority controls both invisible.
+      if(window.app?.game && typeof p.humanInput==='string'){
+        window.app.game.humanInput=p.humanInput;
+        window.app.game.blockInputActive=p.blockInputActive===true;
+      }
       paintDecision();
+      window.ctCombatPlanner?.sync?.();
       // Required actions consume Forge's structured buttons, not Game Log text.
       if(typeof window.dispatchEvent==='function' && typeof CustomEvent!=='undefined')
         window.dispatchEvent(new CustomEvent('ct-forge-prompt-updated',{
@@ -613,8 +646,10 @@
         Promise.resolve().then(()=>{if(!busy&&window.ctAutoMana!==false)void decide(true);});
       }
     }
+    // Let the core apply the incoming authoritative GameView first.
+    const result=typeof firstReply==='function'?firstReply(value):undefined;
     if(payload?.type==='game.state'){paintDecision();queueCombatLinks();}
-    return typeof firstReply==='function'?firstReply(value):undefined;
+    return result;
   };
   window.ctForgePriority={
     reset:()=>{openingMessage='';buttonState.enable1=false;buttonState.enable2=false;paintDecision();},
