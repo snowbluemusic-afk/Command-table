@@ -219,9 +219,9 @@ assert(choiceUi.includes("'display:none','position:fixed','inset:0'") &&
        choiceUi.includes("width:min(94vw,1000px)") &&
        choiceUi.includes("ct-forge-decision-sheet"),
   'Mandatory Forge choices must render full-screen');
-assert(choiceUi.includes("current.min===1 && current.max===1") &&
-       choiceUi.includes("void answer(false)"),
-  'A single required Forge card choice must complete with one tap');
+assert(!choiceUi.includes('forcedChoicesSubmitted.add(current.id)') &&
+       !choiceUi.includes('selected.length===1 && current.min===1'),
+  'Required choices must remain open for explicit player confirmation');
 assert(choiceUi.includes("window.AndroidBridge?.artworkUrl?.(simpleName)"),
   'Forge discard and card-choice options must have optional card art');
 assert(selectionUi.includes('ctForgeSelection') &&
