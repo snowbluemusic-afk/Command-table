@@ -244,7 +244,7 @@ public final class CommandTableOverlay {
         show();
         try {
             PlayerView human=game.getPlayers().get(0);
-            Map<String,Object> snapshot = CommandTableGameProjection.snapshot(game,human);
+            Map<String,Object> snapshot = CommandTableGameProjection.snapshot(game,human,match==null?null:match.getGame());
             JSONObject gameJson=new JSONObject(snapshot);
             String id=pendingStart;
             if (id!=null) {
@@ -623,7 +623,7 @@ public final class CommandTableOverlay {
                                 respond(id,false,null,"Sol Pod is preparing the Commander game");
                             else {
                                 Map<String,Object> state=CommandTableGameProjection.snapshot(
-                                    current.getGameView(),current.getGameView().getPlayers().get(0));
+                                    current.getGameView(),current.getGameView().getPlayers().get(0),current.getGame());
                                 respond(id,true,new JSONObject().put("game",new JSONObject(state)),null);
                             }
                             break;
