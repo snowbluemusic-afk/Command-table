@@ -43,6 +43,8 @@
   const byId=findTokens();
   const lanes=document.querySelectorAll('.ct10-lane.ct10-creatures');
   for(const lane of lanes){
+   if(lane.dataset.solTokenGrouped==='true')continue;
+   lane.dataset.solTokenGrouped='true';
    // Each render builds fresh card nodes. Never reuse detached cards or
    // change the underlying player's battlefield/card IDs.
    const buckets=new Map();
