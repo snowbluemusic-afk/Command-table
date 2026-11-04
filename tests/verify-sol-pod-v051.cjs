@@ -27,7 +27,7 @@ assert(input.includes('human().selectCard(attacker, Collections.emptyList(), nul
 assert(planner.includes("action:'combat.block'") &&
  planner.includes("window.CommandTableNative.request('game.snapshot')"),
  'Planner must mutate and verify via Forge only');
-assert(planner.includes('Suggested matches by power/toughness (optional)') &&
+assert(planner.includes('Suggested legal blockers (optional)') && planner.includes('legalFor') &&
  !planner.includes("action:'autoBlocks'"),
  'Suggestions must be visual only, never automatic assignments');
 assert(target.includes("window.ctAttachmentFlow?.current?.()") &&
@@ -85,6 +85,7 @@ const opponent={forgeId:2,battlefield:[
 ]};
 const app={nativeMatch:true,view:'game',modal:null,game:{
  phase:'combat',phaseDetail:'COMBAT_DECLARE_BLOCKERS',turn:8,winner:null,gameOver:false,
+ legalBlockersReady:true,legalBlockers:{'901':[101,102],'902':[101,102]},
  players:[own,opponent],combat:[
   {cardId:901,cardName:'Dragon',defenderId:1,blockerIds:[]},
   {cardId:902,cardName:'Wolf',defenderId:1,blockerIds:[]}
@@ -102,6 +103,9 @@ const win={app,ctForgeSafety:{recoveryVisible:false},
    const ids=attack.blockerIds;const k=ids.indexOf(p.value.blockerId);
    if(k>=0)ids.splice(k,1);else ids.push(p.value.blockerId);
    return {accepted:true};
+  }
+  if(type==='game.command'&&p.action==='resolve'){
+   confirmed++;app.game.phaseDetail='COMBAT_DAMAGE';return {accepted:true};
   }
   if(type==='game.snapshot')return {game:app.game};
   return {accepted:true};
@@ -148,6 +152,8 @@ bear.onclick();
  skip.onclick();
  for(let i=0;i<7;i++)await Promise.resolve();
  assert.equal(confirmed,1,'Skip requires explicit player action on native button');
+ assert(calls.some(x=>x.type==='game.command'&&x.p.action==='resolve'),
+   'Skip must submit one native confirmation, not rely on stale priority UI');
  // Test the token presentation layer independently, with exact card nodes.
  app.game.phase='main1';app.game.phaseDetail='MAIN1';
  const lane=new E('div');lane.className='ct10-lane ct10-creatures ct10-lane-own';
