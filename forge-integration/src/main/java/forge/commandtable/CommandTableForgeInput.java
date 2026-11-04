@@ -13,6 +13,10 @@ import forge.player.PlayerControllerHuman;
 
 import java.util.Collections;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Routes Command Table taps to Forge's own human controller. No spell
@@ -28,15 +32,67 @@ public final class CommandTableForgeInput {
         this.match = Objects.requireNonNull(match);
     }
 
+    /**
+     * Forge Mobile's GuiMobile.invokeInEdtAndWait uses WaitRunnable, whose
+     * notify()/wait() sequence can lose the signal when the GL runnable
+     * finishes before the requesting thread enters wait(). That leaves the
+     * game.command worker blocked indefinitely, even for zero blockers.
+     *
+     * Use an actual latch instead. An operation not yet started when the
+     * deadline expires is discarded, so it cannot apply a stale click later.
+     * An already-running operation is never replayed: the UI must refresh
+     * Forge's authoritative state before another attempt.
+     */
+    private static void runOnForgeUi(Runnable operation) {
+        if (FThreads.isGuiThread()) {
+            operation.run();
+            return;
+        }
+        final CountDownLatch completed = new CountDownLatch(1);
+        final AtomicInteger state = new AtomicInteger(0); // 0 queued, 1 running, 2 expired, 3 completed
+        final AtomicReference<Throwable> failure = new AtomicReference<>();
+        FThreads.invokeInEdtLater(() -> {
+            if (!state.compareAndSet(0, 1)) {
+                completed.countDown(); // expired before the UI thread reached it
+                return;
+            }
+            try {
+                operation.run();
+            } catch (Throwable error) {
+                failure.set(error);
+            } finally {
+                state.set(3);
+                completed.countDown();
+            }
+        });
+        try {
+            if (!completed.await(8, TimeUnit.SECONDS)) {
+                boolean cancelledBeforeRun = state.compareAndSet(0, 2);
+                throw new IllegalStateException(cancelledBeforeRun
+                    ? "The Sol Pod UI thread did not process this input; it was cancelled. Refresh the game."
+                    : "The Sol Pod UI input is still processing. Refresh the game before retrying.");
+            }
+        } catch (InterruptedException interrupted) {
+            state.compareAndSet(0, 2);
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(
+                "Sol Pod input interrupted; refresh the game before retrying.", interrupted);
+        }
+        Throwable error = failure.get();
+        if (error instanceof RuntimeException runtime) throw runtime;
+        if (error instanceof Error fatal) throw fatal;
+        if (error != null) throw new IllegalStateException("Sol Pod input failed", error);
+    }
+
     public void confirm() {
-        FThreads.invokeInEdtAndWait(() -> human().selectButtonOk());
+        runOnForgeUi(() -> human().selectButtonOk());
     }
     /**
      * A late blocker confirmation must not consume priority or advance a
      * different prompt after Forge has already left the blocker step.
      */
     public void confirmBlocks() {
-        FThreads.invokeInEdtAndWait(() -> {
+        runOnForgeUi(() -> {
             requirePhase("COMBAT_DECLARE_BLOCKERS");
             if (!(human().getInputProxy().getInput() instanceof InputBlock))
                 throw new IllegalStateException("There is no active blocker choice. Refresh combat.");
@@ -52,10 +108,10 @@ public final class CommandTableForgeInput {
         FThreads.invokeInEdtNowOrLater(() -> human().selectButtonCancel());
     }
     public void concede() {
-        FThreads.invokeInEdtAndWait(() -> human().concede());
+        runOnForgeUi(() -> human().concede());
     }
     public void selectCard(int cardId) {
-        FThreads.invokeInEdtAndWait(() -> {
+        runOnForgeUi(() -> {
             CardView card = findCard(cardId);
             if (card == null) throw new IllegalArgumentException("Card not visible to player: " + cardId);
             human().selectCard(card, Collections.emptyList(), null);
@@ -69,7 +125,7 @@ public final class CommandTableForgeInput {
      * Forge still owns the count, toggle, ordering and actual zone change.
      */
     public void chooseMulliganBottomCard(int cardId) {
-        FThreads.invokeInEdtAndWait(() -> {
+        runOnForgeUi(() -> {
             final var current = human().getInputProxy().getInput();
             if (!(current instanceof InputLondonMulligan)) {
                 throw new IllegalStateException(
@@ -93,7 +149,7 @@ public final class CommandTableForgeInput {
      * card. InputPassPriority owns timing and all spell/land permissions.
      */
     public void castCard(int cardId) {
-        FThreads.invokeInEdtAndWait(() -> {
+        runOnForgeUi(() -> {
             CardView card = findCard(cardId);
             if (card == null)
                 throw new IllegalArgumentException("That card has moved out of your hand or command zone");
@@ -122,7 +178,7 @@ public final class CommandTableForgeInput {
     }
 
     public void selectPlayer(int playerId) {
-        FThreads.invokeInEdtAndWait(() -> {
+        runOnForgeUi(() -> {
             GameView view = view();
             for (PlayerView p : view.getPlayers()) {
                 if (p.getId() == playerId) {
@@ -138,7 +194,7 @@ public final class CommandTableForgeInput {
      * should select only that attacker, not invoke its Alpha Strike shortcut.
      */
     public void attackWith(int attackerId, int defenderId) {
-        FThreads.invokeInEdtAndWait(() -> {
+        runOnForgeUi(() -> {
             requirePhase("COMBAT_DECLARE_ATTACKERS");
             PlayerView defender = findPlayer(defenderId);
             if (defender == null || defender == view().getPlayers().get(0))
@@ -157,7 +213,7 @@ public final class CommandTableForgeInput {
      * This permits different defenders for each attack and multiple blocks.
      */
     public void blockWith(int attackerId, int blockerId) {
-        FThreads.invokeInEdtAndWait(() -> {
+        runOnForgeUi(() -> {
             requirePhase("COMBAT_DECLARE_BLOCKERS");
             CardView attacker = findCard(attackerId);
             CardView blocker = findCard(blockerId);
@@ -180,7 +236,7 @@ public final class CommandTableForgeInput {
     }
 
     public void selectStack(int stackId) {
-        FThreads.invokeInEdtAndWait(() -> {
+        runOnForgeUi(() -> {
             for (StackItemView item : view().getStack()) {
                 if (item.getId() == stackId) {
                     human().selectStackItem(item);
