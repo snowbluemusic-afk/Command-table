@@ -36,10 +36,10 @@
       input.dispatchEvent(new Event('input',{bubbles:true}));
       const results=document.getElementById('searchResults');
       if(!cards.length&&results)
-        results.textContent='No matches in the installed Forge card database.';
+        results.textContent='No matches in the installed Sol Pod card library.';
     }catch(err) {
       const results=document.getElementById('searchResults');
-      if(results)results.textContent='Forge card search failed: '+(err?.message||String(err));
+      if(results)results.textContent='Sol Pod card search failed: '+(err?.message||String(err));
     }
   }
 
