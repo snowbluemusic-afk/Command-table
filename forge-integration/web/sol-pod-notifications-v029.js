@@ -62,20 +62,13 @@
  if(typeof oldAnnounce==='function')window.announce=msg=>{
   if(!issue(msg,/error|cannot|failed|rejected/i.test(String(msg))?'error':'info'))oldAnnounce(msg);
  };
- let lastArt='',artNode=null,artObserver=null;
+ // Fast artwork fetches can toggle loading in under one second. Previously
+ // each state update generated and immediately removed a game notice, which
+ // looked like a flashing decision popup. Artwork activity is not a game
+ // event or player choice: leave it to card image placeholders/loading UI.
  function checkArt(){
-  if(!game())return;
-  const el=document.getElementById('ct-art-status');if(!el)return;
-  const txt=normalize(el.textContent);
-  const visible=el.getAttribute('data-loading')==='true'&&!!txt;
-  if(visible){
-   if(txt!==lastArt){lastArt=txt;issue(txt,'art','art-status');}
-   else if(entries.has('art-status'))issue(txt,'art','art-status');
-  }else{entries.get('art-status')?.remove();entries.delete('art-status');lastArt='';}
-  if(artNode!==el&&typeof MutationObserver!=='undefined'){
-   artObserver?.disconnect();artObserver=new MutationObserver(checkArt);
-   artObserver.observe(el,{attributes:true,characterData:true,childList:true,subtree:true});artNode=el;
-  }
+   entries.get('art-status')?.remove();
+   entries.delete('art-status');
  }
  window.solPodSyncNotices=checkArt;checkArt();
 })();
