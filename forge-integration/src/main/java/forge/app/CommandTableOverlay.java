@@ -229,9 +229,19 @@ public final class CommandTableOverlay {
 
     private static void publishPrompt(Map<String, Object> prompt) {
         try {
+            // Forge's InputQueue publishes a new human input before its
+            // asynchronous InputProxy renders the actual prompt. A GameView
+            // snapshot from the previous step can still say "none" even
+            // after the UI buttons have changed. Stamp EVERY prompt update
+            // with the current authoritative queue identity so the web dock
+            // never loses the only way to pass priority during combat.
+            Map<String,Object> current=new LinkedHashMap<>(prompt);
+            addHumanInputStatus(current);
             send(new JSONObject().put("v", 1).put("type", "game.prompt")
-                .put("payload", new JSONObject(prompt)));
-        } catch (Exception ignored) {}
+                .put("payload", new JSONObject(current)));
+        } catch (Exception ex) {
+            android.util.Log.e("CommandTable", "Could not publish human input prompt", ex);
+        }
     }
 
     /**
