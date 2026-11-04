@@ -370,6 +370,22 @@
   let autoManaIssued=false;
   let promptSequence=0;
   let syncBusy=false;
+  let combatSyncTimer=null,combatSyncAttempts=0,combatSyncKey='';
+  // InputQueue can transition from no input -> priority after the last
+  // GameView/phase event. Retry snapshots briefly while that happens, even
+  // if a UI prompt notification was missed; never replay a game action.
+  function queueCombatStatusCheck(key){
+    if(combatSyncKey!==key){
+      combatSyncKey=key;combatSyncAttempts=0;
+    }
+    if(syncBusy||combatSyncTimer!==null||combatSyncAttempts>=6)return;
+    combatSyncTimer=setTimeout(()=>{
+      combatSyncTimer=null;combatSyncAttempts++;
+      if(window.app?.game?.humanInput==='InputPassPriority' ||
+         window.app?.game?.blockInputActive===true)return;
+      void syncChoices();
+    },700);
+  }
   async function syncChoices(){
     if(syncBusy)return;
     syncBusy=true;
@@ -400,7 +416,7 @@
       // InputPassPriority in the same named phase must be handled separately,
       // and must not replay a phantom "confirm blocks" action.
       const phase=String(window.app?.game?.phaseDetail||'');
-      const combatPriority=ok && /COMBAT_DECLARE_BLOCKERS/.test(phase) &&
+      const combatPriority=ok && /^COMBAT_/.test(phase) &&
         window.app?.game?.blockInputActive!==true &&
         window.app?.game?.humanInput==='InputPassPriority';
       await window.CommandTableNative.request('game.command',{
@@ -420,13 +436,21 @@
     const forgeChoice=document.getElementById('ct-forge-decision-sheet');
     const otherChoiceOpen=!!forgeChoice && forgeChoice.style.display!=='none';
     const handChoice=!!window.ctForgePriority?.isHandChoice;
-    const waitingForInput=/COMBAT_DECLARE_BLOCKERS/.test(
-      String(window.app?.game?.phaseDetail||'')) &&
-      ['none','transitioning'].includes(String(window.app?.game?.humanInput||''));
+    const game=window.app?.game;
+    const combatPhase=/^COMBAT_/.test(String(game?.phaseDetail||''));
+    const combatBlockPhase=/COMBAT_DECLARE_BLOCKERS/.test(String(game?.phaseDetail||''));
+    const inputName=String(game?.humanInput||'');
+    const incomingAttack=(game?.combat||[]).some(attack=>
+      Number(attack.defenderId)===Number(game?.players?.[0]?.forgeId));
+    // A missing input is a transitional state, not a reason to hide every
+    // possible control. Present a safe, read-only refresh in this state.
+    const waitingForInput=combatPhase && incomingAttack &&
+      !game?.blockInputActive && ['','none','transitioning','InputLockUI'].includes(inputName);
     const active=!!window.app?.nativeMatch &&
-      window.app?.view==='game' && window.app?.game?.winner===null && !window.app?.modal &&
-      !window.app?.sideInspect && !otherChoiceOpen && !waitingForInput &&
-      (!!buttonState.enable1||!!buttonState.enable2||handChoice);
+      window.app?.view==='game' && game?.winner===null && !window.app?.modal &&
+      !window.app?.sideInspect && !otherChoiceOpen &&
+      (!!buttonState.enable1||!!buttonState.enable2||handChoice||
+        (combatPhase && (incomingAttack||inputName==='InputPassPriority'||game?.blockInputActive===true)));
     decision.classList.toggle('ct-forge-hand-choice',handChoice);
     // A single small dock owns Forge buttons. Never mount a full-width
     // secondary prompt or cover the enlarged card browser.
@@ -436,7 +460,6 @@
     const pregame=window.app?.game?.phase==='mulligan' ||
       window.app?.view!=='game';
     decision.classList.toggle('ct-forge-pregame',pregame);
-    const game=window.app?.game;
     const steps=[
       ['untap','↻','Untap'],['upkeep','✧','Upkeep'],['draw','▤','Draw'],
       ['main1','◆','Main'],['combat','⚔','Combat'],
@@ -468,7 +491,7 @@
     const inAttack=/ATTACKERS/.test(String(game?.phaseDetail||'').toUpperCase());
     const inBlockPhase=/BLOCKERS/.test(String(game?.phaseDetail||'').toUpperCase());
     const inBlock=inBlockPhase && game?.blockInputActive===true;
-    const blockPriority=inBlockPhase && !inBlock && game?.humanInput==='InputPassPriority';
+    const blockPriority=combatPhase && !inBlock && game?.humanInput==='InputPassPriority';
     const confirmedAttackers=Array.isArray(game?.combat)?game.combat.length:0;
     const confirmedBlockers=Array.isArray(game?.combat)?
       new Set(game.combat.flatMap(attack=>attack.blockerIds||[])).size:0;
@@ -487,8 +510,8 @@
         (window.ctForgePriority?.handInstruction||'Choose cards · Press Confirm'))
       : pregame
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
-      : inAttack?'Choose attackers · tap glowing creatures':
-        blockPriority?'Block declaration complete · pass priority to continue combat':
+      : blockPriority?'You have priority during combat · pass to continue':
+        inAttack?'Choose attackers · tap glowing creatures':
         inBlock?('Use Block Planner: choose an incoming attacker, then assign blockers. '+combatCount+' blocks confirmed'+
           (blockerNames.length?' · '+blockerNames.slice(0,3).join(', '):'')+
           (pendingAssignments?' · '+pendingAssignments+' processing…':'')):
@@ -501,6 +524,29 @@
         'Auto becomes available when Sol Pod finds a valid payment.';
     }
     buttons.replaceChildren();
+    // The real Forge InputQueue is authoritative; queued prompt buttons can
+    // lag behind input changes and must not hide the only priority action.
+    if(waitingForInput){
+      queueCombatStatusCheck(String(game?.turn)+'|'+String(game?.phaseDetail));
+      decisionText.textContent='Checking combat decision…';
+      const refresh=document.createElement('button');
+      refresh.type='button';refresh.textContent=syncBusy?'Refreshing…':'↻ Refresh combat';
+      refresh.disabled=busy||syncBusy;
+      refresh.style.cssText='flex:1;min-height:36px;padding:6px 9px;border-radius:9px;border:1px solid #bda17d;background:#294452;color:#f4e3c9;font:700 12px system-ui';
+      refresh.onclick=()=>{void syncChoices();};
+      buttons.append(refresh);
+      return;
+    }
+    if(blockPriority){
+      decisionText.textContent='You have priority during combat. Play an instant or pass to continue.';
+      const pass=document.createElement('button');
+      pass.type='button';pass.textContent=busy?'Passing…':'Pass priority';
+      pass.disabled=busy||syncBusy;
+      pass.style.cssText='flex:1;min-height:38px;border-radius:9px;border:1px solid #dfbd8a;background:#e6b46c;color:#14252a;font:750 13px system-ui';
+      pass.onclick=()=>{void decide(true);};
+      buttons.append(pass);
+      return;
+    }
     for(const [label,enabled,ok] of [
       [buttonState.label1,buttonState.enable1,true],
       [buttonState.label2,buttonState.enable2,false]
@@ -597,7 +643,15 @@
       for(const key of ['label1','label2','enable1','enable2']){
         if(Object.prototype.hasOwnProperty.call(p,key))buttonState[key]=p[key];
       }
+      // Native prompt events now carry the CURRENT InputQueue identity.
+      // Applying it before painting avoids a stale GameView leaving the
+      // blocker sheet and the priority controls both invisible.
+      if(window.app?.game && typeof p.humanInput==='string'){
+        window.app.game.humanInput=p.humanInput;
+        window.app.game.blockInputActive=p.blockInputActive===true;
+      }
       paintDecision();
+      window.ctCombatPlanner?.sync?.();
       // Required actions consume Forge's structured buttons, not Game Log text.
       if(typeof window.dispatchEvent==='function' && typeof CustomEvent!=='undefined')
         window.dispatchEvent(new CustomEvent('ct-forge-prompt-updated',{
@@ -613,8 +667,10 @@
         Promise.resolve().then(()=>{if(!busy&&window.ctAutoMana!==false)void decide(true);});
       }
     }
+    // Let the core apply the incoming authoritative GameView first.
+    const result=typeof firstReply==='function'?firstReply(value):undefined;
     if(payload?.type==='game.state'){paintDecision();queueCombatLinks();}
-    return typeof firstReply==='function'?firstReply(value):undefined;
+    return result;
   };
   window.ctForgePriority={
     reset:()=>{openingMessage='';buttonState.enable1=false;buttonState.enable2=false;paintDecision();},

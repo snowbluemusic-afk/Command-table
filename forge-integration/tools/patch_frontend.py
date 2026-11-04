@@ -2076,10 +2076,10 @@ assert source.count(combat_hook)==1
 source=source.replace(combat_hook,
     combat_hook+"\n  window.ctCombatPlanner?.sync?.();")
 
-# v0.56 — a discreet build label on the live game board lets us identify
+# v0.57 — a discreet build label on the live game board lets us identify
 # sideloaded versions in screenshots, instead of guessing what APK was run.
 build_script=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-build-v053.js').read_text()
-assert "SOL_POD_BUILD='0.56.0'" in build_script and source.count('</body>')==1
+assert "SOL_POD_BUILD='0.57.0'" in build_script and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+build_script+'\n</script></body>')
 # v0.49 — final presentation-only naming pass, AFTER all anchored v0.15-v0.48
 # patches. Do not rename Forge classes, JavaScript bridge objects, protocol

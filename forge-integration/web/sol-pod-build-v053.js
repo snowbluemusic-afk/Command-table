@@ -1,9 +1,9 @@
-/* Sol Pod v0.56 — player-readable build identity.
+/* Sol Pod v0.57 — player-readable build identity.
  * Helps diagnose stale sideloads without exposing internal engine branding.
  */
 (() => {
  'use strict';
- window.SOL_POD_BUILD='0.56.0';
+ window.SOL_POD_BUILD='0.57.0';
  if(document.getElementById('sol-pod-build-marker'))return;
  const css=document.createElement('style');
  css.id='sol-pod-build-style';
@@ -17,7 +17,7 @@
  document.head.append(css);
  const tag=document.createElement('span');
  tag.id='sol-pod-build-marker';
- tag.textContent='v0.56';
- tag.setAttribute('aria-label','Sol Pod build version 0.56');
+ tag.textContent='v0.57';
+ tag.setAttribute('aria-label','Sol Pod build version 0.57');
  document.body.append(tag);
 })();
