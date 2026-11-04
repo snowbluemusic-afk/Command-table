@@ -363,7 +363,7 @@ assert(frontend.includes("const g=app.game,name=app.nativeMatch?app.sideInspect"
 assert(selectionScript.includes("get isBottoming()") &&
        selectionScript.includes("get isHandChoice()") &&
        castingScript.includes("window.ctForgePriority?.isHandChoice") &&
-       castingScript.includes("action:'cardId',value:card.id"),
+       castingScript.includes("action:'cardId',value:exactId"),
   'Mulligan card taps must reach Forge without Cast');
 assert(selectionScript.includes("||handChoice") &&
        selectionScript.includes("syncChoices()") &&
