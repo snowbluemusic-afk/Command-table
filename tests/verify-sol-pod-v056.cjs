@@ -26,7 +26,7 @@ assert(native.includes('snapshot.put("blockInputActive", bridge.blockInputActive
 assert(selection.includes('const inBlock=inBlockPhase && game?.blockInputActive===true;') &&
        selection.includes("game?.humanInput==='InputPassPriority'"),
  'Priority dock must discriminate real blocker decision from phase priority');
-assert(selection.includes('blockPriority?\'Block declaration complete · pass priority to continue combat\'') &&
+assert(selection.includes('blockPriority?\'You have priority during combat · pass to continue\'') &&
        selection.includes("ordinary && blockPriority?'Pass priority'"),
  'Players must get usable Pass priority when blocking was automatically skipped');
 assert(input.includes('public void passCombatPriority()') &&
