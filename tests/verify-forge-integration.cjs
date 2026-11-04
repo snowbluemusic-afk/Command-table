@@ -89,7 +89,7 @@ assert(guiProxy.includes('if ("message".equals(name) || "showErrorDialog".equals
   'Native Forge messages must not show the native game screen/modal');
 assert(guiProxy.includes('if ("openView".equals(name) && afterNativeChoice != null)'),
   'Bring Command Table back to front after Forge creates its match controller');
-assert(guiProxy.includes('Missing Command Table Forge choice handler:'),
+assert(guiProxy.includes('Missing Sol Pod choice handler:'),
   'Unsupported blocking native dialogs must be visible errors, not silent handoffs');
 assert(!overlay.includes('web.setVisibility(android.view.View.GONE)'),
   'Forge must never hide the Command Table UI for its native game screen');
@@ -133,7 +133,7 @@ assert(projectionSource.includes('ownCommanders != null && !ownCommanders.isEmpt
   projectionSource.includes('if (commanders == null) continue'),
   'Forge PlayerView.getCommanders() is nullable before first turn');
 assert(overlay.includes('if (!CommandTableGameProjection.ready(game)) return;') &&
-  overlay.includes('Forge is preparing the Commander game'),
+  overlay.includes('Sol Pod is preparing the Commander game'),
   'Match-start acknowledgment and snapshots must wait for populated GameView');
 assert(overlay.includes('android.util.Log.e("CommandTable", "GameView projection failed", ex)') &&
   overlay.includes('android.util.Log.e("CommandTable", "Forge match start failed", err)'),
