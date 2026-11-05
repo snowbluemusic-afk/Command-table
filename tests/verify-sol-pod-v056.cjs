@@ -39,11 +39,11 @@ assert(selection.includes('if(waitingForInput){') &&
  'Unknown combat input must present a harmless refresh, not hide the entire dock');
 assert(gestures.includes("window.app?.game?.blockInputActive===true?'block':null"),
  'Direct combat gestures must not issue block commands against InputPassPriority');
-assert(build.includes("SOL_POD_BUILD='0.57.0'")&&build.includes("tag.textContent='v0.57'"),
+assert(build.includes("SOL_POD_BUILD='0.58.0'")&&build.includes("tag.textContent='v0.58'"),
  'Android screen must identify the phase-aware blocker build');
 if(process.argv[2]){
  const html=read(process.argv[2]);
- assert(html.includes("SOL_POD_BUILD='0.57.0'") &&
+ assert(html.includes("SOL_POD_BUILD='0.58.0'") &&
         html.includes('const inStep=()=>isBlockPhase()&&inputReady();') &&
         html.includes("humanInput:String(raw.humanInput||'')"),
         'Packaged Android app must include v0.56 no-blocker priority fix');
