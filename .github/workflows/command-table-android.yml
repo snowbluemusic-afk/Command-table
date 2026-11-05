@@ -75,6 +75,7 @@ jobs:
           node tests/verify-sol-pod-v055.cjs 2>&1 | tee recovery-logs/sol-pod-v055.txt
           node tests/verify-sol-pod-v056.cjs 2>&1 | tee recovery-logs/sol-pod-v056.txt
           node tests/verify-sol-pod-v057.cjs 2>&1 | tee recovery-logs/sol-pod-v057.txt
+          node tests/verify-sol-pod-v058.cjs 2>&1 | tee recovery-logs/sol-pod-v058.txt
           node tests/verify-sol-pod-v038.cjs 2>&1 | tee recovery-logs/sol-pod-v038.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Verify Sol Pod v0.39 stack and HUD layout (mandatory)
@@ -147,6 +148,7 @@ jobs:
           node tests/verify-sol-pod-v055.cjs /tmp/forge/forge-gui-android/assets/command-table.html
           node tests/verify-sol-pod-v056.cjs /tmp/forge/forge-gui-android/assets/command-table.html
           node tests/verify-sol-pod-v057.cjs /tmp/forge/forge-gui-android/assets/command-table.html
+          node tests/verify-sol-pod-v058.cjs /tmp/forge/forge-gui-android/assets/command-table.html
       - name: Check Command Table JavaScript and native gameplay handoff
         run: |
           python3 - <<'PY'
