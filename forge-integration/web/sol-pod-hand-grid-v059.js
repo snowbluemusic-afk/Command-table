@@ -160,6 +160,15 @@
    });
    detail.append(inspect);
  }
+ function selectCard(index){
+   state.selected=index;
+   // Preserve scroll position and loaded card images for very large hands.
+   for(const node of cards.children){
+     if(node.dataset.handIndex!==undefined)
+       node.dataset.selected=String(Number(node.dataset.handIndex)===index);
+   }
+   updateDetail(hand());
+ }
  function paintCards(){
    if(!state.open)return;
    const items=hand();
@@ -176,7 +185,8 @@
    cards.replaceChildren();
    if(!filtered.length)cards.append(create('p','No cards match this filter.','sol-hand-grid-empty'));
    for(const item of filtered){
-     const b=button(null,()=>{state.selected=item.index;paintCards();},'sol-hand-grid-card');
+     const b=button(null,()=>selectCard(item.index),'sol-hand-grid-card');
+     b.dataset.handIndex=String(item.index);
      b.dataset.selected=String(item.index===state.selected);
      b.dataset.legal=String(item.legal);
      b.setAttribute('aria-label','Card '+(item.index+1)+': '+item.name);
