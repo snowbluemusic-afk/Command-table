@@ -2,6 +2,8 @@ package forge.commandtable;
 
 import forge.game.GameView;
 import forge.game.Game;
+import forge.game.GameLogEntry;
+import forge.game.GameLogEntryType;
 import forge.game.card.Card;
 import forge.game.combat.Combat;
 import forge.game.combat.CombatUtil;
@@ -237,6 +239,35 @@ public final class CommandTableGameProjection {
         }
         out.put("legalBlockers", candidatesByAttacker);
         out.put("legalBlockersReady", candidatesReady);
+        // The Forge GameLogFormatter records actual damage amounts and
+        // sources, separate from how many points the life display changed.
+        // These are already-resolved PUBLIC engine log entries. Exposing them
+        // lets a player explain e.g. -7 life even after a claimed block,
+        // without adding a second combat damage calculator to the WebView.
+        List<Map<String,Object>> recentDamage = new ArrayList<>();
+        if (liveGame != null && liveGame.getGameLog() != null) {
+            List<GameLogEntry> history = liveGame.getGameLog().getAllEntries();
+            for (int i=history.size()-1; i>=0 && recentDamage.size()<80; i--) {
+                GameLogEntry entry=history.get(i);
+                if (entry == null || entry.type() == null) continue;
+                GameLogEntryType kind=entry.type();
+                if (kind != GameLogEntryType.DAMAGE &&
+                    kind != GameLogEntryType.LIFE &&
+                    kind != GameLogEntryType.COMBAT) continue;
+                Map<String,Object> record = new LinkedHashMap<>();
+                record.put("index",i);
+                record.put("kind",kind.name());
+                record.put("message",entry.message());
+                CardView source=entry.sourceCard();
+                if (source != null) {
+                    record.put("sourceId",source.getId());
+                    record.put("sourceName",source.isFaceDown()
+                        ? "Face-down card" : source.getName());
+                }
+                recentDamage.add(0,record);
+            }
+        }
+        out.put("damageHistory",recentDamage);
         return out;
     }
 
