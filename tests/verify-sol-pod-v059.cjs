@@ -9,7 +9,7 @@ const patch=read('forge-integration/tools/patch_gameplay_v059.py');
 new vm.Script(hand,{filename:'sol-pod-hand-grid-v059.js'});
 for(const key of ['window.solPodHandGrid','handForgeIds?.[index]','handCards?.[index]',
   'window.CommandTableAction?.(\'showHandCard\',String(index))',
-  "document.createElement('input')","state.filter==='legal'","state.sort==='name'",
+  "const search=create('input')","state.filter==='legal'","state.sort==='name'",
   'window.ctForgeSelection?.isLegalCard?.(id)']){
   assert(hand.includes(key),'The sortable hand must preserve Forge identities: '+key);
 }
