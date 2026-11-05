@@ -80,7 +80,14 @@ function ctHydrateForgeState(raw) {
     legalBlockersReady:raw.legalBlockersReady===true,
      blockInputActive:raw.blockInputActive===true,
      humanInput:String(raw.humanInput||''),
-    pending:null, waiting:null, log:[], autoPilot:false, autoPaused:false,
+    // Use Forge's own resolved, public damage/life/combat log rather than
+    // inferring damage from current attackers or calculating life in JS.
+    damageHistory:Array.isArray(raw.damageHistory)?raw.damageHistory:[],
+    pending:null, waiting:null,
+    log:(Array.isArray(raw.damageHistory)?raw.damageHistory:[])
+      .slice().reverse().map(e=>
+        String(e.kind||'Game')+': '+String(e.message||'')),
+    autoPilot:false, autoPaused:false,
     gameOver:!!raw.gameOver, outcome:raw.gameOver ? (raw.outcome||'draw') : null,
     winner:raw.gameOver ? (raw.winner || 'Draw') : null
   };
