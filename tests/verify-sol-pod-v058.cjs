@@ -66,7 +66,7 @@ assert.equal(win.ctRulesTrace.events.filter(x=>x.kind==='forge-damage').length,3
   'Repeated snapshots must not duplicate native damage entries');
 const report=win.ctRulesTrace.report();
 assert(report.includes('Some effect deals 2 noncombat damage')&&
-       report.includes('Exact resolved Forge GameLog entry'),
+       report.includes('Exact resolved rules-engine history entry'),
        'The copyable rules trace must preserve the engine sources verbatim');
 if(process.argv[2]){
  const html=read(process.argv[2]);
