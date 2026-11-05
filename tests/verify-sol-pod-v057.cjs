@@ -44,14 +44,14 @@ assert(selection.includes("const result=typeof firstReply==='function'?firstRepl
 assert(planner.includes('confirm.disabled=busy||uncertain||submittedStage===stage||!inputReady()||') &&
        !planner.includes('!window.ctForgePriority?.canConfirm;'),
        'Real InputBlock confirmation must not be disabled by old UI button labels');
-assert(frontend.includes("SOL_POD_BUILD='0.57.0'") &&
-       build.includes("SOL_POD_BUILD='0.57.0'") &&
-       build.includes("tag.textContent='v0.57'"),
+assert(frontend.includes("SOL_POD_BUILD='0.58.0'") &&
+       build.includes("SOL_POD_BUILD='0.58.0'") &&
+       build.includes("tag.textContent='v0.58'"),
        'The actual APK must identify the fixed v0.57 controls');
 
 if(process.argv[2]){
  const html=read(process.argv[2]);
- assert(html.includes("SOL_POD_BUILD='0.57.0'") &&
+ assert(html.includes("SOL_POD_BUILD='0.58.0'") &&
         html.includes('queueCombatStatusCheck(') &&
         html.includes('window.app.game.humanInput=p.humanInput;') &&
         html.includes("pass.textContent=busy?'Passing…':'Pass priority'"),
