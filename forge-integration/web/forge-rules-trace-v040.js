@@ -68,7 +68,7 @@
       if(oldForgeMessages.has([event.index,event.kind,event.message].join('|')))continue;
       push('forge-'+event.kind.toLowerCase(),
         event.message,{gameLogIndex:event.index,sourceId:event.sourceId,
-        sourceName:event.sourceName,note:'Exact resolved Forge GameLog entry'});
+        sourceName:event.sourceName,note:'Exact resolved rules-engine history entry'});
     }
     for(const p of players){
       const old=previous.players.find(x=>x.id===p.id);
@@ -150,7 +150,7 @@
   engine()?.onState?.(capture);
   function report(){
     const header=['Sol Pod rules trace','Observer only — never proof that a trigger fired.',
-      'Native Sol Pod is the rules authority. Damage/life/combat log entries come directly from Forge.',
+      'The embedded rules engine is authoritative. Damage, life, and combat records come from its resolved game history.',
       'Snapshots between events may be missed; do not infer card-rule correctness from counts.',
       'Opponent hidden hand and library contents are omitted.',
       ''];
