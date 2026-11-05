@@ -41,9 +41,14 @@
   function capture(snapshot){
     if(!snapshot?.players||!Array.isArray(snapshot.players))return;
     const players=playerList(snapshot),stack=stackList(snapshot);
+    const nativeDamage=(Array.isArray(snapshot.damageHistory)?snapshot.damageHistory:[])
+      .map(e=>({index:Number(e.index),kind:String(e.kind||''),
+        message:String(e.message||''),sourceId:e.sourceId??null,
+        sourceName:String(e.sourceName||'')}))
+      .filter(e=>Number.isInteger(e.index)&&e.message);
     const current={
       turn:num(snapshot.turn),phase:String(snapshot.phase||''),
-      players,stack,gameOver:!!snapshot.gameOver,
+      players,stack,damageHistory:nativeDamage,gameOver:!!snapshot.gameOver,
       winner:String(snapshot.winner||'')
     };
     if(!previous){
@@ -57,6 +62,14 @@
     if(current.turn!==previous.turn||current.phase!==previous.phase)
       push('phase','Turn/phase changed',{from:{turn:previous.turn,phase:previous.phase},
         to:{turn:current.turn,phase:current.phase}});
+    const oldForgeMessages=new Set((previous.damageHistory||[]).map(e=>
+      [e.index,e.kind,e.message].join('|')));
+    for(const event of current.damageHistory){
+      if(oldForgeMessages.has([event.index,event.kind,event.message].join('|')))continue;
+      push('forge-'+event.kind.toLowerCase(),
+        event.message,{gameLogIndex:event.index,sourceId:event.sourceId,
+        sourceName:event.sourceName,note:'Exact resolved Forge GameLog entry'});
+    }
     for(const p of players){
       const old=previous.players.find(x=>x.id===p.id);
       if(!old){
@@ -137,7 +150,7 @@
   engine()?.onState?.(capture);
   function report(){
     const header=['Sol Pod rules trace','Observer only — never proof that a trigger fired.',
-      'Native Sol Pod is the rules authority. All changes are observed GameView snapshots.',
+      'Native Sol Pod is the rules authority. Damage/life/combat log entries come directly from Forge.',
       'Snapshots between events may be missed; do not infer card-rule correctness from counts.',
       'Opponent hidden hand and library contents are omitted.',
       ''];
