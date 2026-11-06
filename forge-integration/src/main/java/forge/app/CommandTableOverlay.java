@@ -360,6 +360,8 @@ public final class CommandTableOverlay {
                 for(Deck candidate:candidates) if(candidate.getName().equals(requestedOpponent)) {
                     selected=candidate;break;
                 }
+                if(selected==null && own.getName().equals(requestedOpponent))
+                    selected=new Deck(own); // explicit mirror match is legal
                 if(selected==null)
                     throw new IllegalArgumentException("Selected AI deck is not available: "+requestedOpponent);
                 for(int i=0;i<count;i++) enemies.add(new Deck(selected));
