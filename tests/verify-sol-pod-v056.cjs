@@ -43,7 +43,7 @@ assert(build.includes("SOL_POD_BUILD='0.58.0'")&&build.includes("tag.textContent
  'Android screen must identify the phase-aware blocker build');
 if(process.argv[2]){
  const html=read(process.argv[2]);
- assert(html.includes("SOL_POD_BUILD='0.60.0'") &&
+ assert(html.includes("SOL_POD_BUILD='0.61.0'") &&
         html.includes('const inStep=()=>isBlockPhase()&&inputReady();') &&
         html.includes("humanInput:String(raw.humanInput||'')"),
         'Packaged Android app must include v0.56 no-blocker priority fix');
