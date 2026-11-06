@@ -113,6 +113,9 @@ public final class CommandTableForgeInput {
             if (current.getStack()!=null) for (StackItemView entry:current.getStack()) {
                 if (!entry.isTrigger())
                     throw new IllegalStateException("A spell or activated ability requires normal priority");
+                if (entry.getActivatingPlayer()==null ||
+                    entry.getActivatingPlayer().getId()!=current.getPlayers().get(0).getId())
+                    throw new IllegalStateException("Another player's trigger requires normal priority");
                 count++;
             }
             if (count==0)
