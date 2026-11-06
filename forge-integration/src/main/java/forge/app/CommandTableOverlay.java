@@ -340,20 +340,39 @@ public final class CommandTableOverlay {
             final boolean watchMode=p.optBoolean("autoPilot",false);
             int count=p.optInt("opponents",1);
             if(count<1 || count>3) throw new IllegalArgumentException("Choose 1, 2 or 3 AI opponents");
-            List<Deck> enemies=new ArrayList<>();
+            // The old opponent loop always chose the first eligible deck,
+            // even when the UI requested Random. Shuffle ONCE per new match,
+            // then deal without replacement until the pool is exhausted.
+            final String requestedOpponent=p.optString("cpuDeckName","");
             JSONArray saved=p.optJSONArray("decks");
-            for(int i=0;i<count;i++) {
-                Deck opponent=null;
-                if(saved!=null) {
-                    for(int j=0;j<saved.length();j++) {
-                        try {
-                            JSONObject item=saved.getJSONObject((i+j)%saved.length());
-                            Deck candidate=decodeDeck(item);
-                            if(!candidate.getName().equals(own.getName())) {opponent=candidate;break;}
-                        } catch(Exception ignored) {}
-                    }
+            List<Deck> candidates=new ArrayList<>();
+            if(saved!=null) for(int j=0;j<saved.length();j++) {
+                try {
+                    Deck candidate=decodeDeck(saved.getJSONObject(j));
+                    if(!candidate.getName().equals(own.getName())) candidates.add(candidate);
+                } catch(Exception invalid) {
+                    // Malformed optional opponent decks are skipped, not played.
                 }
-                enemies.add(opponent==null?new Deck(own):opponent);
+            }
+            List<Deck> enemies=new ArrayList<>();
+            if(!requestedOpponent.isBlank()) {
+                Deck selected=null;
+                for(Deck candidate:candidates) if(candidate.getName().equals(requestedOpponent)) {
+                    selected=candidate;break;
+                }
+                if(selected==null && own.getName().equals(requestedOpponent))
+                    selected=new Deck(own); // explicit mirror match is legal
+                if(selected==null)
+                    throw new IllegalArgumentException("Selected AI deck is not available: "+requestedOpponent);
+                for(int i=0;i<count;i++) enemies.add(new Deck(selected));
+            } else {
+                if(candidates.isEmpty()) {
+                    // The sole installed deck is still playable against a copy.
+                    candidates.add(new Deck(own));
+                }
+                java.util.Collections.shuffle(candidates,new java.security.SecureRandom());
+                for(int i=0;i<count;i++)
+                    enemies.add(new Deck(candidates.get(i%candidates.size())));
             }
             FThreads.invokeInEdtNowOrLater(() -> {
                 try {

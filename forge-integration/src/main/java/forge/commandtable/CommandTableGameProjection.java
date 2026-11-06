@@ -283,6 +283,11 @@ public final class CommandTableGameProjection {
             }
             m.put("name", c.isFaceDown() ? "Face-down card" : displayName);
             m.put("tapped", c.isTapped());
+            // CardView is the public Forge view. Attachment source/target
+            // identity is authoritative and can move as equipment is re-equipped.
+            // A null ID means the Aura/Equipment is unattached.
+            CardView attachedTo=c.getAttachedTo();
+            m.put("attachedToId", attachedTo==null?null:attachedTo.getId());
             m.put("attacking", c.isAttacking());
             m.put("blocking", c.isBlocking());
             if (c.getCurrentState() != null && !c.isFaceDown()) {
