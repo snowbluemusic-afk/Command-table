@@ -28,9 +28,16 @@
  const expanded=new Set();
  const findTokens=()=>{
   const cards=new Map();
-  for(const player of window.app?.game?.players||[]){
+  const players=window.app?.game?.players||[];
+  // Enchanted/equipped tokens are visually distinct permanents. Never fold
+  // one into a generic token stack or hide its attached cards.
+  const attachedHosts=new Set(players.flatMap(p=>p.battlefield||[])
+    .filter(c=>c.attachedToId!==null&&c.attachedToId!==undefined)
+    .map(c=>String(c.attachedToId)));
+  for(const player of players){
    for(const c of player.battlefield||[]){
-    if(c.token&&c.creature&&Number.isInteger(Number(c.forgeId)))
+    if(c.token&&c.creature&&Number.isInteger(Number(c.forgeId)) &&
+       !attachedHosts.has(String(c.forgeId)))
      cards.set(String(c.forgeId),c);
    }
   }
