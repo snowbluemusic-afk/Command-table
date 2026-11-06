@@ -507,6 +507,11 @@ public final class CommandTableOverlay {
                 case "passCombatPriority":
                     bridge.passCombatPriority();
                     break;
+                case "passAutoTriggerPriority":
+                    // Recheck the live Forge queue, phase and trigger-only stack
+                    // on the game UI thread. Never treat this as generic OK.
+                    bridge.passAutoTriggerPriority();
+                    break;
                 case "confirmBlocks":
                     // Do not allow an old blocker dialog to pass priority after
                     // the native InputBlock has already finished.
@@ -571,6 +576,7 @@ public final class CommandTableOverlay {
                      "mulligan.bottom.select".equals(action) ||
                      "cancelCastTarget".equals(action) || "resolve".equals(action) ||
                      "confirmBlocks".equals(action) || "passCombatPriority".equals(action) ||
+                      "passAutoTriggerPriority".equals(action) ||
                      "endTurn".equals(action) ||
                      "chooseBlock".equals(action))) {
                     worker=INTERACTIVE;
