@@ -90,6 +90,40 @@ public final class CommandTableForgeInput {
         runOnForgeUi(() -> human().selectButtonOk());
     }
     /**
+     * Opt-in auto-resolve may ONLY pass an actual live InputPassPriority
+     * while the human is the active player and ALL stack items are triggered
+     * abilities. Never acknowledge casting, targeting, damage allocation,
+     * attack/block declaration, mana payment or any other Forge input.
+     * Checks and submission run atomically on the Forge GL thread.
+     */
+    public void passAutoTriggerPriority() {
+        runOnForgeUi(() -> {
+            GameView current=view();
+            if (current.isGameOver() || current.getPlayerTurn()==null ||
+                current.getPlayers().isEmpty() ||
+                current.getPlayerTurn().getId()!=current.getPlayers().get(0).getId())
+                throw new IllegalStateException("Auto-resolve pauses outside your turn");
+            String phase=String.valueOf(current.getPhase());
+            if (phase.startsWith("COMBAT_") || phase.contains("MULLIGAN"))
+                throw new IllegalStateException("Auto-resolve pauses for combat and opening decisions");
+            var input=human().getInputQueue().getInput();
+            if (!(input instanceof InputPassPriority))
+                throw new IllegalStateException("A player decision requires manual input: " + inputName());
+            int count=0;
+            if (current.getStack()!=null) for (StackItemView entry:current.getStack()) {
+                if (!entry.isTrigger())
+                    throw new IllegalStateException("A spell or activated ability requires normal priority");
+                if (entry.getActivatingPlayer()==null ||
+                    entry.getActivatingPlayer().getId()!=current.getPlayers().get(0).getId())
+                    throw new IllegalStateException("Another player's trigger requires normal priority");
+                count++;
+            }
+            if (count==0)
+                throw new IllegalStateException("There is no triggered ability to auto-resolve");
+            input.selectButtonOK();
+        });
+    }
+    /**
      * Forge may skip declaring blockers altogether while remaining in
      * COMBAT_DECLARE_BLOCKERS for the normal priority window. An OK during
      * that window is NOT a blocker confirmation. Address only the actual
