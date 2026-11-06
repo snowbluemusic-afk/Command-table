@@ -30,7 +30,7 @@ for(const marker of [
  'window.solPodAttachmentStacks',
  'const attached=all.filter(c=>linkOf(c)===String(creatureId)',
  'lane.insertBefore(host,cardEl);host.append(cardEl,badge)',
- 'badge.onclick=e=>{e.preventDefault();e.stopPropagation();show(key);};',
+ 'badge.onclick=e=>{e.preventDefault();e.stopImmediatePropagation();show(key);};',
  'const rules=window.ctForgeCards',
  'overlay.dataset.open',
  'if(!window.app?.nativeMatch',
