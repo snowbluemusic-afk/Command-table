@@ -122,7 +122,7 @@ welcome={
     'Search, sort and filter your hand in the full-screen browser. Forge still determines legal plays.',
   'Open YOUR HAND, tap a card, and close its preview.':
     'Open YOUR HAND, sort or search, then inspect an individual card.',
-  'Phase & Priority is at the lower right; Game Events & Choices is above it.':
+  'Phase & Priority is at the lower right; The Game Log is read-only and separate from your choices.':
     'Use the Phase & Priority controls and the separate stack viewer; identical triggers may be grouped visually.',
   'Use Pass priority when you have nothing to add.':
     'Open the stack viewer to read queued abilities. Use Pass priority if you do not want to respond.',
@@ -141,5 +141,11 @@ for before,after in welcome.items():
     swap(before,after,'current onboarding: '+before[:38])
 # Restore version markers and inject the attachment UX after all other layers.
 
+attachment_js=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-attached-stacks-v061.js').read_text()
+assert 'window.solPodAttachmentStacks' in attachment_js and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+attachment_js+'\n</script></body>')
+swap("window.SOL_POD_BUILD='0.60.0';","window.SOL_POD_BUILD='0.61.0';","v061 build version")
+swap("tag.textContent='v0.60';","tag.textContent='v0.61';","v061 badge")
+swap("Sol Pod build version 0.60","Sol Pod build version 0.61","v061 accessible version")
 target.write_text(source)
-print(f"Sol Pod v0.60 interaction & audio pass applied ({len(source)} characters)")
+print(f"Sol Pod v0.61 gameplay and attachments pass applied ({len(source)} characters)")
