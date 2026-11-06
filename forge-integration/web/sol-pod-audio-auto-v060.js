@@ -230,8 +230,8 @@
    return [g.turn,g.phaseDetail,g.humanInput,
      ...(g.stack||[]).map(e=>e.id)].join('|');
  }
- function safe(g){
-   if(!prefs.autoResolve||busy||issued>=60)return 'Off';
+ function safe(g,allowBusy=false){
+   if(!prefs.autoResolve||(!allowBusy&&busy)||issued>=60)return 'Off';
    if(!window.app?.nativeMatch||window.app?.view!=='game'||
       g?.gameOver||g?.winner!=null||g?.active!==0)return 'Paused';
    if(overlay.dataset.open==='true'||window.app?.modal||
@@ -282,7 +282,7 @@
        String(raw.phase||'').startsWith('COMBAT_') ||
        !Array.isArray(raw.stack)||!raw.stack.length ||
        raw.stack.some(e=>e.trigger!==true||e.controllerId!==human?.id) ||
-       safe(g)!=='')return;
+       safe(g,true)!=='')return;
      lastFingerprint=fingerprint;
      // Dedicated native command verifies live InputPassPriority + trigger-only
      // stack atomically on the Forge UI thread. Generic resolve is forbidden.
