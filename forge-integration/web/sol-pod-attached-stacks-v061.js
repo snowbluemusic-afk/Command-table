@@ -113,7 +113,28 @@
      e.preventDefault();e.stopImmediatePropagation();hide();
    }
  },true);
+ function addInspectorAction(){
+   // A normal creature tap still opens its existing inspector. Add an explicit
+   // companion action so attachments are discoverable without stealing a
+   // click that Forge needs for an attack, block, target or activation.
+   if(window.app?.modal!=='inspect')return;
+   const id=window.app?.inspectForgeId;
+   if(!Number.isInteger(Number(id)))return;
+   const group=findGroup(id);
+   if(!group)return;
+   const dialog=document.querySelector('.modal[role="dialog"]');
+   if(!dialog||dialog.querySelector('.sol-view-attachments'))return;
+   const button=node('button','View '+group.attached.length+' attached card'+
+      (group.attached.length===1?'':'s')+' ↗');
+   button.type='button';button.className='secondary full sol-view-attachments';
+   button.style.cssText='display:block;margin:10px 0;border:1px solid #d4b880';
+   button.onclick=e=>{e.preventDefault();e.stopPropagation();show(id);};
+   const info=dialog.querySelector('.inspect-layout');
+   if(info)info.insertAdjacentElement('afterend',button);
+   else dialog.append(button);
+ }
  function update(){
+   addInspectorAction();
    if(!window.app?.nativeMatch||window.app?.view!=='game'){hide();return;}
    const all=cards();
    const grouped=new Map();
