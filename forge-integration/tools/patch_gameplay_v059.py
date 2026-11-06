@@ -97,5 +97,49 @@ source=source.replace('</body>','<script>\n'+preferences+'\n</script></body>')
 swap("window.SOL_POD_BUILD='0.59.0';","window.SOL_POD_BUILD='0.60.0';","v060 build version")
 swap("tag.textContent='v0.59';","tag.textContent='v0.60';","v060 build badge")
 swap("Sol Pod build version 0.59","Sol Pod build version 0.60","v060 accessibility build")
+# v0.61: connect user-selected AI deck NAME and Forge attachment identity.
+swap('cpuDeck:app.enemyDeck,autoPilot:app.autoPilot',
+     'cpuDeck:app.enemyDeck,cpuDeckName:app.enemyDeck==="random"?"":'+
+     '(app.decks.find(x=>x.id===app.enemyDeck)?.name||""),autoPilot:app.autoPilot',
+     'native AI deck selection')
+swap('uid:String(c.id), forgeId:c.id, name:c.name, token:!!c.token, tapped:!!c.tapped,',
+     'uid:String(c.id), forgeId:c.id, name:c.name, token:!!c.token, '+
+     'attachedToId:c.attachedToId??null, tapped:!!c.tapped,',
+     'Forge attachment identity')
+# Random is the FIRST-GAME default and is visible on the launch panel. The
+# existing More Options dropdown still selects a named deck for a match.
+swap('Set up your game here, then choose your decks below.',
+     'Choose your deck and table size. AI opponent decks are random by default; More options lets you select a specific deck.',
+     'first-game random opponent copy')
+swap('Choose your deck and your opponents. Each CPU takes its own turn.',
+     'Choose random or specific opponent decks; each AI takes its own turn.',
+     'setup copy')
+# Retain the existing 12 contextual lessons and indices; change stale details.
+welcome={
+  'Choose a deck and select Play to begin.':
+    'Choose a deck. Opponents are random by default, or selectable in More options.',
+  'Highlighted playable cards appear toward the left.':
+    'Search, sort and filter your hand in the full-screen browser. Forge still determines legal plays.',
+  'Open YOUR HAND, tap a card, and close its preview.':
+    'Open YOUR HAND, sort or search, then inspect an individual card.',
+  'Phase & Priority is at the lower right; Game Events & Choices is above it.':
+    'Use the Phase & Priority controls and the separate stack viewer; identical triggers may be grouped visually.',
+  'Use Pass priority when you have nothing to add.':
+    'Open the stack viewer to read queued abilities. Use Pass priority if you do not want to respond.',
+  'For a sacrifice ability, the permanent is sacrificed to pay its cost; it does not stay on the battlefield.':
+    'For sacrifice abilities, the permanent leaves as a cost. Equipment and Auras attached to a creature appear tucked underneath it: tap its attachment badge to inspect them.',
+  'Find a card with “Tap:” or “Sacrifice:” in its text.':
+    'Inspect an equipped or enchanted creature to explore its attached-card stack.',
+  'Recover without losing control':
+    'Audio, auto-resolve and recovery',
+  'Press ? to reopen this guide whenever needed.':
+    'Use ⚙ for sound controls and optional trigger-only Auto-resolve. Press ? to replay this guide.',
+  'If something fails or times out, use Refresh game or Cancel pending choice.':
+    'In ⚙ Audio & Gameplay, set effects and ambient volume. Auto-resolve is off by default and pauses for meaningful player decisions. For errors, refresh or cancel the pending action.',
+}
+for before,after in welcome.items():
+    swap(before,after,'current onboarding: '+before[:38])
+# Restore version markers and inject the attachment UX after all other layers.
+
 target.write_text(source)
 print(f"Sol Pod v0.60 interaction & audio pass applied ({len(source)} characters)")
