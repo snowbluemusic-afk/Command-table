@@ -90,5 +90,12 @@ swap("tag.textContent='v0.58';","tag.textContent='v0.59';","visible version")
 swap("Sol Pod build version 0.58","Sol Pod build version 0.59","accessible version")
 assert 'window.CommandTableAction = action' in source
 assert 'GameEventPlayerDamaged' not in script
+# v0.60: insert opt-in audio / Forge-guarded auto-trigger controls.
+preferences=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-audio-auto-v060.js').read_text()
+assert 'window.solPodPreferences' in preferences and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+preferences+'\n</script></body>')
+swap("window.SOL_POD_BUILD='0.59.0';","window.SOL_POD_BUILD='0.60.0';","v060 build version")
+swap("tag.textContent='v0.59';","tag.textContent='v0.60';","v060 build badge")
+swap("Sol Pod build version 0.59","Sol Pod build version 0.60","v060 accessibility build")
 target.write_text(source)
-print(f"Sol Pod v0.59 interaction pass applied ({len(source)} characters)")
+print(f"Sol Pod v0.60 interaction & audio pass applied ({len(source)} characters)")
