@@ -131,7 +131,10 @@ assert.equal(modal.dataset.open,'false','No active InputBlock must never open a 
 app.game.blockInputActive=true;
 win.ctCombatPlanner.sync();
 pendingTimers.shift()?.();
-assert.equal(modal.dataset.open,'true','Real InputBlock must open the full-screen blocker planner');
+assert.equal(modal.dataset.open,'false','Live InputBlock should leave battlefield visible by default');
+assert.equal(typeof win.ctCombatPlanner.assign,'function','Inline blocker controller must submit via the same guarded native path');
+win.ctCombatPlanner.open();
+assert.equal(modal.dataset.open,'true','Detailed planner must remain reachable explicitly');
 const sheet=modal.children[0],columns=sheet.children[2];
 const attackItems=columns.children[0].children[1];
 const blockerItems=columns.children[1].children[1];

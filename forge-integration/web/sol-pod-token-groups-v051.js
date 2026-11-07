@@ -24,6 +24,8 @@
   '.ct10-lane.ct10-creatures .sol-token-expanded{display:contents}',
   '@media(max-height:460px){.ct10-lane.ct10-creatures .sol-token-stack{min-width:80px;padding:3px}}'
  ].join('');
+ style.textContent+='.ct10-lane.ct10-lands .sol-land-stack{display:flex;flex-direction:column;gap:2px;flex:0 0 auto;min-height:39px;padding:5px 8px;border:1px solid #bfa375;border-radius:8px;background:#234039;color:#f3e0aa;font:750 11px system-ui;text-align:left}'+
+ '.ct10-lane.ct10-lands .sol-land-collapsed{display:none!important}';
  document.head.append(style);
  const expanded=new Set();
  const findTokens=()=>{
@@ -72,6 +74,8 @@
     const button=document.createElement('button');
     button.type='button';button.className='sol-token-stack';
     button.dataset.open=String(isOpen);
+    // Preserve the exact Forge IDs for v0.62 legal-target/block highlights.
+    button.dataset.solTokenIds=members.map(m=>m.card.forgeId).join(',');
     button.setAttribute('aria-expanded',String(isOpen));
     button.setAttribute('aria-label',(isOpen?'Collapse ':'Expand ')+
       members.length+' '+c.name+' tokens');
@@ -97,6 +101,52 @@
     lane.insertBefore(button,members[0].el);
     for(const {el} of members)
      el.classList.toggle('sol-token-collapsed',!isOpen);
+   }
+  }
+  // Basic-land visual stacks preserve original node IDs. Auto-expand while
+  // mana payments or Forge card targeting require individual permanents.
+  const landCards=new Map((window.app?.game?.players||[]).flatMap(p=>p.battlefield||[])
+    .map(c=>[String(c.forgeId),c]));
+  const attachedHosts=new Set([...landCards.values()]
+    .filter(c=>c.attachedToId!=null).map(c=>String(c.attachedToId)));
+  const landTargets=new Set((window.ctForgeSelection?.legalTargets||[])
+    .filter(t=>t.kind==='card').map(t=>String(t.id)));
+  for(const lane of document.querySelectorAll('.ct10-lane.ct10-lands')){
+   if(lane.dataset.solLandGrouped==='true')continue;
+   lane.dataset.solLandGrouped='true';
+   const buckets=new Map();
+   for(const el of Array.from(lane.children)){
+    if(!el.classList?.contains('game-card'))continue;
+    const id=String(el.getAttribute('data-value')||'').split(':').at(-1);
+    const c=landCards.get(id);
+    if(!c?.land || !['Plains','Island','Swamp','Mountain','Forest','Wastes'].includes(c.name) ||
+       attachedHosts.has(id)||c.attachedToId!=null||Number(c.counters||0)!==0)continue;
+    const key=c.name+'|'+Boolean(c.tapped);
+    if(!buckets.has(key))buckets.set(key,[]);
+    buckets.get(key).push({el,c,id});
+   }
+   for(const [key,members] of buckets){
+    if(members.length<5)continue;
+    const groupId='basic:'+key+':'+(lane.classList.contains('ct10-lane-own')?'own':'opp');
+    const open=expanded.has(groupId)||window.ctForgePriority?.isManaPayment===true||
+      members.some(m=>landTargets.has(m.id));
+    const button=document.createElement('button');
+    button.type='button';button.className='sol-land-stack';
+    button.dataset.solTokenIds=members.map(m=>m.id).join(',');
+    button.setAttribute('aria-expanded',String(open));
+    const title=document.createElement('strong');title.textContent='×'+members.length+' '+members[0].c.name;
+    const copy=document.createElement('small');copy.textContent=open?'Choose individual land':'Tap to expand lands';
+    button.append(title,copy);
+    button.onclick=e=>{
+     e.preventDefault();e.stopImmediatePropagation();
+     const expand=button.getAttribute('aria-expanded')!=='true';
+     if(expand)expanded.add(groupId);else expanded.delete(groupId);
+     button.setAttribute('aria-expanded',String(expand));
+     copy.textContent=expand?'Choose individual land':'Tap to expand lands';
+     for(const m of members)m.el.classList.toggle('sol-land-collapsed',!expand);
+    };
+    lane.insertBefore(button,members[0].el);
+    for(const m of members)m.el.classList.toggle('sol-land-collapsed',!open);
    }
   }
  };

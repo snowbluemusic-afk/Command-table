@@ -217,6 +217,9 @@
   // attacker that it will block. Send exactly one atomic combat.block request
   // to Forge, whose InputBlock still receives attacker before blocker.
   document.addEventListener('click',event=>{
+    // v0.62 owns blocker taps in its board-first mode. Running both
+    // handlers would steal the blocker tap and submit a duplicate action.
+    if(window.solPodGameplayV062?.blockerMode)return;
     if(!window.app?.nativeMatch||window.app?.view!=='game'||window.app?.modal)return;
     const kind=mode();
     if(!kind){selectedBlocker=null;showSelectedBlocker();return;}
