@@ -177,6 +177,20 @@
   return Array.isArray(window.ctForgeSelection?.legalTargets)?
    window.ctForgeSelection.legalTargets:[];
  }
+ function canInlineTargets(){
+  const choices=targetChoices();
+  if(!choices.length||window.ctForgeSafety?.needsRecovery||
+     window.ctForgeRequiredAction?.visible)return false;
+  const ids=new Set(battlefield().map(c=>Number(c.forgeId)));
+  // Off-board, hidden-zone and stack selections retain the full chooser.
+  return choices.every(t=>t.kind==='player' ||
+    (t.kind==='card'&&ids.has(Number(t.id))));
+ }
+ function beginTargeting(){
+  if(!canInlineTargets())return false;
+  targetMode=true;queue();return true;
+ }
+
  function showBoardButton(){
   const modal=document.getElementById('ct-fullscreen-targets');
   if(!modal||modal.dataset.open!=='true')return;
@@ -312,7 +326,7 @@
   if(data?.type==='game.state'||data?.type==='game.selection')onState();
   return response;
  };
- window.solPodGameplayV062={refresh:queue,get targetMode(){return targetMode;},
+ window.solPodGameplayV062={refresh:queue,canInlineTargets,beginTargeting,get targetMode(){return targetMode;},
   get blockerMode(){return blocking();}};
  onState();
 })();
