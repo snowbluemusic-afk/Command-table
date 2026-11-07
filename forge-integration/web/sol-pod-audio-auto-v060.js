@@ -317,7 +317,7 @@
  window.addEventListener('ct-forge-prompt-updated',scheduleAuto);
  window.addEventListener('ct-forge-selection',scheduleAuto);
  render();
- window.solPodPreferences={open,close,get settings(){return {...prefs};},
+ window.solPodPreferences={open,close,playCue,get settings(){return {...prefs};},
    setAutoResolve(value){prefs.autoResolve=!!value;save();resetBatch();scheduleAuto();render();},
    stop:()=>{prefs.autoResolve=false;save();resetBatch();render();}};
 })();
