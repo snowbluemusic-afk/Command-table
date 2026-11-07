@@ -174,7 +174,10 @@
     const playerCount=targets.filter(t=>t.kind==='player').length;
     const type=targets.length&&playerCount===targets.length?'player':
       targets.length&&targets.every(t=>t.kind==='card')?'card':'target';
-    const attachment=window.ctAttachmentFlow?.current?.();
+    // A previous Equipment activation must never relabel an unrelated spell.
+    const intent=window.ctAttachmentFlow?.current?.();
+    const message=String(forge()?.prompt||'');
+    const attachment=intent && /\b(?:equip|attach|enchant)\b/i.test(message)?intent:null;
     title.textContent=attachment&&type==='card'
       ?'Choose a creature to '+(attachment.kind==='aura'?'enchant':'equip')
       :'Choose '+(type==='player'?'a player':type==='card'?'a card':'a target');
