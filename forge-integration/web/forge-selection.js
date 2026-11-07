@@ -512,7 +512,7 @@
       ? (openingMessage||'Keep your opening hand or take a mulligan.')
       : blockPriority?'You have priority during combat · pass to continue':
         inAttack?'Choose attackers · tap glowing creatures':
-        inBlock?('Use Block Planner: choose an incoming attacker, then assign blockers. '+combatCount+' blocks confirmed'+
+        inBlock?('Tap orange attacker then green legal blocker on the board, or open Detailed blocks. '+combatCount+' blocks confirmed'+
           (blockerNames.length?' · '+blockerNames.slice(0,3).join(', '):'')+
           (pendingAssignments?' · '+pendingAssignments+' processing…':'')):
         'Turn '+(game?.turn||1)+' · '+phaseText+
@@ -592,7 +592,7 @@
       Number(a.defenderId)===Number(game?.players?.[0]?.forgeId))){
       const openPlanner=document.createElement('button');
       openPlanner.type='button';
-      openPlanner.textContent='🛡 Block Planner';
+      openPlanner.textContent='🛡 Detailed blocks';
       openPlanner.style.cssText='flex:1;min-height:38px;border-radius:9px;background:#29586a;color:#ffdfa3;border:2px solid #ddb678;font:800 12px system-ui';
       openPlanner.onclick=()=>window.ctCombatPlanner?.open?.();
       buttons.append(openPlanner);
