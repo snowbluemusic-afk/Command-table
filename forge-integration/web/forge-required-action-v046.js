@@ -284,8 +284,9 @@
     // In an Equipment or Aura target prompt the listed creature itself
     // is the engine-approved selection. Hiding it behind "Use battlefield"
     // was confusing and could leave the player waiting indefinitely.
+    // A fight/pump spell saying 'target creature you control' is NOT an Aura.
     const attachment=kind==='cards' &&
-      /\b(?:equip(?:ment|ped)?|enchant(?:ed)?|attach(?:ing)?|target creature you control)\b/i.test(prompt);
+      /\b(?:equip(?:ment|ped)?|enchant(?:ed)?|attach(?:ing)?)\b/i.test(prompt);
     const available=needCards?usable:(mana?cards:[]);
     const hand=(kind==='opening'||kind==='bottoming')?localHand():[];
     return {kind,attachment,buttons,items:available,prompt,chosen,min,enabled,hand,
