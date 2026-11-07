@@ -9,7 +9,8 @@
   if(!intent)return null;
   const game=window.app?.game;
   if(!window.app?.nativeMatch || !game || game.gameOver){intent=null;return null;}
-  if(Number(game.turn||0)!==Number(intent.turn||0) &&
+  if((Number(game.turn||0)!==Number(intent.turn||0) ||
+      Date.now()-intent.startedAt>12000) &&
      !(window.ctForgeSelection?.legalTargets||[]).length){intent=null;return null;}
   return intent;
  };
@@ -18,7 +19,7 @@
   intent={sourceId:Number(options.sourceId)||null,
    name:String(options.name||'Attachment'),
    kind:options.kind==='aura'?'aura':'equipment',
-   turn:Number(window.app?.game?.turn||0)};
+   turn:Number(window.app?.game?.turn||0),startedAt:Date.now()};
  }
  function finish(){intent=null;}
  function closeCardInspect(){
