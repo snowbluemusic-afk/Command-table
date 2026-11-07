@@ -230,7 +230,12 @@
       // target decision takes precedence, not two overlapping modals.
       window.solPodStack?.close?.();
       previousFocus=document.activeElement;
-      modal.dataset.open='true';
+      // v0.62: direct board selection when all current legal targets are
+      // visible; keep the full-screen chooser for off-board targets.
+      if(window.solPodGameplayV062?.beginTargeting?.()){
+        modal.dataset.open='false';
+        dismissed=sig;manualReview=true;
+      }else modal.dataset.open='true';
     }
     suspended=false;
     resume.style.display=manualReview&&modal.dataset.open!=='true'?'block':'none';
