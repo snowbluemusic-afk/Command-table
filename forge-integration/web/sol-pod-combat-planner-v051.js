@@ -421,7 +421,7 @@
     autoTimer=null;
     if(inStep()&&stage===key&&shownFor!==key){
      shownFor=key;
-     show();
+     // Inline board blocker controls own the default flow; detailed planner stays opt-in.
     }
    },350); // Stable game phase, not a one-frame popup.
   }
@@ -443,6 +443,14 @@
   return result;
  };
  window.ctCombatPlanner={sync,open:show,hide,
+  assign:(attackerId,blockerId)=>command(attackerId,blockerId),
+  selectAttacker:id=>{if(!attacks().some(a=>Number(a.cardId)===Number(id)))return false;
+   selectedAttacker=Number(id);paint();return true;},
+  confirm:()=>{if(!inStep())return false;paint();
+   const button=modal.querySelector('.sol-primary');
+   if(!button||button.disabled)return false;button.click();return true;},
+  get currentAttacker(){return selectedAttacker;},
+  get ready(){return inStep()&&!busy&&!uncertain;},
   get visible(){return modal.dataset.open==='true';},
   get pending(){return busy||uncertain;}};
  sync();
