@@ -72,6 +72,8 @@
     const button=document.createElement('button');
     button.type='button';button.className='sol-token-stack';
     button.dataset.open=String(isOpen);
+    // Preserve the exact Forge IDs for v0.62 legal-target/block highlights.
+    button.dataset.solTokenIds=members.map(m=>m.card.forgeId).join(',');
     button.setAttribute('aria-expanded',String(isOpen));
     button.setAttribute('aria-label',(isOpen?'Collapse ':'Expand ')+
       members.length+' '+c.name+' tokens');
