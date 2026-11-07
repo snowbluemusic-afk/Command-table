@@ -212,7 +212,7 @@
   if(targetMode&&!targets.length)targetMode=false;
   for(const node of nodes())if(allowed.has(cardId(node)))
    node.classList.add('sol-v62-target-legal');
-  for(const group of document.querySelectorAll('.sol-token-stack')){
+  for(const group of document.querySelectorAll('.sol-token-stack,.sol-land-stack')){
    const members=String(group.dataset.solTokenIds||'').split(',').map(Number);
    if(members.some(id=>allowed.has(id)))group.classList.add('sol-v62-target-legal');
   }
