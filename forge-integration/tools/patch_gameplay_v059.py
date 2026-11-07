@@ -152,6 +152,16 @@ swap("Sol Pod build version 0.60","Sol Pod build version 0.61","v061 accessible 
 v062=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-gameplay-v062.js').read_text()
 assert 'window.solPodGameplayV062' in v062 and source.count('</body>')==1
 source=source.replace('</body>','<script>\n'+v062+'\n</script></body>')
+# Match the onboarding lessons to actual v0.62 inline combat and targeting.
+swap('The Block Planner opens when you defend.',
+     'When you defend, choose an orange attacker and a glowing green legal blocker directly on the battlefield. The detailed planner is optional.',
+     'v062 blocker onboarding')
+swap('Use Block Planner to select an attacker and its blocker.',
+     'Tap an incoming attacker then a glowing legal blocker on the battlefield.',
+     'v062 contextual blocker help')
+swap('Use highlighted legal targets, or cancel the action.',
+     'Tap highlighted legal targets on the battlefield; use All targets for off-board options.',
+     'v062 contextual targeting help')
 swap("window.SOL_POD_BUILD='0.61.0';","window.SOL_POD_BUILD='0.62.0';","v062 build version")
 swap("tag.textContent='v0.61';","tag.textContent='v0.62';","v062 visible version")
 swap("Sol Pod build version 0.61","Sol Pod build version 0.62","v062 accessible version")
