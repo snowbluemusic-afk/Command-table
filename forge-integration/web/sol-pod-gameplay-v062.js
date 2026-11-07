@@ -166,6 +166,12 @@
     node.classList.add('sol-v62-block-selected');
    else if(ids?.has(id))node.classList.add('sol-v62-block-legal');
   }
+  // Collapsed token groups must stay discoverable when an individual member
+  // is Forge-legal. Tapping a group expands the ORIGINAL card nodes/IDs.
+  for(const group of document.querySelectorAll('.sol-token-stack')){
+   const members=String(group.dataset.solTokenIds||'').split(',').map(Number);
+   if(ids&&members.some(id=>ids.has(id)))group.classList.add('sol-v62-block-legal');
+  }
  }
  function targetChoices(){
   return Array.isArray(window.ctForgeSelection?.legalTargets)?
@@ -192,6 +198,10 @@
   if(targetMode&&!targets.length)targetMode=false;
   for(const node of nodes())if(allowed.has(cardId(node)))
    node.classList.add('sol-v62-target-legal');
+  for(const group of document.querySelectorAll('.sol-token-stack')){
+   const members=String(group.dataset.solTokenIds||'').split(',').map(Number);
+   if(members.some(id=>allowed.has(id)))group.classList.add('sol-v62-target-legal');
+  }
   document.querySelectorAll('[data-ct-forge-player-id]').forEach(el=>{
    if(players.has(Number(el.getAttribute('data-ct-forge-player-id'))))
     el.classList.add('sol-v62-target-legal');
