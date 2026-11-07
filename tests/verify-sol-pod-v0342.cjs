@@ -4,7 +4,7 @@ const selection=fs.readFileSync('forge-integration/web/forge-selection.js','utf8
 const patch=fs.readFileSync('forge-integration/tools/patch_frontend.py','utf8');
 new Function(selection);
 const checks=[
- ['Block step explains correct selection order',selection.includes('Use Block Planner: choose an incoming attacker')],
+ ['Block step explains correct selection order',selection.includes('Tap orange attacker then green legal blocker on the board')],
  ['No misleading No blocks button',!selection.includes("'No blocks'")],
  ['Unselected blocker button is non-submitting',selection.includes('(inBlock&&ok&&combatCount===0)')],
  ['Skipping blocks is explicit',selection.includes("skip.textContent='Skip blocking'")&&selection.includes('skip.onclick=()=>decide(true)')],
