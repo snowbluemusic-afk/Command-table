@@ -142,7 +142,7 @@
     title.textContent=label;
     glyph.textContent=win?'✦':lose?'◇':'✧';
     subtitle.textContent=win?'You won the Commander match.':
-      lose?(next.victor?next.victor+' won the Commander match.':'Your Commander was defeated.'):
+      lose?(next.victor?next.victor+' won the Commander match.':'You lost the Commander match.'):
       'The match ended without a winner.';
     explanation.hidden=!lose;
     explanation.textContent=lose?lossExplanation(next.lossReason,next.lossSource,next.winningEffect):'';
