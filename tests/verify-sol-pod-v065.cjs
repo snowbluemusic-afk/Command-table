@@ -13,6 +13,11 @@ for(const text of ['#sol-pod-hud-layout>.sol-v64-zones',
  "document.getElementById('sol-pod-hud-layout')",
  "window.ctZoneBrowser?.open?.('graveyard')"])
  assert(zones.includes(text),'Library/Graveyard must live below the right HUD priority controls: '+text);
+for(const needed of ['left:17.2%!important','bottom:max(2.1%,env(safe-area-inset-bottom))!important',
+ 'height:clamp(36px,6.4dvh,46px)!important',
+ 'border:2px solid #e3bf74!important',
+ 'background:linear-gradient(160deg,#443c29f5,#142534f7)!important'])
+ assert(layout.includes(needed),'Zones must align with and match Your Hand: '+needed);
 assert(!zones.includes("document.querySelector('.ct10-own-player')"),
  'Never mount public zone buttons alongside the hand/life total again');
 for(const text of ['.sol-battlefield .sol-game-brand{display:none!important}',
@@ -23,7 +28,7 @@ for(const text of ['.sol-battlefield .sol-game-brand{display:none!important}',
  "label.textContent='Sol Pod v'+String(window.SOL_POD_BUILD",
  'window.solPodLibraryGraveyard?.refresh?.()'])
  assert(layout.includes(text),'Missing clean HUD/layout/Settings behaviour '+text);
-for(const text of ['left:clamp(12px,5.8vw,90px)',
+for(const text of ["document.getElementById('sol-hand-grid-launch')",'r.bottom+5',
  'clearTimeout(collapseTimer)','flag.dataset.compact=\'true\'',
  '2400','prefers-reduced-motion'])
  assert(turn.includes(text),'Missing top-left, compact turn cue '+text);
@@ -83,8 +88,8 @@ assert(group.querySelector('.sol-v64-library').attrs['aria-label'].includes('nex
 
 if(process.argv[2]){
  const packaged=load(process.argv[2]);
- for(const needle of ["window.SOL_POD_BUILD='0.65.0'",
-  'window.solPodLayoutV065','left:clamp(12px,5.8vw,90px)',
+ for(const needle of ["window.SOL_POD_BUILD='0.65.1'",
+  'window.solPodLayoutV065','r.bottom+5',
   'host.lastElementChild!==group',
   '.sol-battlefield .sol-game-brand{display:none!important}'])
   assert(packaged.includes(needle),'Packaged Android HTML missing '+needle);
