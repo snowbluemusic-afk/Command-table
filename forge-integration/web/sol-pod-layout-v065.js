@@ -64,7 +64,7 @@
   if(settings&&!settings.querySelector('.sol-build-settings-label')){
    const label=document.createElement('p');
    label.className='sol-build-settings-label';
-   label.textContent='Sol Pod v'+String(window.SOL_POD_BUILD||'0.65.0');
+   label.textContent='Sol Pod v'+String(window.SOL_POD_BUILD||'0.65.1');
    const foot=settings.querySelector('.sol-pref-foot');
    if(foot)settings.insertBefore(label,foot);
    else settings.append(label);
