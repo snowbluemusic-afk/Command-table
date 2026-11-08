@@ -70,7 +70,7 @@ assert(report.includes('Some effect deals 2 noncombat damage')&&
        'The copyable rules trace must preserve the engine sources verbatim');
 if(process.argv[2]){
  const html=read(process.argv[2]);
- assert(html.includes("SOL_POD_BUILD='0.64.0'")&&
+ assert(html.includes("SOL_POD_BUILD='0.65.0'")&&
         html.includes('damageHistory:Array.isArray(raw.damageHistory)?raw.damageHistory:[]')&&
         html.includes('Some effect deals 2 noncombat damage')===false,
         'Packaged APK must contain the real damage log adapter, not a test fixture');
