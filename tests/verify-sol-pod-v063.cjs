@@ -26,7 +26,7 @@ for(const needle of ['g.active===0',"priority?'YOUR RESPONSE",
 for(const needle of ['gameId:raw.gameId??null','lossReason:raw.lossReason??null',
  'window.solPodDeckAnalytics?.beginMatch?.(d,app.autoPilot)',
  'sol-pod-deck-analytics-v063.js','sol-pod-turn-indicator-v063.js',
- "window.SOL_POD_BUILD='0.63.0'"])
+ "window.SOL_POD_BUILD='0.64.0'"])
  assert(patch.includes(needle),'Missing packaged feature '+needle);
 class E {
  constructor(tag='div'){this.tagName=tag;this.children=[];this.style={};
@@ -65,6 +65,7 @@ assert.equal(composition.unknown,1);
 assert.equal(composition.average,1);
 assert.equal(api.reasonLabel('Milled'),'Empty library / failed draw');
 assert(api.beginMatch(deck,false));
+assert(api.observeGame({gameId:45,players:[{id:1},{id:2}],gameOver:false}));
 const terminal={gameId:45,gameOver:true,outcome:'defeat',lossReason:'Milled',
  turn:12,winner:'AI',players:[{id:1,life:30},{id:2,life:10}]};
 assert(api.recordMatch(terminal));
@@ -73,12 +74,13 @@ assert.equal(api.history[0].reason,'Milled');
 assert.equal(api.history[0].mode,'manual');
 assert(!api.recordMatch(terminal),'Repeated game-over snapshots must not duplicate a loss');
 api.beginMatch(deck,true);
+assert(api.observeGame({gameId:46,players:[{id:1},{id:2}],gameOver:false}));
 assert(api.recordMatch({...terminal,gameId:46,outcome:'victory',lossReason:null}));
 assert.equal(api.history.length,2);
 assert.equal(api.history[1].mode,'watch');
 if(process.argv[2]){
  const packaged=load(process.argv[2]);
- for(const needle of ["window.SOL_POD_BUILD='0.63.0'",
+ for(const needle of ["window.SOL_POD_BUILD='0.64.0'",
   'window.solPodDeckAnalytics','window.solPodTurnIndicator',
   'lossExplanation(next.lossReason,next.lossSource,next.winningEffect)',
   'gameId:raw.gameId??null'])
