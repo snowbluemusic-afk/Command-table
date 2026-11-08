@@ -89,6 +89,9 @@ assert.equal(row.querySelector('.sol-v67-library').querySelector('strong').textC
 assert.equal(row.querySelector('.sol-v67-graveyard').querySelector('strong').textContent,'2');
 row.querySelector('.sol-v67-graveyard').onclick({preventDefault(){},stopPropagation(){}});
 assert.equal(opened[1][1],1,'Changing focus must change graveyard tab');
+window.app.solRosterOpen=true;window.solPodOpponentZones.refresh();
+assert(row.hidden,'Expanded Players should hide opponent public-zone strip');
+window.app.solRosterOpen=false;
 window.app.tableMode='overview';window.solPodOpponentZones.refresh();
 assert(row.hidden,'Opponent panel hides while showing the whole pod');
 if(process.argv[2]){
