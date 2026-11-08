@@ -212,6 +212,11 @@ source=source.replace('</body>','<script>\n'+layout_js+'\n</script></body>')
 swap("window.SOL_POD_BUILD='0.64.0';","window.SOL_POD_BUILD='0.65.0';","v065 build")
 swap("tag.textContent='v0.64';","tag.textContent='v0.65';","v065 build badge metadata")
 swap("Sol Pod build version 0.64","Sol Pod build version 0.65","v065 accessible version")
+# v0.65.1: a small visual correction on the same v0.65 HUD branch.
+# The readable version changes so sideloaded screenshots can distinguish builds.
+swap("window.SOL_POD_BUILD='0.65.0';","window.SOL_POD_BUILD='0.65.1';","v0651 build")
+swap("tag.textContent='v0.65';","tag.textContent='v0.65.1';","v0651 displayed build")
+swap("Sol Pod build version 0.65","Sol Pod build version 0.65.1","v0651 accessible build")
 target.write_text(source)
 print(f"Sol Pod v0.65 compact conflict-free HUD packaged ({len(source)} characters)")
 
