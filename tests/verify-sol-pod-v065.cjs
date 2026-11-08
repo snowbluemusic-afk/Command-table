@@ -20,7 +20,7 @@ for(const text of ['.sol-battlefield .sol-game-brand{display:none!important}',
  '.sol-battlefield .ct10-zone-rail>.ct-zone-toggle',
  '.sol-battlefield .ct10-hand-ribbon button',
  '#sol-pod-hud-layout>',
- 'Sol Pod v'+String.raw`'+String(window.SOL_POD_BUILD`,
+ "label.textContent='Sol Pod v'+String(window.SOL_POD_BUILD",
  'window.solPodLibraryGraveyard?.refresh?.()'])
  assert(layout.includes(text),'Missing clean HUD/layout/Settings behaviour '+text);
 for(const text of ['left:clamp(12px,5.8vw,90px)',
