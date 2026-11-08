@@ -89,7 +89,7 @@
  overlay.dataset.open='false';overlay.setAttribute('role','dialog');
  overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Deck performance and composition');
  const sheet=elem('section','sol-stats-sheet');overlay.append(sheet);document.body.append(overlay);
- let shownId=null,pending=false;
+ let shownId=null,pending=false,lastMetadataState='';
  const deck=id=>window.app?.decks?.find(d=>String(d.id)===String(id));
  const keyOf=name=>String(name||'').normalize('NFKC').toLowerCase().replace(/[’]/g,"'").trim();
  // A revision changes when Commander/card quantities change, not card order.
@@ -175,7 +175,8 @@
   return session.phase==='bound'&&Number(session.gameId)===id;
  }
  function cancelMatch(){
-  if(session?.phase==='starting'){session=null;write(ACTIVE,null);}
+  // A rejected or timed-out start must never leave an attributable session.
+  if(session&&!session.recorded){session=null;write(ACTIVE,null);}
  }
  function recordMatch(raw){
   if(!raw?.gameOver||!window.app?.nativeMatch || !session?.token ||
@@ -228,6 +229,8 @@
   const defeats=played.filter(x=>x.outcome==='defeat');
   const draws=played.filter(x=>x.outcome==='draw').length;
   const comp=composition(d);
+  lastMetadataState=JSON.stringify([comp.unknown,comp.knownCost,comp.estimated,comp.average]);
+  void window.CommandTableCatalog?.resolveSavedDecks?.();
   const kpis=elem('div','sol-stats-kpis');
   const lifetimeWins=lifetime.filter(x=>x.outcome==='victory').length;
   metric(kpis,'Current revision · matches',played.length);
@@ -275,6 +278,18 @@
  }
  function updateLibrary(){
   const app=window.app;
+  if(shownId!==null&&overlay.dataset.open==='true'){
+   const liveDeck=deck(shownId);
+   if(liveDeck){
+    const compositionNow=composition(liveDeck);
+    const next=JSON.stringify([compositionNow.unknown,compositionNow.knownCost,
+      compositionNow.estimated,compositionNow.average]);
+    if(next!==lastMetadataState){
+     const scroll=sheet.scrollTop;
+     open(shownId);sheet.scrollTop=scroll;
+    }
+   }
+  }
   if(app?.view==='decks'){
    for(const tile of document.querySelectorAll('.ct-deck-library-grid .deck-tile[data-action="openDeck"]')){
     if(tile.parentElement?.classList?.contains('sol-stats-wrap'))continue;
