@@ -11,7 +11,7 @@ for(const [name,s] of [['opponent',opponent],['graveyard',graveyard],['layout',l
  new vm.Script(s,{filename:name+'.js'});
 for(const x of ["'left:17.0%!important;bottom:max(2.1%,env(safe-area-inset-bottom))!important;'",
  "'top:auto!important;width:10.8%!important;min-width:0!important;'",
- "'height:clamp(36px,6.4dvh,46px)!important;'"])
+ "height:clamp(36px,6.4dvh,46px)!important;"])
  assert(layout.includes(x),'Zones must match Hand dimensions and baseline: '+x);
 for(const x of ['swap(">▤ YOUR HAND <b>",">▤ HAND <b>"',
  'sol-pod-opponent-zones-v067.js',"window.SOL_POD_BUILD='0.67.0'"])
