@@ -1,53 +1,73 @@
-/* Sol Pod v0.64: a compact Forge-backed library + graveyard pair beside your life total.
- * Counts never inspect hidden library cards and never calculate game outcomes.
- * The graveyard control reuses the existing full-card public-zone browser.
+/* Sol Pod v0.65: Forge-backed public-zone counters in the right-hand action HUD.
+ * The library is a count only; the graveyard opens the existing Forge zone browser.
+ * This module never guesses hidden cards or applies gameplay rules.
  */
 (()=>{
  'use strict';
  if(window.solPodLibraryGraveyard)return;
  const css=document.createElement('style');css.id='sol-v64-library-graveyard-css';
  css.textContent=[
-  '.ct10-own-player .sol-v64-zones{position:absolute;left:calc(100% + 7px);top:0;',
-  'display:flex;flex-direction:row;gap:5px;align-items:stretch;white-space:nowrap;z-index:40}',
-  '.ct10-own-player .sol-v64-zones .sol-v64-zone{display:flex;flex-direction:column;',
-  'align-items:center;justify-content:center;gap:2px;min-width:62px;min-height:43px;',
-  'padding:5px 7px;border:1px solid #bca27b;border-radius:9px;',
-  'background:#152e36f2;color:#f5e6ce;box-shadow:0 3px 11px #0009;',
-  'font:750 12px system-ui;box-sizing:border-box;touch-action:manipulation}',
-  '.ct10-own-player .sol-v64-zones .sol-v64-zone strong{font-size:15px;line-height:1}',
-  '.ct10-own-player .sol-v64-zones .sol-v64-zone span{font-size:9px;letter-spacing:.035em}',
-  '.ct10-own-player .sol-v64-zones button.sol-v64-zone{cursor:pointer}',
-  '.ct10-own-player .sol-v64-zones button.sol-v64-zone:active{background:#416473}',
-  '.ct10-own-player .sol-v64-zones .sol-v64-zone[data-low="true"]{border-color:#e9ac63;background:#5a3921}',
-  '.ct10-own-player .sol-v64-zones .sol-v64-zone[data-empty="true"]{border-color:#f18c82;background:#632d2d}',
+  '#sol-pod-hud-layout>.sol-v64-zones{display:none}',
+  'body:has(.sol-battlefield) #sol-pod-hud-layout>.sol-v64-zones:not([hidden]){',
+  'position:relative;display:flex;flex:0 0 auto;align-items:stretch;',
+  'box-sizing:border-box;width:100%;min-width:0;gap:6px;pointer-events:auto;',
+  'margin:0!important;padding:0!important;z-index:4}',
+  '#sol-pod-hud-layout>.sol-v64-zones .sol-v64-zone{display:flex;align-items:center;',
+  'justify-content:space-between;gap:4px;flex:1 1 0;min-width:0;',
+  'min-height:40px;padding:5px 8px;border:1px solid #bda27b;border-radius:9px;',
+  'background:#152b36ed;color:#f4e6cc;box-shadow:0 3px 10px #0008;',
+  'font:700 clamp(10px,.85vw,13px) system-ui;box-sizing:border-box}',
+  '#sol-pod-hud-layout>.sol-v64-zones .sol-v64-zone span{',
+  'overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '#sol-pod-hud-layout>.sol-v64-zones .sol-v64-zone strong{font-size:15px;',
+  'flex:none;font-variant-numeric:tabular-nums}',
+  '#sol-pod-hud-layout>.sol-v64-zones button.sol-v64-zone{',
+  'touch-action:manipulation;cursor:pointer}',
+  '#sol-pod-hud-layout>.sol-v64-zones button.sol-v64-zone:active{background:#42606b}',
+  '#sol-pod-hud-layout>.sol-v64-zones .sol-v64-library[data-low="true"]{',
+  'border-color:#e8ac60;background:#513a28}',
+  '#sol-pod-hud-layout>.sol-v64-zones .sol-v64-library[data-empty="true"]{',
+  'border-color:#f28f88;background:#612e32}',
+  '#sol-pod-hud-layout>.sol-v64-zones button:focus-visible{outline:3px solid #fff1b1}',
   '@media(orientation:landscape) and (max-height:420px){',
-  '.ct10-own-player .sol-v64-zones{gap:3px;top:0}',
-  '.ct10-own-player .sol-v64-zones .sol-v64-zone{min-width:53px;min-height:34px;padding:3px 4px}',
-  '.ct10-own-player .sol-v64-zones .sol-v64-zone span{font-size:8px}}',
-  '@media(max-width:380px){.ct10-own-player .sol-v64-zones .sol-v64-zone{min-width:48px;padding:3px}}'
+  '#sol-pod-hud-layout>.sol-v64-zones .sol-v64-zone{min-height:34px;',
+  'padding:4px 6px;font-size:10px}',
+  '#sol-pod-hud-layout>.sol-v64-zones .sol-v64-zone strong{font-size:13px}}',
+  '@media(max-width:450px){',
+  '#sol-pod-hud-layout>.sol-v64-zones .sol-v64-zone{padding:4px;gap:2px}',
+  '#sol-pod-hud-layout>.sol-v64-zones .sol-v64-zone span{font-size:9px}}'
  ].join('');
  document.head.append(css);
- let queued=false;
+ let queued=false,observedHud=null;
  function sync(){
   const app=window.app,g=app?.nativeMatch&&app.view==='game'?app.game:null;
-  const host=document.querySelector('.ct10-own-player');
-  if(!g||!host||!Array.isArray(g.players)||!g.players[0])return;
+  const host=document.getElementById('sol-pod-hud-layout');
+  if(!host)return;
   let group=host.querySelector('.sol-v64-zones');
   if(!group){
    group=document.createElement('div');group.className='sol-v64-zones';
    group.setAttribute('role','group');group.setAttribute('aria-label','Your library and graveyard');
    const library=document.createElement('div');library.className='sol-v64-zone sol-v64-library';
-   library.innerHTML='<strong>—</strong><span>▤ Library</span>';
+   library.innerHTML='<span>▤ Library</span><strong>—</strong>';
    const grave=document.createElement('button');grave.type='button';
    grave.className='sol-v64-zone sol-v64-graveyard';
    grave.setAttribute('aria-label','Browse your graveyard');
-   grave.innerHTML='<strong>—</strong><span>♜ Graveyard</span>';
-   grave.onclick=(event)=>{
+   grave.innerHTML='<span>♜ Graveyard</span><strong>—</strong>';
+   grave.onclick=event=>{
     event.preventDefault();event.stopPropagation();
     window.ctZoneBrowser?.open?.('graveyard');
    };
    group.append(library,grave);host.append(group);
   }
+  // The existing HUD moves Forge priority controls during native updates.
+  // Keep this footer AFTER priority; never float it over the battlefield.
+  if(host.lastElementChild!==group)host.append(group);
+  if(observedHud!==host){
+   new MutationObserver(schedule).observe(host,{childList:true});
+   observedHud=host;
+  }
+  group.hidden=!g?.players?.[0];
+  if(group.hidden)return;
   const me=g.players[0],library=group.querySelector('.sol-v64-library');
   const grave=group.querySelector('.sol-v64-graveyard');
   const remaining=Number.isFinite(me.libraryCount)?Math.max(0,me.libraryCount):
