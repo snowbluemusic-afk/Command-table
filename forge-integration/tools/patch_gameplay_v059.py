@@ -204,6 +204,14 @@ source=source.replace('</body>','<script>\n'+library_js+'\n</script></body>')
 swap("window.SOL_POD_BUILD='0.63.0';","window.SOL_POD_BUILD='0.64.0';","v064 version")
 swap("tag.textContent='v0.63';","tag.textContent='v0.64';","v064 badge")
 swap("Sol Pod build version 0.63","Sol Pod build version 0.64","v064 accessible version")
+# v0.65: use the right-hand flex HUD for library/graveyard; the top-left
+# now contains only a compact, collapsible turn cue, and version lives in settings.
+layout_js=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-layout-v065.js').read_text()
+assert 'window.solPodLayoutV065' in layout_js and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+layout_js+'\n</script></body>')
+swap("window.SOL_POD_BUILD='0.64.0';","window.SOL_POD_BUILD='0.65.0';","v065 build")
+swap("tag.textContent='v0.64';","tag.textContent='v0.65';","v065 build badge metadata")
+swap("Sol Pod build version 0.64","Sol Pod build version 0.65","v065 accessible version")
 target.write_text(source)
-print(f"Sol Pod v0.64 reliability, library and graveyard pass applied ({len(source)} characters)")
+print(f"Sol Pod v0.65 compact conflict-free HUD packaged ({len(source)} characters)")
 
