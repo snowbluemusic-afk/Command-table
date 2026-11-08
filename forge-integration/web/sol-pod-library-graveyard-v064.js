@@ -58,6 +58,7 @@
   const message=empty?'Library empty. Your next required draw may cause you to lose.':
    low?'Only '+remaining+' cards remain in your library.':'Your library has '+remaining+' cards remaining.';
   library.querySelector('strong').textContent=String(remaining);
+  library.querySelector('span').textContent=low?'⚠ Library':'▤ Library';
   library.dataset.low=String(low);library.dataset.empty=String(empty);
   library.title=message;library.setAttribute('aria-label',message);
   grave.querySelector('strong').textContent=String(graveCount);
