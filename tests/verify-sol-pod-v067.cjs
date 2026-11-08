@@ -41,6 +41,7 @@ class E {
  get nextElementSibling(){
   const l=this.parentNode?.children||[];return l[l.indexOf(this)+1]||null;
  }
+ get lastElementChild(){return this.children[this.children.length-1]||null;}
  setAttribute(k,v){this.attrs[k]=String(v);}
  querySelector(q){
   const matches=x=>q[0]==='.'?x.className.split(' ').includes(q.slice(1)):
