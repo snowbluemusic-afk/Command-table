@@ -7,7 +7,7 @@
  const style=document.createElement('style');style.id='sol-pod-turn-indicator-v063';
  style.textContent=[
  '#sol-pod-turn-indicator{position:fixed;z-index:2147482570;',
- 'top:calc(env(safe-area-inset-top) + 6px);left:clamp(12px,5.8vw,90px);transform:none;',
+ 'top:calc(env(safe-area-inset-top) + 9.5dvh);left:clamp(12px,5vw,80px);transform:none;',
  'max-width:20vw;min-width:0;padding:6px 10px;border-radius:11px;',
  'display:none;text-align:center;pointer-events:none;',
  'background:#253d45ef;color:#f3e7ce;border:1px solid #9ca9a5;',
@@ -25,6 +25,7 @@
  'border-color:#f0c77f!important;box-shadow:0 0 12px #dba65b55!important}',
  'body:has(#sol-v62-target-dock[data-active="true"]) #sol-pod-turn-indicator,',
  'body:has(#ct-zone-browser[data-open="true"]) #sol-pod-turn-indicator,',
+ 'body:has(#sol-hand-grid[data-open="true"]) #sol-pod-turn-indicator,',
  'body:has(#ct-floating-zones[data-open="true"]) #sol-pod-turn-indicator,',
  'body:has(#ct-fullscreen-targets[data-open="true"]) #sol-pod-turn-indicator,',
  'body:has(#ct-required-forge-action[data-open="true"]) #sol-pod-turn-indicator,',
@@ -43,9 +44,32 @@
  flag.setAttribute('aria-live','polite');flag.setAttribute('aria-atomic','true');
  document.body.append(flag);
  let previousTurn='',lastLabel='',fade=null,collapseTimer=null,pending=false;
+ function positionBelowBrowse(){
+   const browse=document.getElementById('sol-hand-grid-launch');
+   const g=window.app?.game;
+   if(!browse||!g||!window.app?.nativeMatch){
+     flag.style.removeProperty('top');
+     flag.style.removeProperty('left');
+     flag.style.removeProperty('max-width');
+     return;
+   }
+   const r=browse.getBoundingClientRect();
+   if(!r.width||!r.height||r.bottom<0||r.bottom>innerHeight*.30){
+     flag.style.removeProperty('top');
+     flag.style.removeProperty('left');
+     flag.style.removeProperty('max-width');
+     return;
+   }
+   // Browse is a real action. Anchor below its rendered rectangle, rather
+   // than overlaying the button or guessing a percentage of screen height.
+   flag.style.setProperty('top',Math.round(r.bottom+5)+'px');
+   flag.style.setProperty('left',Math.round(Math.max(8,r.left))+'px');
+   flag.style.setProperty('max-width',Math.round(Math.max(112,r.width))+'px');
+ }
  function refresh(){
    const g=window.app?.nativeMatch&&window.app?.view==='game'?window.app.game:null;
    const body=document.body;
+   positionBelowBrowse();
    if(!g||g.gameOver||g.winner!=null||g.phase==='mulligan'){
      body.removeAttribute('data-sol-pod-turn');flag.dataset.newTurn='false';
      clearTimeout(collapseTimer);previousTurn='';lastLabel='';return;
@@ -60,6 +84,7 @@
       name.toUpperCase()+"'S TURN";
    body.dataset.solPodTurn=who;
    if(lastLabel!==label){
+     flag.title=label;flag.setAttribute('aria-label',label);
      // Full explanation on each change, then a quiet status pill.
      // Never cover the opponent portrait or navigation tools.
      flag.textContent=label;lastLabel=label;flag.dataset.compact='false';
@@ -84,7 +109,9 @@
    pending=true;requestAnimationFrame(()=>{pending=false;refresh();});
  }
  const root=document.getElementById('app');
- if(root)new MutationObserver(schedule).observe(root,{childList:true,subtree:false});
+ if(root)new MutationObserver(schedule).observe(root,{childList:true,subtree:true});
+ window.addEventListener('resize',schedule);
+ window.addEventListener('orientationchange',schedule);
  window.addEventListener('ct-forge-prompt-updated',schedule);
  window.addEventListener('ct-forge-selection',schedule);
  if(window.CommandTableNative?.onState)window.CommandTableNative.onState(schedule);
