@@ -30,7 +30,7 @@ for(const needle of [
  'pod_button','source,n=re.subn','assert n==1',
  'advanced=','source=source.replace(advanced,\'\')',
  "app.solRosterOpen=false;app.tableMode",
- '"\'● THEIR TURN\'","\'● OPPONENT\'"',
+ "'● THEIR TURN'","'● OPPONENT'",
  "window.SOL_POD_BUILD='0.66.0'",
  'sol-pod-hud-consolidation-v066.js'
 ])assert(patch.includes(needle),'Packaging must remove redundancy: '+needle);
