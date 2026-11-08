@@ -35,6 +35,7 @@ class E {
  replaceChildren(...v){this.children=v;}
  setAttribute(k,v){this.attrs[k]=String(v);}
  getAttribute(k){return this.attrs[k]||null;}
+ addEventListener(){}
  focus(){}
 }
 const memory=new Map(),appRoot=new E();
