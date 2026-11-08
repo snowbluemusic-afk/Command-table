@@ -38,6 +38,9 @@
   'outline:3px solid #ffe4b8}',
   '#sol-pod-hud-layout>.sol-v67-opponent-zones .sol-v67-library[data-empty="true"]{',
   'border-color:#f2a08f;background:#5e303f}',
+  'body:has(.sol-battlefield.sol-roster-expanded)',
+  ' #sol-pod-hud-layout>.sol-v67-opponent-zones{',
+  'visibility:hidden!important;pointer-events:none!important}',
   /* Keep priority and mandatory modal decisions accessible in tight viewports.
      The opponent status disappears only when the right rail is extremely
      constrained by an interactive Forge choice or a visible stack. */
@@ -94,7 +97,7 @@
   }
   const focused=focusedSeat(g,app);
   row.hidden=!g||!Array.isArray(g.players)||focused<1||
-   app.tableMode==='overview';
+   app.tableMode==='overview'||!!app.solRosterOpen;
   // Insert between Game Log and Stack/Phase, never over the battlefield.
   const following=host.querySelector('#sol-pod-stack')||
     host.querySelector('#ct-forge-priority-buttons')||
