@@ -191,8 +191,8 @@ swap("  if(!raw || !Array.isArray(raw.players)) throw new Error('Invalid Forge s
      "  if(!raw || !Array.isArray(raw.players)) throw new Error('Invalid Forge snapshot');\n"+
      "  window.solPodDeckAnalytics?.observeGame?.(raw);",
      "v064 bind the first Forge snapshot to its launched deck")
-swap("announce('Forge match start timed out before a playable board was created. No deck data was changed.');",
-     "window.solPodDeckAnalytics?.cancelMatch?.();announce('Forge match start timed out before a playable board was created. No deck data was changed.');",
+swap("announce('Sol Pod match start timed out before a playable board was created. No deck data was changed.');",
+     "window.solPodDeckAnalytics?.cancelMatch?.();announce('Sol Pod match start timed out before a playable board was created. No deck data was changed.');",
      "v064 cancel timed-out launch")
 swap("app.nativeMatch=false;window.ctMatchLoading?.hide();announce(",
      "app.nativeMatch=false;window.solPodDeckAnalytics?.cancelMatch?.();window.ctMatchLoading?.hide();announce(",
