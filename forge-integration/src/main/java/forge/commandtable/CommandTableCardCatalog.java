@@ -69,6 +69,8 @@ public final class CommandTableCardCatalog {
         out.put("type", rules.getType().toString());
         out.put("cost", rules.getManaCost().toString()
             .replace("{", "").replace("}", ""));
+        // Authoritative mana value for average deck cost (including hybrids).
+        out.put("manaValue", rules.getManaCost().getCMC());
         out.put("text", rules.getOracleText());
         out.put("power", rules.getPower());
         out.put("toughness", rules.getToughness());
