@@ -80,7 +80,7 @@ assert.equal(api.history.length,2);
 assert.equal(api.history[1].mode,'watch');
 if(process.argv[2]){
  const packaged=load(process.argv[2]);
- for(const needle of ["window.SOL_POD_BUILD='0.64.0'",
+ for(const needle of ["window.SOL_POD_BUILD='0.65.0'",
   'window.solPodDeckAnalytics','window.solPodTurnIndicator',
   'lossExplanation(next.lossReason,next.lossSource,next.winningEffect)',
   'gameId:raw.gameId??null'])
