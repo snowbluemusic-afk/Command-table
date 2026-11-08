@@ -109,7 +109,7 @@ jobs:
             python3 forge-integration/tools/patch_frontend.py android/app/src/main/assets/index.html /tmp/forge/forge-gui-android/assets/command-table.html
             python3 forge-integration/tools/patch_gameplay_v059.py /tmp/forge/forge-gui-android/assets/command-table.html
             test -s /tmp/forge/forge-gui-android/assets/command-table.html
-            grep -Fq "window.SOL_POD_BUILD='0.65.0'" /tmp/forge/forge-gui-android/assets/command-table.html
+            grep -Fq "window.SOL_POD_BUILD='0.65.1'" /tmp/forge/forge-gui-android/assets/command-table.html
             grep -Fq 'window.solPodLibraryGraveyard' /tmp/forge/forge-gui-android/assets/command-table.html
             grep -Fq 'window.solPodLayoutV065' /tmp/forge/forge-gui-android/assets/command-table.html
           } 2>&1 | tee recovery-logs/forge-patch.txt
