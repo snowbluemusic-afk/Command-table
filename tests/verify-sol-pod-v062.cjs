@@ -33,7 +33,7 @@ assert.ok(patch.includes("SOL_POD_BUILD='0.62.0'"),'version must identify APK');
 if(process.argv[2]){
  const packaged=read(process.argv[2]);
  assert.ok(packaged.includes('window.solPodGameplayV062'),'APK HTML missing v0.62 layer');
- assert.ok(packaged.includes("window.SOL_POD_BUILD='0.66.0'"),'APK HTML missing v0.62 build');
+ assert.ok(packaged.includes("window.SOL_POD_BUILD='0.67.0'"),'APK HTML missing v0.62 build');
  assert.ok(packaged.includes('window.ctCombatPlanner'),'APK HTML missing live combat planner');
  assert.ok(packaged.includes('sol-v62-target-dock'),'APK HTML missing board targeting');
 }
