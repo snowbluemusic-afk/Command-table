@@ -82,6 +82,7 @@ jobs:
           node tests/verify-sol-pod-v062.cjs 2>&1 | tee recovery-logs/sol-pod-v062.txt
           node tests/verify-sol-pod-v063.cjs 2>&1 | tee recovery-logs/sol-pod-v063.txt
           node tests/verify-sol-pod-v064.cjs 2>&1 | tee recovery-logs/sol-pod-v064.txt
+          node tests/verify-sol-pod-v065.cjs 2>&1 | tee recovery-logs/sol-pod-v065.txt
           node tests/verify-sol-pod-v038.cjs 2>&1 | tee recovery-logs/sol-pod-v038.txt
           node tests/verify-commandtable-recovery.cjs android/app/src/main/assets/index.html 2>&1 | tee -a recovery-logs/preflight.txt
       - name: Verify Sol Pod v0.39 stack and HUD layout (mandatory)
@@ -108,8 +109,9 @@ jobs:
             python3 forge-integration/tools/patch_frontend.py android/app/src/main/assets/index.html /tmp/forge/forge-gui-android/assets/command-table.html
             python3 forge-integration/tools/patch_gameplay_v059.py /tmp/forge/forge-gui-android/assets/command-table.html
             test -s /tmp/forge/forge-gui-android/assets/command-table.html
-            grep -Fq "window.SOL_POD_BUILD='0.64.0'" /tmp/forge/forge-gui-android/assets/command-table.html
+            grep -Fq "window.SOL_POD_BUILD='0.65.0'" /tmp/forge/forge-gui-android/assets/command-table.html
             grep -Fq 'window.solPodLibraryGraveyard' /tmp/forge/forge-gui-android/assets/command-table.html
+            grep -Fq 'window.solPodLayoutV065' /tmp/forge/forge-gui-android/assets/command-table.html
           } 2>&1 | tee recovery-logs/forge-patch.txt
       - name: Bundle complete Forge rules and card resources inside the APK
         run: |
@@ -165,6 +167,7 @@ jobs:
           node tests/verify-sol-pod-v062.cjs /tmp/forge/forge-gui-android/assets/command-table.html
           node tests/verify-sol-pod-v063.cjs /tmp/forge/forge-gui-android/assets/command-table.html
           node tests/verify-sol-pod-v064.cjs /tmp/forge/forge-gui-android/assets/command-table.html
+          node tests/verify-sol-pod-v065.cjs /tmp/forge/forge-gui-android/assets/command-table.html
       - name: Check Command Table JavaScript and native gameplay handoff
         run: |
           python3 - <<'PY'
