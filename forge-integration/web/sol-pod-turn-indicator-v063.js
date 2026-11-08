@@ -7,15 +7,16 @@
  const style=document.createElement('style');style.id='sol-pod-turn-indicator-v063';
  style.textContent=[
  '#sol-pod-turn-indicator{position:fixed;z-index:2147482570;',
- 'top:calc(env(safe-area-inset-top) + 4px);left:50%;transform:translateX(-50%);',
- 'max-width:65vw;min-width:185px;padding:7px 18px;border-radius:0 0 12px 12px;',
+ 'top:calc(env(safe-area-inset-top) + 6px);left:clamp(12px,5.8vw,90px);transform:none;',
+ 'max-width:20vw;min-width:0;padding:6px 10px;border-radius:11px;',
  'display:none;text-align:center;pointer-events:none;',
  'background:#253d45ef;color:#f3e7ce;border:1px solid #9ca9a5;',
- 'border-top:0;box-shadow:0 7px 25px #0009;font:850 13px/1.2 system-ui;',
- 'letter-spacing:.035em;box-sizing:border-box}',
+ 'box-shadow:0 5px 15px #0009;font:850 12px/1.2 system-ui;',
+ 'letter-spacing:.015em;box-sizing:border-box;white-space:nowrap;',
+ 'overflow:hidden;text-overflow:ellipsis}',
  'body[data-sol-pod-turn="mine"] #sol-pod-turn-indicator{display:block;',
  'background:#e6ba72;color:#142a31;border-color:#ffe2aa;',
- 'box-shadow:0 0 25px #f0b45799,0 7px 18px #000a;font-size:16px}',
+ 'box-shadow:0 0 16px #f0b45770,0 5px 13px #0009;font-size:13px}',
  'body[data-sol-pod-turn="opponent"] #sol-pod-turn-indicator{display:block}',
  'body[data-sol-pod-turn="mine"] .ct10-lane-own.ct10-creatures{',
  'border-bottom:2px solid #eebd72!important;',
@@ -29,8 +30,8 @@
  'body:has(#ct-required-forge-action[data-open="true"]) #sol-pod-turn-indicator,',
  'body:has(#sol-pod-match-result-v043[data-open="true"]) #sol-pod-turn-indicator{display:none!important}',
  '@media(orientation:landscape) and (max-height:420px){',
- '#sol-pod-turn-indicator{min-width:160px;font-size:11px;padding:4px 11px;max-width:48vw}',
- 'body[data-sol-pod-turn="mine"] #sol-pod-turn-indicator{font-size:13px}}',
+ '#sol-pod-turn-indicator{min-width:0;font-size:10px;padding:4px 7px;max-width:20vw}',
+ 'body[data-sol-pod-turn="mine"] #sol-pod-turn-indicator{font-size:11px}}',
  '@media(prefers-reduced-motion:no-preference){',
  'body[data-sol-pod-turn="mine"] #sol-pod-turn-indicator[data-new-turn="true"]{',
  'animation:sol-turn-glow .9s ease-in-out 2}',
@@ -41,13 +42,13 @@
  flag.id='sol-pod-turn-indicator';flag.setAttribute('role','status');
  flag.setAttribute('aria-live','polite');flag.setAttribute('aria-atomic','true');
  document.body.append(flag);
- let previousTurn='',lastLabel='',fade=null,pending=false;
+ let previousTurn='',lastLabel='',fade=null,collapseTimer=null,pending=false;
  function refresh(){
    const g=window.app?.nativeMatch&&window.app?.view==='game'?window.app.game:null;
    const body=document.body;
    if(!g||g.gameOver||g.winner!=null||g.phase==='mulligan'){
      body.removeAttribute('data-sol-pod-turn');flag.dataset.newTurn='false';
-     previousTurn='';lastLabel='';return;
+     clearTimeout(collapseTimer);previousTurn='';lastLabel='';return;
    }
    const mine=g.active===0;
    const turnId=String(g.turn)+'|'+String(g.active);
@@ -58,7 +59,19 @@
      priority?'YOUR RESPONSE · '+name+"'s turn":
       name.toUpperCase()+"'S TURN";
    body.dataset.solPodTurn=who;
-   if(lastLabel!==label){flag.textContent=label;lastLabel=label;}
+   if(lastLabel!==label){
+     // Full explanation on each change, then a quiet status pill.
+     // Never cover the opponent portrait or navigation tools.
+     flag.textContent=label;lastLabel=label;flag.dataset.compact='false';
+     clearTimeout(collapseTimer);
+     const shortLabel=mine?(priority?'✦ Your turn · Priority':'✦ Your turn'):
+       priority?'✦ Your response':'Opponent turn';
+     collapseTimer=setTimeout(()=>{
+       if(lastLabel===label){
+         flag.textContent=shortLabel;flag.dataset.compact='true';
+       }
+     },2400);
+   }
    if(previousTurn!==turnId){
      flag.dataset.newTurn=String(mine && !!previousTurn);
      clearTimeout(fade);
