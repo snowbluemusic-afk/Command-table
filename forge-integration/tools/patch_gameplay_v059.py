@@ -191,6 +191,9 @@ swap("  if(!raw || !Array.isArray(raw.players)) throw new Error('Invalid Forge s
      "  if(!raw || !Array.isArray(raw.players)) throw new Error('Invalid Forge snapshot');\n"+
      "  window.solPodDeckAnalytics?.observeGame?.(raw);",
      "v064 bind the first Forge snapshot to its launched deck")
+swap("    app.nativeMatch=false;\n    announce('Forge match start timed out",
+     "    app.nativeMatch=false;\n    window.solPodDeckAnalytics?.cancelMatch?.();\n    announce('Forge match start timed out",
+     "v064 cancel timed-out launch")
 swap("app.nativeMatch=false;window.ctMatchLoading?.hide();announce(",
      "app.nativeMatch=false;window.solPodDeckAnalytics?.cancelMatch?.();window.ctMatchLoading?.hide();announce(",
      "v064 cancel failed launch")
