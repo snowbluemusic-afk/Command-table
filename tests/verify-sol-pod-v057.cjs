@@ -51,7 +51,7 @@ assert(frontend.includes("SOL_POD_BUILD='0.58.0'") &&
 
 if(process.argv[2]){
  const html=read(process.argv[2]);
- assert(html.includes("SOL_POD_BUILD='0.63.0'") &&
+ assert(html.includes("SOL_POD_BUILD='0.64.0'") &&
         html.includes('queueCombatStatusCheck(') &&
         html.includes('window.app.game.humanInput=p.humanInput;') &&
         html.includes("pass.textContent=busy?'Passing…':'Pass priority'"),
