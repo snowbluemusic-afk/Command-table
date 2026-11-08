@@ -238,7 +238,7 @@ swap("case 'togglePod':app.tableMode=app.tableMode==='overview'?'focus':'overvie
 swap("'● THEIR TURN'","'● OPPONENT'","v066 reduce duplicate turn text")
 # The full sortable hand browser is now reached from expanded YOUR HAND.
 # Future hand viewers must keep Forge's original hand indices and IDs.
-swap("Tap YOUR HAND beside Zones to browse your cards. Tap it again to return to the board.",
+swap("Tap YOUR HAND beside Zones to open and close it.",
      "Tap YOUR HAND to expand the hand. Select Browse / Search inside it to filter or sort; tap YOUR HAND again to close.",
      "v066 update hand onboarding")
 consolidated_js=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-hud-consolidation-v066.js').read_text()
