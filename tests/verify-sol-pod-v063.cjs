@@ -20,7 +20,7 @@ for(const needle of ["case 'Milled':",'attempted to draw a card from an empty li
  'lossExplanation(next.lossReason,next.lossSource,next.winningEffect)',
  'window.solPodDeckAnalytics?.recordMatch?.(raw)'])
  assert(result.includes(needle),'Loss reason / recording missing '+needle);
-for(const needle of ['g.active===0',"priority?'YOUR RESPONSE",
+for(const needle of ['g.active===0',"priority?'✦ YOUR RESPONSE'",
  'body.dataset.solPodTurn=who','prefers-reduced-motion'])
  assert(turn.includes(needle),'Turn ownership UI missing '+needle);
 for(const needle of ['gameId:raw.gameId??null','lossReason:raw.lossReason??null',
