@@ -51,7 +51,7 @@ assert(patch.includes('sol-pod-attached-stacks-v061.js') &&
        patch.includes("window.SOL_POD_BUILD='0.61.0'"));
 if(process.argv[2]){
  const html=read(process.argv[2]);
- for(const marker of ["window.SOL_POD_BUILD='0.65.0'",
+ for(const marker of ["window.SOL_POD_BUILD='0.65.1'",
    'window.solPodAttachmentStacks','attachedToId:c.attachedToId??null',
    'cpuDeckName:app.enemyDeck==="random"','Audio, auto-resolve and recovery',
    'Search, sort and filter your hand']){
