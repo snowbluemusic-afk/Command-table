@@ -88,7 +88,7 @@ assert(group.querySelector('.sol-v64-library').attrs['aria-label'].includes('nex
 
 if(process.argv[2]){
  const packaged=load(process.argv[2]);
- for(const needle of ["window.SOL_POD_BUILD='0.65.1'",
+ for(const needle of ["window.SOL_POD_BUILD='0.66.0'",
   'window.solPodLayoutV065','top:calc(env(safe-area-inset-top) + 7px)',
   'host.lastElementChild!==group',
   '.sol-battlefield .sol-game-brand{display:none!important}'])
