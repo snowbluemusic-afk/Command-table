@@ -173,7 +173,7 @@ swap("    native:true, players:ps, active, turn:raw.turn||1, phase, phaseDetail:
      " lossSource:raw.lossSource??null,winningEffect:raw.winningEffect??null,",
      "v063 loss reason hydration")
 swap("   // Forge must validate each imported card and own every gameplay decision.",
-     "   // Forge must validate each imported card and own every gameplay decision.\\n"+
+     "   // Forge must validate each imported card and own every gameplay decision.\n"+
      "   window.solPodDeckAnalytics?.beginMatch?.(d,app.autoPilot);",
      "v063 associate original deck with started match")
 for file_name, marker in [
@@ -181,7 +181,7 @@ for file_name, marker in [
    ('sol-pod-deck-analytics-v063.js','window.solPodDeckAnalytics')]:
     script=(Path(__file__).resolve().parent.parent/'web'/file_name).read_text()
     assert marker in script and source.count('</body>')==1
-    source=source.replace('</body>','<script>\\n'+script+'\\n</script></body>')
+    source=source.replace('</body>','<script>\n'+script+'\n</script></body>')
 swap("window.SOL_POD_BUILD='0.62.0';","window.SOL_POD_BUILD='0.63.0';","v063 build")
 swap("tag.textContent='v0.62';","tag.textContent='v0.63';","v063 badge")
 swap("Sol Pod build version 0.62","Sol Pod build version 0.63","v063 accessible build")
