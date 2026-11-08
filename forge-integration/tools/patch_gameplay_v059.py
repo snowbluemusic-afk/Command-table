@@ -188,7 +188,7 @@ swap("Sol Pod build version 0.62","Sol Pod build version 0.63","v063 accessible 
 # v0.64: update only from the real Forge GameView associated with this match.
 # Never let a failed start or a stale restored snapshot create deck results.
 swap("  if(!raw || !Array.isArray(raw.players)) throw new Error('Invalid Forge snapshot');",
-     "  if(!raw || !Array.isArray(raw.players)) throw new Error('Invalid Forge snapshot');\\n"+
+     "  if(!raw || !Array.isArray(raw.players)) throw new Error('Invalid Forge snapshot');\n"+
      "  window.solPodDeckAnalytics?.observeGame?.(raw);",
      "v064 bind the first Forge snapshot to its launched deck")
 swap("app.nativeMatch=false;window.ctMatchLoading?.hide();announce(",
@@ -197,7 +197,7 @@ swap("app.nativeMatch=false;window.ctMatchLoading?.hide();announce(",
 # Include a safe zero-library warning, not a fabricated decking loss.
 library_js=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-library-graveyard-v064.js').read_text()
 assert 'window.solPodLibraryGraveyard' in library_js and source.count('</body>')==1
-source=source.replace('</body>','<script>\\n'+library_js+'\\n</script></body>')
+source=source.replace('</body>','<script>\n'+library_js+'\n</script></body>')
 swap("window.SOL_POD_BUILD='0.63.0';","window.SOL_POD_BUILD='0.64.0';","v064 version")
 swap("tag.textContent='v0.63';","tag.textContent='v0.64';","v064 badge")
 swap("Sol Pod build version 0.63","Sol Pod build version 0.64","v064 accessible version")
