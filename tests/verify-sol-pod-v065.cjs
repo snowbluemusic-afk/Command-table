@@ -28,7 +28,7 @@ for(const text of ['.sol-battlefield .sol-game-brand{display:none!important}',
  "label.textContent='Sol Pod v'+String(window.SOL_POD_BUILD",
  'window.solPodLibraryGraveyard?.refresh?.()'])
  assert(layout.includes(text),'Missing clean HUD/layout/Settings behaviour '+text);
-for(const text of ["document.getElementById('sol-hand-grid-launch')",'r.bottom+5',
+for(const text of ["top:calc(env(safe-area-inset-top) + 7px)",
  'clearTimeout(collapseTimer)','flag.dataset.compact=\'true\'',
  '2400','prefers-reduced-motion'])
  assert(turn.includes(text),'Missing top-left, compact turn cue '+text);
@@ -88,8 +88,8 @@ assert(group.querySelector('.sol-v64-library').attrs['aria-label'].includes('nex
 
 if(process.argv[2]){
  const packaged=load(process.argv[2]);
- for(const needle of ["window.SOL_POD_BUILD='0.65.1'",
-  'window.solPodLayoutV065','r.bottom+5',
+ for(const needle of ["window.SOL_POD_BUILD='0.66.0'",
+  'window.solPodLayoutV065','top:calc(env(safe-area-inset-top) + 7px)',
   'host.lastElementChild!==group',
   '.sol-battlefield .sol-game-brand{display:none!important}'])
   assert(packaged.includes(needle),'Packaged Android HTML missing '+needle);

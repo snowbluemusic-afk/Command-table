@@ -217,6 +217,36 @@ swap("Sol Pod build version 0.64","Sol Pod build version 0.65","v065 accessible 
 swap("window.SOL_POD_BUILD='0.65.0';","window.SOL_POD_BUILD='0.65.1';","v0651 build")
 swap("tag.textContent='v0.65';","tag.textContent='v0.65.1';","v0651 displayed build")
 swap("Sol Pod build version 0.65","Sol Pod build version 0.65.1","v0651 accessible build")
+# v0.66: consolidate duplicate entry points without changing Forge commands.
+# Players owns full pod, with a return button provided by the v0.66 HUD module.
+import re
+pod_button='<button data-action="togglePod" aria-label="Toggle pod overview" title="Show all players">'
+assert source.count(pod_button)==1, 'top-bar Pod icon changed'
+source,n=re.subn(r'<button data-action="togglePod" aria-label="Toggle pod overview" title="Show all players">[^<]*</button>', '', source,count=1)
+assert n==1, 'duplicate Pod icon could not be removed'
+# The advanced shortcut does not open a unique decision screen. Real Forge
+# prompts and the mandatory choices panel remain as before.
+advanced='<button data-action="nativePrompts" title="Advanced Sol Pod decisions">⚖</button>'
+assert source.count(advanced)==1, 'advanced shortcut changed'
+source=source.replace(advanced,'')
+# Retain a way out of the overview once the top-bar Pod button has gone.
+swap("case 'togglePod':app.tableMode=app.tableMode==='overview'?'focus':'overview';render();break;",
+     "case 'togglePod':app.solRosterOpen=false;app.tableMode=app.tableMode==='overview'?'focus':'overview';render();break;",
+     "v066 close Players when opening Pod overview")
+# Turn ownership and opponent names are already displayed by the compact turn
+# cue and full opponent header. Do not repeat the status inside that header.
+swap("'● THEIR TURN'","'● OPPONENT'","v066 reduce duplicate turn text")
+# The full sortable hand browser is now reached from expanded YOUR HAND.
+# Future hand viewers must keep Forge's original hand indices and IDs.
+swap("Tap YOUR HAND beside Zones to open and close it.",
+     "Tap YOUR HAND to expand the hand. Select Browse / Search inside it to filter or sort; tap YOUR HAND again to close.",
+     "v066 update hand onboarding")
+consolidated_js=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-hud-consolidation-v066.js').read_text()
+assert 'window.solPodHudConsolidation' in consolidated_js and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+consolidated_js+'\n</script></body>')
+swap("window.SOL_POD_BUILD='0.65.1';","window.SOL_POD_BUILD='0.66.0';","v066 build")
+swap("tag.textContent='v0.65.1';","tag.textContent='v0.66';","v066 visible version")
+swap("Sol Pod build version 0.65.1","Sol Pod build version 0.66","v066 accessible version")
 target.write_text(source)
-print(f"Sol Pod v0.65 compact conflict-free HUD packaged ({len(source)} characters)")
+print(f"Sol Pod v0.66 consolidated HUD packaged ({len(source)} characters)")
 

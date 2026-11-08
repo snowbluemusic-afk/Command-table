@@ -12,6 +12,17 @@
  '.sol-hand-grid-launch{border:1px solid #d6bb80;border-radius:9px;background:#1d3743;color:#fff0d8;',
  'font:750 11px system-ui;min-height:35px;padding:6px 11px;cursor:pointer;white-space:nowrap;z-index:8}',
  '.sol-hand-grid-launch:focus-visible,#sol-hand-grid button:focus-visible,#sol-hand-grid input:focus-visible{outline:3px solid #ffe1a2}',
+ '.sol-battlefield .ct10-hand-ribbon #sol-hand-grid-launch{',
+ 'position:relative!important;left:auto!important;top:auto!important;',
+ 'bottom:auto!important;right:auto!important;margin-left:auto!important;',
+ 'min-height:29px!important;max-height:36px!important;min-width:100px;',
+ 'font:750 11px system-ui!important;padding:4px 9px!important;',
+ 'border:1px solid #dfbd82!important;border-radius:9px!important;',
+ 'background:#284352!important;color:#fff0d8!important;',
+ 'pointer-events:auto!important;flex:none;z-index:2147482961}',
+ '@media(orientation:landscape) and (max-height:420px){',
+ '.sol-battlefield .ct10-hand-ribbon #sol-hand-grid-launch{',
+ 'min-height:27px!important;padding:3px 7px!important;font-size:10px!important}}',
  '#sol-hand-grid{display:none;position:fixed;inset:0;background:#051015e9;z-index:2147482000;',
  'padding:clamp(7px,2vw,18px);box-sizing:border-box;align-items:center;justify-content:center;pointer-events:auto}',
  '#sol-hand-grid[data-open="true"]{display:flex}',
@@ -208,21 +219,28 @@
  function close(){state.open=false;overlay.dataset.open='false';}
  function sync(){
    const items=hand();
+   // One primary YOUR HAND pill. Search/sort is a secondary action visible
+   // inside the existing expanded hand, not an independent top-left button.
+   const ribbon=document.querySelector(
+     '.sol-battlefield.ct10-hand-zoom .ct10-hand-ribbon, '+
+     '.sol-battlefield.ct10-hand-mulligan .ct10-hand-ribbon');
    const oldButton=document.getElementById('sol-hand-grid-launch');
-   const handToggle=document.querySelector('.sol-hand-toggle');
-   if(!items.length||!handToggle){
-     oldButton?.remove();if(state.open)close();return;
+   if(!items.length||!ribbon||isBlocked()){
+     oldButton?.remove();
+     if(state.open&&(isBlocked()||!items.length))close();
+     return;
    }
-   if(!oldButton){
-     const trigger=button('▦ Browse ('+items.length+')',open,'sol-hand-grid-launch');
+   if(oldButton&&oldButton.parentElement!==ribbon)oldButton.remove();
+   const existing=document.getElementById('sol-hand-grid-launch');
+   if(!existing){
+     const trigger=button('▦ Browse / Search',open,'sol-hand-grid-launch');
      trigger.id='sol-hand-grid-launch';
-     trigger.setAttribute('aria-label','Browse and search '+items.length+' hand cards');
-     handToggle.insertAdjacentElement('afterend',trigger);
-   }else oldButton.textContent='▦ Browse ('+items.length+')';
-   if(state.open){
-     if(isBlocked()){close();return;}
-     if(state.signature!==identity(items))paintCards();
+     trigger.setAttribute('aria-label','Browse, search, filter and sort '+items.length+' cards in your hand');
+     ribbon.append(trigger);
+   }else{
+     existing.setAttribute('aria-label','Browse, search, filter and sort '+items.length+' cards in your hand');
    }
+   if(state.open&&state.signature!==identity(items))paintCards();
  }
  let scheduled=false;
  function schedule(){
