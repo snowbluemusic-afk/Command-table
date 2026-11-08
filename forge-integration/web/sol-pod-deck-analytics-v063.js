@@ -92,6 +92,14 @@
  let shownId=null,pending=false;
  const deck=id=>window.app?.decks?.find(d=>String(d.id)===String(id));
  const keyOf=name=>String(name||'').normalize('NFKC').toLowerCase().replace(/[’]/g,"'").trim();
+ // A revision changes when Commander/card quantities change, not card order.
+ function deckRevision(d){
+  const names=(Array.isArray(d?.cards)?d.cards:[]).map(keyOf).sort();
+  const identity=[keyOf(d?.commander),...names].join('|');
+  let hash=2166136261;
+  for(let i=0;i<identity.length;i++)hash=Math.imul(hash^identity.charCodeAt(i),16777619)>>>0;
+  return 'r1-'+hash.toString(16).padStart(8,'0')+'-'+names.length;
+ }
  let cardIndex=new Map(),cardCount=-1;
  function metadata(name){
   const cards=window.CardData?.cards||[];
@@ -99,8 +107,9 @@
    cardIndex=new Map(cards.filter(c=>c?.name).map(c=>[keyOf(c.name),c]));
    cardCount=cards.length;
   }
-  const card=cardIndex.get(keyOf(name))||
-    window.ctForgeCards?.[keyOf(name)];
+  const cached=cardIndex.get(keyOf(name)),live=window.ctForgeCards?.[keyOf(name)];
+  // Forge's offline resolver enriches cached cards with authoritative manaValue.
+  const card=(cached?.manaValue!==undefined&&cached?.manaValue!==null)?cached:live||cached;
   return card && String(card.type||'').toLowerCase()!=='unknown'&&card.type?card:null;
  }
  function manaValue(info){
@@ -127,7 +136,7 @@
  function composition(d){
   const cards=Array.isArray(d?.cards)?d.cards:[];
   const counts=Object.fromEntries(types.map(t=>[t,0]));
-  let unknown=0,knownCost=0,totalCost=0,nonlands=0;
+  let unknown=0,knownCost=0,totalCost=0,nonlands=0,estimated=0;
   for(const name of cards){
    const info=metadata(name);
    if(!info){unknown++;continue;}
@@ -136,31 +145,51 @@
    if(type==='Land')continue;
    nonlands++;
    const cost=manaValue(info);
-   if(cost!==null){knownCost++;totalCost+=cost;}
+   if(cost!==null){knownCost++;totalCost+=cost;if(info.manaValue===undefined||info.manaValue===null)estimated++;}
   }
-  return {counts,unknown,knownCost,totalCost,nonlands,mainCount:cards.length,
-   average:knownCost?totalCost/knownCost:null};
+  return {counts,unknown,knownCost,totalCost,nonlands,estimated,mainCount:cards.length,
+   average:knownCost?totalCost/knownCost:null,
+   metadataPending:unknown>0||knownCost<nonlands||estimated>0};
  }
- function records(id,mode='manual'){
-  return matches.filter(m=>String(m.deckId)===String(id)&&m.mode===mode);
+ function records(id,mode='manual',revision=null){
+  return matches.filter(m=>String(m.deckId)===String(id)&&m.mode===mode&&
+    (revision===null||m.revision===revision));
  }
  function beginMatch(d,autoPilot){
   if(!d?.id)return false;
   session={token:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),
    deckId:String(d.id),deckName:String(d.name),commander:String(d.commander),
+   revision:deckRevision(d),gameId:null,phase:'starting',
    mode:autoPilot?'watch':'manual',startedAt:Date.now(),recorded:false};
   durable=write(ACTIVE,session)&&durable;
   return true;
  }
+ function observeGame(raw){
+  if(!session||session.recorded||!raw||!Array.isArray(raw.players)||!raw.players.length)return false;
+  const id=Number(raw.gameId);
+  if(!Number.isSafeInteger(id)||id<0)return false;
+  if(session.phase==='starting'){
+   if(Date.now()-Number(session.startedAt)>180000||raw.gameOver)return false;
+   session.gameId=id;session.phase='bound';write(ACTIVE,session);return true;
+  }
+  return session.phase==='bound'&&Number(session.gameId)===id;
+ }
+ function cancelMatch(){
+  if(session?.phase==='starting'){session=null;write(ACTIVE,null);}
+ }
  function recordMatch(raw){
   if(!raw?.gameOver||!window.app?.nativeMatch || !session?.token ||
      session.recorded || !['victory','defeat','draw'].includes(String(raw.outcome)))return false;
-  // Match ID comes from the finished Forge GameView. Never derive a result
-  // from life, the presence of zero library cards, or simulated matches.
-  if(!Number.isInteger(Number(raw.gameId)) || !Array.isArray(raw.players)||!raw.players.length)return false;
-  if(matches.some(m=>m.token===session.token)){session.recorded=true;write(ACTIVE,session);return false;}
-  const entry={token:session.token,gameId:Number(raw.gameId),
+  // Never assign another game's final result to this deck.
+  const id=Number(raw.gameId);
+  if(session.phase!=='bound'||!Number.isSafeInteger(id)||id<0||
+    Number(session.gameId)!==id||!Array.isArray(raw.players)||!raw.players.length)return false;
+  if(matches.some(m=>m.token===session.token)){
+   session.recorded=true;write(ACTIVE,session);return false;
+  }
+  const entry={token:session.token,gameId:id,
    deckId:session.deckId,deckName:session.deckName,commander:session.commander,
+   revision:session.revision||null,
    mode:session.mode,playedAt:Date.now(),outcome:String(raw.outcome),
    reason:raw.outcome==='defeat'?String(raw.lossReason||''):'',
    source:raw.outcome==='defeat'?String(raw.lossSource||raw.winningEffect||'').slice(0,140):'',
@@ -193,19 +222,25 @@
   const close=elem('button',null,'Close');close.type='button';
   close.onclick=()=>{overlay.dataset.open='false';shownId=null;};
   head.append(title,close);sheet.append(head);
-  const played=records(id),watched=records(id,'watch');
+  const lifetime=records(id),watched=records(id,'watch');
+  const played=records(id,'manual',deckRevision(d));
   const wins=played.filter(x=>x.outcome==='victory').length;
   const defeats=played.filter(x=>x.outcome==='defeat');
   const draws=played.filter(x=>x.outcome==='draw').length;
   const comp=composition(d);
   const kpis=elem('div','sol-stats-kpis');
-  metric(kpis,'Manual matches',played.length);
-  metric(kpis,'Win rate',played.length?Math.round(wins/played.length*100)+'%':'—');
-  metric(kpis,'Wins / losses / draws',wins+' / '+defeats.length+' / '+draws);
-  metric(kpis,'Avg mana value · nonland',comp.average===null?'—':comp.average.toFixed(2));
+  const lifetimeWins=lifetime.filter(x=>x.outcome==='victory').length;
+  metric(kpis,'Current revision · matches',played.length);
+  metric(kpis,'Current revision · win rate',played.length?Math.round(wins/played.length*100)+'%':'—');
+  metric(kpis,'Current revision · W / L / D',wins+' / '+defeats.length+' / '+draws);
+  metric(kpis,'Lifetime · matches',lifetime.length);
+  metric(kpis,'Lifetime · win rate',lifetime.length?Math.round(lifetimeWins/lifetime.length*100)+'%':'—');
+  metric(kpis,'Avg nonland mana value',comp.average===null?'—':comp.average.toFixed(2)+(comp.metadataPending?'*':''));
   sheet.append(kpis);
   const areas=elem('div','sol-stats-sections');
   const makeup=section('Main-deck card types');
+  if(comp.metadataPending)makeup.append(elem('p','sol-stats-loading',
+   'Card metadata is still resolving from the offline Forge catalog. Figures marked * are provisional.'));
   for(const type of types)if(comp.counts[type])makeup.append(row(type,comp.counts[type],comp.mainCount));
   makeup.append(elem('p',null,'Primary card type per card. Commander excluded. '+(comp.unknown?
     comp.unknown+' card'+(comp.unknown===1?'':'s')+' awaiting metadata; totals are incomplete.':
@@ -228,9 +263,10 @@
      new Date(m.playedAt).toLocaleDateString()+' · '+(m.opponents+1)+' players'));
    list.append(li);
   }
-  if(!played.length)recent.append(elem('p',null,'No completed manual matches recorded for this deck yet.'));
+  if(!played.length)recent.append(elem('p',null,'No completed manual matches recorded for this deck revision yet.'));
   else recent.append(list);
   const note=elem('p','sol-stats-footnote',
+   'Current revision means this Commander and main-deck card list. Lifetime includes previous revisions. '+
    'Statistics begin with games completed after this update. Watch-mode results are separate ('+
    watched.length+' recorded). '+(durable?'History is stored privately on this device.':
    'Local storage is unavailable; history may reset when the app closes.'));
@@ -252,10 +288,10 @@
    }
    for(const button of document.querySelectorAll('.sol-stats-entry')){
     const id=button.dataset.solDeckStatsId;
-    const played=records(id);
+    const played=records(id,'manual',deckRevision(deck(id)));
     const wins=played.filter(x=>x.outcome==='victory').length;
     const comp=composition(deck(id));
-    button.textContent='▤ Stats · '+(played.length?Math.round(wins/played.length*100)+'% win rate · '+played.length+' games':
+    button.textContent='▤ Current deck · '+(played.length?Math.round(wins/played.length*100)+'% win rate · '+played.length+' games':
      'No matches recorded')+' · Avg MV '+(comp.average===null?'—':comp.average.toFixed(1));
    }
   }
@@ -280,7 +316,7 @@
    event.preventDefault();event.stopImmediatePropagation();overlay.dataset.open='false';shownId=null;
   }
  },true);
- window.solPodDeckAnalytics={beginMatch,recordMatch,open,composition,reasonLabel:classify,
+ window.solPodDeckAnalytics={beginMatch,observeGame,cancelMatch,deckRevision,recordMatch,open,composition,reasonLabel:classify,
   get history(){return matches.slice();},get activeSession(){return session;}};
  if(window.app?.nativeMatch&&window.app.game?.gameOver)recordMatch(window.app.game);
  schedule();
