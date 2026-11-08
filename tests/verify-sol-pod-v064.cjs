@@ -84,7 +84,7 @@ assert.notEqual(api.history[0].revision,api.history[1].revision);
 assert.equal(api.composition(deck).metadataPending,false);
 if(process.argv[2]){
  const packaged=load(process.argv[2]);
- for(const needle of ["window.SOL_POD_BUILD='0.64.0'",
+ for(const needle of ["window.SOL_POD_BUILD='0.65.0'",
   'window.solPodLibraryGraveyard',
   'window.solPodDeckAnalytics?.observeGame?.(raw)',
   'Your next required draw may cause you to lose'])
