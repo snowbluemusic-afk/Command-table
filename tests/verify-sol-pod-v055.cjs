@@ -55,7 +55,7 @@ if(process.argv[2]){
  assert(html.includes('blockInputActive:raw.blockInputActive===true') &&
         html.includes('blockDecisionAccepted') &&
         html.includes('blockApplied') &&
-        html.includes("SOL_POD_BUILD='0.63.0'"),
+        html.includes("SOL_POD_BUILD='0.64.0'"),
         'The built Android HTML lacks the v0.55 blocker handshake');
 }
 console.log('PASS Sol Pod v0.55: live InputQueue/Combat, verified blocker and confirm ACKs, stale-state UI recovery');

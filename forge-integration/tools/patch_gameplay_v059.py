@@ -185,6 +185,25 @@ for file_name, marker in [
 swap("window.SOL_POD_BUILD='0.62.0';","window.SOL_POD_BUILD='0.63.0';","v063 build")
 swap("tag.textContent='v0.62';","tag.textContent='v0.63';","v063 badge")
 swap("Sol Pod build version 0.62","Sol Pod build version 0.63","v063 accessible build")
+# v0.64: update only from the real Forge GameView associated with this match.
+# Never let a failed start or a stale restored snapshot create deck results.
+swap("  if(!raw || !Array.isArray(raw.players)) throw new Error('Invalid Forge snapshot');",
+     "  if(!raw || !Array.isArray(raw.players)) throw new Error('Invalid Forge snapshot');\n"+
+     "  window.solPodDeckAnalytics?.observeGame?.(raw);",
+     "v064 bind the first Forge snapshot to its launched deck")
+swap("announce('Sol Pod match start timed out before a playable board was created. No deck data was changed.');",
+     "window.solPodDeckAnalytics?.cancelMatch?.();announce('Sol Pod match start timed out before a playable board was created. No deck data was changed.');",
+     "v064 cancel timed-out launch")
+swap("app.nativeMatch=false;window.ctMatchLoading?.hide();announce(",
+     "app.nativeMatch=false;window.solPodDeckAnalytics?.cancelMatch?.();window.ctMatchLoading?.hide();announce(",
+     "v064 cancel failed launch")
+# Include a safe zero-library warning, not a fabricated decking loss.
+library_js=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-library-graveyard-v064.js').read_text()
+assert 'window.solPodLibraryGraveyard' in library_js and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+library_js+'\n</script></body>')
+swap("window.SOL_POD_BUILD='0.63.0';","window.SOL_POD_BUILD='0.64.0';","v064 version")
+swap("tag.textContent='v0.63';","tag.textContent='v0.64';","v064 badge")
+swap("Sol Pod build version 0.63","Sol Pod build version 0.64","v064 accessible version")
 target.write_text(source)
-print(f"Sol Pod v0.63 results, turn and deck analytics pass applied ({len(source)} characters)")
+print(f"Sol Pod v0.64 reliability, library and graveyard pass applied ({len(source)} characters)")
 
