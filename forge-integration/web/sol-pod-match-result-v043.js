@@ -31,6 +31,9 @@
     'margin:0;color:#fff1d0}',
     '#sol-pod-match-result-v043 p{font-size:clamp(12px,2.2dvh,17px);',
     'line-height:1.45;margin:8px 0 17px;color:#d5e2e3}',
+    '#sol-pod-match-result-v043 .sol-result-explanation{font-size:clamp(12px,2.4dvh,16px);'+
+    'padding:9px 12px;border:1px solid #8ea79b77;border-radius:10px;'+
+    'background:#18332cbb;max-width:540px;margin:0 0 12px;color:#fbe8c9}',
     '#sol-pod-match-result-v043 .sol-result-stats{font:750 12px system-ui;',
     'color:#e8cf98;margin-bottom:16px}',
     '#sol-pod-match-result-v043 .sol-result-actions{display:flex;',
@@ -67,13 +70,14 @@
   const glyph=document.createElement('div');glyph.className='sol-result-glyph';
   const title=document.createElement('h2');
   const subtitle=document.createElement('p');
+  const explanation=document.createElement('p');explanation.className='sol-result-explanation';
   const stats=document.createElement('div');stats.className='sol-result-stats';
   const actions=document.createElement('div');actions.className='sol-result-actions';
   const review=document.createElement('button');review.type='button';
   review.className='sol-result-review';review.textContent='Review battlefield';
   const leave=document.createElement('button');leave.type='button';
   leave.className='sol-result-leave';leave.textContent='Back to decks / Play again';
-  actions.append(review,leave);card.append(kicker,glyph,title,subtitle,stats,actions);
+  actions.append(review,leave);card.append(kicker,glyph,title,subtitle,explanation,stats,actions);
   modal.append(card);document.body.append(modal);
   const reopen=document.createElement('button');reopen.id='sol-pod-result-reopen';
   reopen.type='button';reopen.textContent='✦ View result';document.body.append(reopen);
@@ -87,6 +91,31 @@
     modal.dataset.open=showing?'true':'false';
     reopen.style.display=actual&&reviewing?'block':'none';
   }
+  function lossExplanation(reason,source,winningEffect){
+    // These are Forge GameLossReason codes, not inferred from library size,
+    // life totals, visual board state or a guessed opponent archetype.
+    const effect=String(source||winningEffect||'').trim().slice(0,140);
+    switch(String(reason||'')){
+      case 'Milled':
+        return 'You attempted to draw a card from an empty library. You do not lose merely because the library reaches 0 cards — the failed draw causes the loss.';
+      case 'LifeReachedZero':
+        return 'Your life total reached 0 or less. This could be combat damage, spell damage, life loss or another effect.';
+      case 'CommanderDamage':
+        return 'You took at least 21 combat damage from the same commander.';
+      case 'Poisoned':
+        return 'You reached the poison counter loss threshold.';
+      case 'SpellEffect':
+        return effect?'You lost due to '+effect+'.':'A spell or ability caused you to lose the game.';
+      case 'OpponentWon':
+        return effect?effect+' caused an opponent to win the game.':'An opponent won through an alternate win condition.';
+      case 'Conceded':
+        return 'You conceded the match.';
+      case 'IntentionalDraw':
+        return 'The game ended by an agreed draw.';
+      default:
+        return 'Sol Pod could not determine the precise loss condition from the final game state. Review the Game Log for details.';
+    }
+  }
   function resultOf(raw){
     // The local player's life total, opponent health, battlefield, and turn
     // are NEVER used to predict victory. Only the finished Forge GameView is.
@@ -97,7 +126,9 @@
     if(!['victory','defeat','draw'].includes(result))
       result=!victor?'draw':victor===me?'victory':'defeat';
     return {result,victor,life:raw.players[0].life,turn:raw.turn,
-      key:JSON.stringify([raw.turn,raw.winner,raw.outcome,raw.players[0].id])};
+      lossReason:raw.lossReason||null,lossSource:raw.lossSource||null,
+      winningEffect:raw.winningEffect||null,
+      key:JSON.stringify([raw.gameId,raw.turn,raw.winner,raw.outcome,raw.players[0].id])};
   }
   function onState(raw){
     if(!window.app?.nativeMatch){clear();return;}
@@ -105,13 +136,16 @@
     if(!next){clear();return;}
     if(next.key!==key){key=next.key;reviewing=false;}
     actual=next;
+    window.solPodDeckAnalytics?.recordMatch?.(raw);
     const win=next.result==='victory',lose=next.result==='defeat';
     const label=win?'Victory!':lose?'Defeat':'Draw';
     title.textContent=label;
     glyph.textContent=win?'✦':lose?'◇':'✧';
     subtitle.textContent=win?'You won the Commander match.':
-      lose?(next.victor?next.victor+' won the Commander match.':'Your Commander was defeated.'):
+      lose?(next.victor?next.victor+' won the Commander match.':'You lost the Commander match.'):
       'The match ended without a winner.';
+    explanation.hidden=!lose;
+    explanation.textContent=lose?lossExplanation(next.lossReason,next.lossSource,next.winningEffect):'';
     stats.textContent='Turn '+(Number(next.turn)||1)+' · Your final life: '+
       (next.life??'—');
     modal.setAttribute('aria-label',label+' — Sol Pod match complete');

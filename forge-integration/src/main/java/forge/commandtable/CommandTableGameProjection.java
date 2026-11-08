@@ -59,6 +59,7 @@ public final class CommandTableGameProjection {
         }
         Map<String,Object> out = new LinkedHashMap<>();
         out.put("engine", "forge");
+        out.put("gameId", game.getId());
         boolean pregame = game.getPlayerTurn() == null;
         out.put("turn", initialInt(game::getTurn, 0));
         out.put("phase", pregame ? "MULLIGAN" : String.valueOf(game.getPhase()));
@@ -75,6 +76,25 @@ public final class CommandTableGameProjection {
         out.put("outcome", !gameOver ? null
             : winningPlayer == null || winningPlayer.isBlank() ? "draw"
             : winningPlayer.equals(local.getLobbyPlayerName()) ? "victory" : "defeat");
+        // Report the actual game-loss condition recorded by Forge, never
+        // infer decking or combat from a zero library/life total alone.
+        if (gameOver && liveGame != null) {
+            Player liveHuman = liveGame.getPlayer(local.getId());
+            forge.game.player.PlayerOutcome playerOutcome =
+                liveHuman == null ? null : liveHuman.getOutcome();
+            out.put("lossReason", playerOutcome == null ||
+                playerOutcome.lossState == null ? null :
+                playerOutcome.lossState.name());
+            out.put("lossSource", playerOutcome == null ?
+                null : playerOutcome.loseConditionSpell);
+            forge.game.GameOutcome finished = liveGame.getOutcome();
+            out.put("winningEffect", finished == null ?
+                null : finished.getWinSpellEffect());
+        } else {
+            out.put("lossReason", null);
+            out.put("lossSource", null);
+            out.put("winningEffect", null);
+        }
 
         List<Object> players = new ArrayList<>();
         for (PlayerView p : game.getPlayers()) {

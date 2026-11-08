@@ -165,5 +165,26 @@ swap('Use highlighted legal targets, or cancel the action.',
 swap("window.SOL_POD_BUILD='0.61.0';","window.SOL_POD_BUILD='0.62.0';","v062 build version")
 swap("tag.textContent='v0.61';","tag.textContent='v0.62';","v062 visible version")
 swap("Sol Pod build version 0.61","Sol Pod build version 0.62","v062 accessible version")
+# v0.63: record only real Forge-completed outcomes; never attribute
+# results to an opponent archetype inferred from a library count.
+swap("    native:true, players:ps, active, turn:raw.turn||1, phase, phaseDetail:String(raw.phase||''),",
+     "    native:true, players:ps, active, turn:raw.turn||1, phase, phaseDetail:String(raw.phase||''),"+
+     " gameId:raw.gameId??null,lossReason:raw.lossReason??null,"+
+     " lossSource:raw.lossSource??null,winningEffect:raw.winningEffect??null,",
+     "v063 loss reason hydration")
+swap("   // Forge must validate each imported card and own every gameplay decision.",
+     "   // Forge must validate each imported card and own every gameplay decision.\n"+
+     "   window.solPodDeckAnalytics?.beginMatch?.(d,app.autoPilot);",
+     "v063 associate original deck with started match")
+for file_name, marker in [
+   ('sol-pod-turn-indicator-v063.js','window.solPodTurnIndicator'),
+   ('sol-pod-deck-analytics-v063.js','window.solPodDeckAnalytics')]:
+    script=(Path(__file__).resolve().parent.parent/'web'/file_name).read_text()
+    assert marker in script and source.count('</body>')==1
+    source=source.replace('</body>','<script>\n'+script+'\n</script></body>')
+swap("window.SOL_POD_BUILD='0.62.0';","window.SOL_POD_BUILD='0.63.0';","v063 build")
+swap("tag.textContent='v0.62';","tag.textContent='v0.63';","v063 badge")
+swap("Sol Pod build version 0.62","Sol Pod build version 0.63","v063 accessible build")
 target.write_text(source)
-print(f"Sol Pod v0.62 gameplay and combat UX pass applied ({len(source)} characters)")
+print(f"Sol Pod v0.63 results, turn and deck analytics pass applied ({len(source)} characters)")
+
