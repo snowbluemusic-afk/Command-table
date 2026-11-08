@@ -13,7 +13,7 @@ for(const text of ['#sol-pod-hud-layout>.sol-v64-zones',
  "document.getElementById('sol-pod-hud-layout')",
  "window.ctZoneBrowser?.open?.('graveyard')"])
  assert(zones.includes(text),'Library/Graveyard must live below the right HUD priority controls: '+text);
-for(const needed of ['left:17.2%!important','bottom:max(2.1%,env(safe-area-inset-bottom))!important',
+for(const needed of ['left:17.0%!important','bottom:max(2.1%,env(safe-area-inset-bottom))!important',
  'height:clamp(36px,6.4dvh,46px)!important',
  'border:2px solid #e3bf74!important',
  'background:linear-gradient(160deg,#443c29f5,#142534f7)!important'])
@@ -88,7 +88,7 @@ assert(group.querySelector('.sol-v64-library').attrs['aria-label'].includes('nex
 
 if(process.argv[2]){
  const packaged=load(process.argv[2]);
- for(const needle of ["window.SOL_POD_BUILD='0.66.0'",
+ for(const needle of ["window.SOL_POD_BUILD='0.67.0'",
   'window.solPodLayoutV065','top:calc(env(safe-area-inset-top) + 7px)',
   'host.lastElementChild!==group',
   '.sol-battlefield .sol-game-brand{display:none!important}'])

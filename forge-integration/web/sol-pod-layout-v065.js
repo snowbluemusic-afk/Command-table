@@ -43,8 +43,8 @@
   'border:1px solid #c9ae7c!important;background:#192d39ed!important;',
   'box-shadow:0 2px 8px #0008!important}',
   '.sol-battlefield .ct10-zone-rail{',
-  'left:17.2%!important;bottom:max(2.1%,env(safe-area-inset-bottom))!important;',
-  'top:auto!important;width:10.4%!important;min-width:0!important;',
+  'left:17.0%!important;bottom:max(2.1%,env(safe-area-inset-bottom))!important;',
+  'top:auto!important;width:10.8%!important;min-width:0!important;',
   'max-width:none!important;height:clamp(36px,6.4dvh,46px)!important;',
   'min-height:0!important;align-items:stretch!important;z-index:3000!important}',
   '@media(orientation:landscape) and (max-height:420px){',
@@ -64,7 +64,7 @@
   if(settings&&!settings.querySelector('.sol-build-settings-label')){
    const label=document.createElement('p');
    label.className='sol-build-settings-label';
-   label.textContent='Sol Pod v'+String(window.SOL_POD_BUILD||'0.65.1');
+   label.textContent='Sol Pod v'+String(window.SOL_POD_BUILD||'0.67.0');
    const foot=settings.querySelector('.sol-pref-foot');
    if(foot)settings.insertBefore(label,foot);
    else settings.append(label);

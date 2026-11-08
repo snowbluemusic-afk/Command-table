@@ -79,7 +79,7 @@ assert.equal(secondRoster.querySelector('.sol-player-full-pod'),null,
 if(process.argv[2]){
  const html=read(process.argv[2]);
  for(const needle of [
-  "window.SOL_POD_BUILD='0.66.0'",
+  "window.SOL_POD_BUILD='0.67.0'",
   'window.solPodHudConsolidation',
   'ribbon.append(trigger)',
   'sol-player-full-pod',

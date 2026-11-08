@@ -26,7 +26,7 @@ for(const key of ['function quickBinary(choice=current)','labels.includes(\'yes\
 }
 if(process.argv[2]){
  const html=read(process.argv[2]);
- for(const key of ["window.SOL_POD_BUILD='0.66.0'",
+ for(const key of ["window.SOL_POD_BUILD='0.67.0'",
   'window.solPodHandGrid','function quickBinary(choice=current)',
   "if(quickBinary())void answer(false);",
   'const groups=[]',"const entry=game()?.damageHistory?.[0]"]){

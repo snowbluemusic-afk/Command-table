@@ -63,7 +63,7 @@ assert(patch.includes('sol-pod-audio-auto-v060.js') &&
 
 if(process.argv[2]){
  const html=read(process.argv[2]);
- for(const marker of ["window.SOL_POD_BUILD='0.66.0'",
+ for(const marker of ["window.SOL_POD_BUILD='0.67.0'",
    'window.solPodPreferences','window.solPodHandGrid',
    "action:'passAutoTriggerPriority'"]){
    assert(html.includes(marker),'Missing APK-embedded v0.60 setting: '+marker);

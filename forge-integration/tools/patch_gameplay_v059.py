@@ -247,6 +247,18 @@ source=source.replace('</body>','<script>\n'+consolidated_js+'\n</script></body>
 swap("window.SOL_POD_BUILD='0.65.1';","window.SOL_POD_BUILD='0.66.0';","v066 build")
 swap("tag.textContent='v0.65.1';","tag.textContent='v0.66';","v066 visible version")
 swap("Sol Pod build version 0.65.1","Sol Pod build version 0.66","v066 accessible version")
+# v0.67: equal bottom controls + public focused-opponent zones, with
+# one public Graveyard viewer shared across all seats.
+swap(">▤ YOUR HAND <b>",">▤ HAND <b>","v067 shorten Hand control")
+swap("Tap YOUR HAND to expand the hand. Select Browse / Search inside it to filter or sort; tap YOUR HAND again to close.",
+     "Tap HAND to expand the hand. Select Browse / Search inside it to filter or sort; tap HAND again to close.",
+     "v067 update hand label in onboarding")
+opp_js=(Path(__file__).resolve().parent.parent/'web'/'sol-pod-opponent-zones-v067.js').read_text()
+assert 'window.solPodOpponentZones' in opp_js and source.count('</body>')==1
+source=source.replace('</body>','<script>\n'+opp_js+'\n</script></body>')
+swap("window.SOL_POD_BUILD='0.66.0';","window.SOL_POD_BUILD='0.67.0';","v067 build")
+swap("tag.textContent='v0.66';","tag.textContent='v0.67';","v067 visible build")
+swap("Sol Pod build version 0.66","Sol Pod build version 0.67","v067 accessible build")
 target.write_text(source)
-print(f"Sol Pod v0.66 consolidated HUD packaged ({len(source)} characters)")
+print(f"Sol Pod v0.67 matching Hand/Zones and opponent public-zone HUD packaged ({len(source)} characters)")
 

@@ -93,10 +93,15 @@
   function hide(){
     zone=null;backdrop.dataset.open='false';backdrop.replaceChildren();
   }
-  function show(zoneName){
+  function show(zoneName,initialSeat=0){
     if(!window.app?.nativeMatch||window.app?.view!=='game')return;
     if(zoneName!=='graveyard'&&zoneName!=='exile')return;
-    zone=zoneName;seat=0;chosen=0;
+    const players=window.app?.game?.players||[];
+    const requested=Number(initialSeat);
+    // Only public-zone data; never expose library card identities.
+    zone=zoneName;
+    seat=Number.isInteger(requested)&&requested>=0&&requested<players.length?requested:0;
+    chosen=0;
     window.ctFloatingZones?.close?.();
     backdrop.dataset.open='true';
     paint();
