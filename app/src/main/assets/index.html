@@ -259,6 +259,249 @@ function journal(){const lines=state.history.length?state.history.map(h=>`<div s
 function restartConfirm(){modal(`<div class="modal-emoji">🌱</div><h2>Start fresh?</h2><p>This will erase the saved story, repairs, gifts and coins on this device. You can make different choices next time.</p><div class="story-actions"><button class="pill-btn rose" data-act="restart">Yes, start over</button><button class="pill-btn secondary" data-act="closeModal">Keep my shop</button></div>`)}
 function clickAction(e){const el=e.target.closest('[data-act]');if(!el)return;const act=el.dataset.act;switch(act){case'listen':listened=true;sound();renderStory();break;case'askOwner':ownershipAsked=true;renderStory();break;case'examine':openBench();break;case'diagnose':chooseDiagnosis(Number(el.dataset.index));break;case'pickPart':pieceSelected();break;case'seq':sequenceButton(el.dataset.value);break;case'checkout':openCheckout();break;case'setPrice':$('priceRange').value=el.dataset.price;$('priceNumber').textContent=el.dataset.price+' ✧';sound();break;case'finish':finishJob();break;case'hold':settleSuspicious('hold');break;case'decline':settleSuspicious('decline');break;case'romanceYes':state.flags.romanceChoice=true;state.flags.romanceYes=true;listened=true;save();toast('Theo looks a little braver.');renderStory();break;case'romanceNo':state.flags.romanceChoice=true;state.flags.romanceYes=false;listened=true;save();renderStory();break;case'journal':journal();break;case'restartConfirm':restartConfirm();break;case'restart':state=newState();listened=false;ownershipAsked=false;save();closeModal();shop();break;case'closeModal':closeModal();break}}
 $('main').addEventListener('click',clickAction);$('modalBody').addEventListener('click',clickAction);$('journalBtn').addEventListener('click',journal);$('soundBtn').addEventListener('click',()=>{state.sound=!state.sound;save();updateHud();if(state.sound)sound()});$('backShopBtn').addEventListener('click',shop);$('modalBackdrop').addEventListener('click',e=>{if(e.target===$('modalBackdrop'))closeModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('modalBackdrop').classList.contains('hidden'))closeModal()});
+/* The Mending Hour 0.2 — tactile repairs, neighbourhood fame & continuing stories. */
+const palette={yellow:'#e0b54f',teal:'#6faaa4',rose:'#d78487',lilac:'#a38fc0'};
+const toneNames={yellow:'YELLOW',teal:'TEAL',rose:'PINK',lilac:'PURPLE'};
+const baseKits=Object.fromEntries(Object.entries(shared).map(([k,v])=>[k,v.slice()]));
+const repairKits={};
+function shopStanding(){return state.buzz>=35?'Town treasure':state.buzz>=18?'Everyone’s talking':state.buzz>=8?'Neighbourhood favourite':'A little-known gem'}
+function currentTier(){return state.buzz>=27?2:state.buzz>=10?1:0}
+function cableColours(step){return ['yellow','teal','rose','lilac'].slice(0,step.count||3)}
+function rebuildKit(kind,tier){
+  const original=baseKits[kind],open=original[0],test=original.at(-1);
+  const inside=original.slice(1,-1).filter(s=>!['Close the watch case','Close the housing','Replace the little lid'].includes(s.title));
+  const parts=[];
+  for(const item of inside){
+    if(item.type==='wire'){
+      parts.push(makeStep('untangle','Untangle the crossing wires','Tap or drag two loose ends to swap them. Each wire should run straight without crossing.',[],{count:tier>0?4:3}));
+      parts.push(makeStep('connect','Match every wire and socket','Drag each coloured lead into the matching coloured plug. Tap a wire, then a socket, if you prefer.',[],{count:tier>0?4:3,cost:item.cost}));
+    }else parts.push(item);
+    if(kind==='watch'&&item.type==='place')parts.push(makeStep('gearAlign','Align the watch gears','Turn each gear until its little gold pointer lines up with the notch on the outer ring.',[],{count:tier>0?3:2}));
+    if(kind==='console'&&item.id==='ribbon'||kind==='console'&&item.title==='Reseat the display ribbon')parts.push(makeStep('circuit','Restore the circuit','Tap the copper switches to match each symbol with the diagram at the top.',[],{count:tier>0?4:3}));
+    if(kind==='musicbox'&&item.type==='place'&&tier>0)parts.push(makeStep('gearAlign','Synchronise the melody gears','Rotate the gears until their golden markers meet the small notches.',[],{count:tier>1?3:2}));
+  }
+  if(kind==='radio'&&tier>1)parts.push(makeStep('circuit','Tune the hidden circuits','An older radio has extra tuning pads. Turn the switches to match their markings.',[],{count:4}));
+  return [open,
+   makeStep('lift','Lift off the outer casing','Drag the cover into the little parts tray, or tap it to lift it free.'),
+   ...parts,
+   makeStep('returnCase','Reassemble the casing','Drag the stored cover back to the dotted outline. You can also tap the cover, then the outline.'),
+   makeStep('tighten','Secure the last screws','Put every screw back in its original hole. Tap each one to fasten it.',open.targets.slice()),
+   test];
+}
+for(const kind of Object.keys(baseKits))Object.defineProperty(shared,kind,{get(){const key=kind+'_'+currentTier();return repairKits[key]||(repairKits[key]=rebuildKit(kind,currentTier()))}});
+// New chapters, returning neighbours, humorous repair tales, and a growing queue.
+visits.push(
+ {id:'milo_radio',person:'Milo',look:'milo',object:'radio',name:'The bakery’s gossip radio',sub:'A butter-yellow radio with an enormous jam stain.',tag:'Word travels with cinnamon',intro:'“Bea says you can fix anything. Ours plays only static unless someone mentions a croissant.”',more:'“We lost our breakfast playlist. The apprentice tried replacing the batteries with two wrapped caramels.”',quote:'“It may smell faintly of custard.”',inspect:[{id:'a',x:492,y:203,clue:'The dial is sticky, cracked and disconnected from its spindle.',label:'Sticky dial'},{id:'b',x:310,y:222,clue:'The speaker still hums. Someone has left crumbs inside.',label:'Crumb speaker'}],diagnoses:['A very shy speaker','Damaged tuning knob','Expired croissant'],correct:1,price:27,outro:'The old radio sings. Milo promises a lifetime supply of “almost fresh” cinnamon buns.',gift:'🥐',giftName:'a cinnamon bun'},
+ {id:'nori_console',person:'Nori',look:'nori',object:'console',name:'The snail championship',sub:'A handheld game full of tiny glittery stickers.',tag:'The slowest speedrunner',intro:'“My pet snail Turbo is competing in a racing game tournament. Ironically, the console died before the race.”',more:'“Turbo has never won a race, but his sportsmanship is unparalleled.”',quote:'“He trains by walking over the buttons.”',inspect:[{id:'a',x:388,y:253,clue:'The old battery is bulging and disconnected.',label:'Power pack'},{id:'b',x:459,y:175,clue:'The display cable is not fully seated.',label:'Display ribbon'}],diagnoses:['No battery and loose ribbon','Turbo ate the screen','The buttons are asleep'],correct:0,price:32,outro:'The game boots. Turbo moves one pixel and the crowd goes absolutely wild.',gift:'🐌',giftName:'a tiny paper snail'},
+ {id:'rowan_reunion',person:'Rowan',look:'rowan',object:'musicbox',name:'The music of an old friendship',sub:'A walnut music box with a missing beat in its melody.',tag:'An unexpected reunion',intro:'“Someone told me you helped with a music box bearing my name. I never thought I’d hear that tune again.”',more:'“There’s a funny thing about memories. The good ones survive the dust.”',quote:'“Some songs find their way home.”',inspect:[{id:'a',x:400,y:219,clue:'The spring is cracked at the anchor pin.',label:'Spring'},{id:'b',x:386,y:315,clue:'The engraving is old, hand-carved and unmistakable.',label:'Engraving'}],diagnoses:['A broken winding spring','Missing wooden feet','An exhausted melody'],correct:0,price:28,outro:'Rowan recognises the tune instantly. The whole shop feels quiet and kind for a moment.',gift:'🪻',giftName:'a lavender posy'},
+ {id:'marlo_watch',person:'Marlo',look:'marlo',object:'watch',name:'The punctual magician’s watch',sub:'A suspiciously dramatic gold watch with a tiny top hat etched inside.',tag:'Definitely not magic',intro:'“My stage act depends on perfect timing. Now this watch only tells me when it is Tuesday.”',more:'“Please don’t ask where the rabbit went. It’s on annual leave.”',quote:'“A magician is never late. Usually.”',inspect:[{id:'a',x:353,y:222,clue:'The escapement is out of alignment and a gear has chipped teeth.',label:'Gear teeth'},{id:'b',x:525,y:206,clue:'The crown and spring both turn freely.',label:'Crown'}],diagnoses:['Loose magic dust','Cracked case glass','Damaged escapement gear'],correct:2,price:34,outro:'Tick-tock. Marlo gasps: “At last! It’s Thursday again!”',gift:'🎩',giftName:'a paper top hat'},
+ {id:'alma_lamp_date',person:'Alma',look:'alma',object:'lamp',name:'A lamp for the reading date',sub:'A plum-coloured lamp with tangled wires in the base.',tag:'A brighter chapter',intro:'“Theo and I made tea last three hours yesterday. I thought perhaps the library deserved a little extra light.”',more:'“He returned the books on time. I think that’s how you know it’s serious.”',quote:'“I have butterflies, and they need a lamp.”',inspect:[{id:'a',x:386,y:303,clue:'The yellow and teal leads are crossed and frayed.',label:'Wire maze'},{id:'b',x:380,y:108,clue:'The light bulb works, if the cable is held just so.',label:'Shade'}],diagnoses:['A blown bulb','Damaged and tangled wiring','An exhausted bookworm'],correct:1,price:29,outro:'The lamp glows like warm honey. Alma shyly asks whether you might come to the next reading group.',gift:'📚',giftName:'a bookmark'},
+ {id:'bea_radio_return',person:'Bea',look:'bea',object:'radio',name:'The town picnic radio',sub:'A much-loved radio with a fresh dent near the dial.',tag:'A shop full of friends',intro:'“Word has got out. Everyone at the picnic asked who fixed my radio. I told them about your little miracle shop.”',more:'“The children danced until sunset. Unfortunately somebody sat on the knob.”',quote:'“Would you help us dance again?”',inspect:[{id:'a',x:492,y:203,clue:'The dial is cracked again, and the selector slipped.',label:'Dented knob'},{id:'b',x:310,y:222,clue:'The speakers still work. The wiring is dusty but intact.',label:'Speakers'}],diagnoses:['Broken tuning dial','No electricity','A picnic-related curse'],correct:0,price:31,outro:'A cheerful tune fills the room. Bea says the neighbourhood is planning a thank-you party.',gift:'🎀',giftName:'a homemade ribbon'}
+);
+Object.assign(faces,{
+ milo:{hair:'#9e745d',shirt:'#a0b992',skin:'#f4c7a2',style:'curl'},
+ nori:{hair:'#534a72',shirt:'#d6b6c4',skin:'#e2b18e',style:'short'},
+ marlo:{hair:'#a07747',shirt:'#b9b3cb',skin:'#f4cdb4',style:'wave'}
+});
+function makeNeighbourVisit(index){
+ const kinds=['lamp','watch','radio','console','musicbox'],kind=kinds[(index*3+2)%kinds.length];
+ const base=visits.find(v=>v.object===kind),names=['Milo','Nori','Bea','Pip','Marlo','Alma','Rowan','Theo'],name=names[index%names.length];
+ const bits={
+ radio:['A radio for the town dance','“We heard you were the best little workshop in town. Our radio has decided that every station is the weather forecast.”','The music returns, and the local dance is saved.'],
+ watch:['The pocket watch of a thousand excuses','“This watch stopped during my birthday dinner. I was hoping to blame it for being late to everything.”','Its tick returns. The excuse, sadly, does not.'],
+ lamp:['A lamp for a midnight reader','“I tried reading by moonlight. My cat disapproved and ate the bookmark.”','A warm pool of light returns to another home.'],
+ console:['The second-hand adventure machine','“Someone said you resurrected Captain Potato. Could you save my collection of heroic turnips too?”','The familiar start-up tune rings out. The turnips are victorious.'],
+ musicbox:['A song for a surprise party','“It only plays three notes, and all three are wrong. Please save my surprise party.”','The full melody dances out at last. The surprise is back on.']};
+ const [title,intro,outro]=bits[kind];return {...base,id:'neighbour_'+index,person:name,look:name.toLowerCase(),name:title,tag:'Sent by a friend · special order',intro,more:'“Everybody keeps telling me: take it to the little shop where things get another chance.”',quote:'“No rush. Just please be gentle.”',sub:'A familiar object with another little mystery.',outro,price:Math.min(65,22+Math.floor(index/2)*2),suspect:false,romance:false,gift:index%3===0?'🌷':undefined,giftName:'a thank-you flower'};
+}
+// Old saved games remain intact; the in-progress repair alone restarts with the new steps.
+if(typeof state.buzz!=='number')state.buzz=state.history.filter(h=>h.status==='mended').length*3;
+if(state.upgradeVersion!==2){state.active=null;state.upgradeVersion=2;save()}
+let savedQueueCount=visits.length;
+function ensureNeighbourQueue(){while(state.visitIndex>=visits.length)visits.push(makeNeighbourVisit(visits.length));}
+const originalShop=shop;
+shop=function(){ensureNeighbourQueue();originalShop();};
+const originalUpdateHud=updateHud;
+updateHud=function(){originalUpdateHud();
+ let el=$('buzzStat');if(!el){el=document.createElement('div');el.id='buzzStat';el.className='stat';el.title='Word of mouth';$('heartValue').parentElement.after(el)}
+ el.innerHTML=`<span>✿</span><b>${state.buzz}</b><small>fame</small>`;
+ $('footerRight').textContent=shopStanding()+' · careful repairs bring new friends';
+};
+const originalRenderStory=renderStory;
+renderStory=function(){
+ const j=job();if(j?.id==='rowan_reunion')j.intro=state.flags.suspectResolution==='hold'?'“You kept my music box safe! I’m Rowan. I can’t tell you what it means to have it back. Now could you fix its winding spring?”':state.flags.suspectResolution==='decline'?'“I heard you were careful about who owned a music box with my name. That meant a lot. Could you help with this one?”':'“I’ve heard about your wonderful work. This tune means the world to me. Could you bring it back?”';
+ if(j?.id==='alma_lamp_date'&&!state.flags.romanceYes)j.intro='“Theo and I have been seeing more of each other at the library. This lamp needs a little extra help for our cosy reading corner.”';
+ originalRenderStory();
+ if(j){const c=document.createElement('div');c.className='fame-note';const tier=currentTier();c.textContent=`✿ ${shopStanding()}  ·  ${tier===0?'Simple fixes':tier===1?'More delicate repairs':'Expert-level repairs'}  ·  ${state.history.length} neighbours helped`; $('storyCard').append(c);}
+};
+const originalFinish=finishJob;
+finishJob=function(){
+ const j=job(),r=$('priceRange'),price=Number(r?.value||0),fair=j?.price||0;
+ const mistakes=active()?.mistakes||0,completed=state.visitIndex;
+ originalFinish();
+ if(state.visitIndex!==completed+1)return;
+ const bonus=price<=fair*0.55?5:price<=fair?4:price>fair*1.6?-1:2;
+ state.buzz=Math.max(0,state.buzz+bonus+(mistakes===0?1:0));
+ if(state.buzz===10||state.buzz===27)toast('Word is spreading! More intricate repairs are arriving at the shop.');
+ if(state.visitIndex===savedQueueCount)modal(`<div class="modal-emoji">🏡</div><h2>The whole town knows your name!</h2><p>From a quiet repair corner to a treasured neighbourhood workshop — and this is only the beginning.</p><p>New customers keep arriving, their objects are more intricate, and every story is a little different. Your workbench stays open.</p><div class="story-actions"><button class="pill-btn" data-act="closeModal">Another lovely day ✿</button></div>`);
+ save();updateHud();renderStory();
+};
+const originalSettle=settleSuspicious;
+settleSuspicious=function(choice){originalSettle(choice);state.buzz+=choice==='hold'?4:2;save();updateHud();renderStory();};
+const originalChooseDiagnosis=chooseDiagnosis;
+chooseDiagnosis=function(index){if(index!==job()?.correct){ensureActive().mistakes=(ensureActive().mistakes||0)+1;save()}originalChooseDiagnosis(index)};
+const originalNext=nextStep;
+nextStep=function(){const a=active();if(a){delete a.wireOrder;delete a.gears;delete a.circuit;save();}originalNext();};
+function board(title,subtitle){return `<g><rect x="194" y="66" width="389" height="316" rx="28" fill="#f9efd6" stroke="#8c7770" stroke-width="6"/><rect x="206" y="78" width="365" height="292" rx="20" fill="#fff8e7" stroke="#e1cbb2" stroke-width="2"/><text x="389" y="108" text-anchor="middle" font-family="Georgia,serif" font-size="22" fill="#74575a">${title}</text><text x="389" y="134" text-anchor="middle" font-size="13" fill="#957c75">${subtitle}</text></g>`}
+function port(x,y,id,color,label,extra=''){return `<g data-target="${id}" class="interactive" tabindex="0" aria-label="${label}"><circle cx="${x}" cy="${y}" r="22" fill="${color}" stroke="#6c5c5b" stroke-width="5"/><circle cx="${x}" cy="${y}" r="10" fill="#fff5e0" opacity=".75"/><circle cx="${x}" cy="${y}" r="31" fill="none" stroke="#fff7df" stroke-width="2" stroke-dasharray="5 4"/>${extra}</g>`}
+function puzzleSvg(step,a){
+ const t=step.type,n=step.count||3;let h='';
+ if(t==='lift'||t==='returnCase'){
+ const lift=t==='lift';h=board(lift?'Take the casing off':'Put it back together',lift?'Keep the cover safe in the parts tray':'Align the cover with its original outline');
+ const targetX=lift?388:388,fromX=lift?388:615;
+ h+=`<rect x="276" y="164" width="225" height="142" rx="22" fill="#a5bda9" stroke="#78928a" stroke-width="7"/><rect x="301" y="183" width="175" height="101" rx="10" fill="#d5d6ba" stroke="#e8e8cd" stroke-width="5" stroke-dasharray="9 8"/><text x="389" y="245" text-anchor="middle" fill="#7a8e83" font-size="15">${lift?'hidden components':'cover goes here'}</text>`;
+ h+=`<rect x="593" y="164" width="118" height="152" rx="18" fill="#ecd6ad" stroke="#98796b" stroke-width="5"/><text x="651" y="189" text-anchor="middle" font-family="Georgia,serif" font-size="16" fill="#86665e">Parts tray</text>`;
+ if(lift)h+=`<g data-target="shell" id="shellPiece" class="interactive" tabindex="0"><rect x="281" y="170" width="215" height="130" rx="21" fill="#ce9e8e" stroke="#7b5f62" stroke-width="7"/><rect x="297" y="184" width="181" height="103" rx="11" fill="#eecdb0" stroke="#f8e6c7" stroke-width="4"/><circle cx="388" cy="234" r="35" fill="#a5c0b3" stroke="#836766" stroke-width="6"/><path d="M365 234h46m-23-23v46" stroke="#fff5e5" stroke-width="6"/><text x="388" y="332" text-anchor="middle" font-size="15" fill="#8d6d61">Lift the lid ⇢</text></g>`;
+ else {h+=`<rect x="289" y="170" width="199" height="130" rx="18" fill="none" stroke="#f9f4cf" stroke-width="6" stroke-dasharray="12 8"/><g id="shellPiece" data-target="shell" class="interactive" tabindex="0"><rect x="609" y="218" width="88" height="76" rx="12" fill="#ce9e8e" stroke="#7b5f62" stroke-width="5"/><rect x="618" y="226" width="70" height="59" rx="8" fill="#eecdb0"/><circle cx="652" cy="256" r="20" fill="#9ebcad" stroke="#856766" stroke-width="4"/></g><g data-target="caseSlot" class="interactive" tabindex="0"><rect x="295" y="176" width="187" height="119" rx="14" fill="transparent"/><text x="390" y="319" text-anchor="middle" font-size="15" fill="#6c8f7a">${a.selectedPart?'Tap here to seat the cover':'Select the lid, then the outline'}</text></g>`;}
+ return h;
+ }
+ if(t==='untangle'){
+ const cols=cableColours(step);if(!a.wireOrder||a.wireOrder.length!==cols.length){a.wireOrder=cols.slice().reverse();save()}
+ h=board('Untangle the wires','Swap the loose ends until nothing crosses');let crosses=0;
+ cols.forEach((c,i)=>{const j=a.wireOrder.indexOf(c);if(j!==i)crosses++;
+ const y1=178+i*(142/(n-1)),y2=178+j*(142/(n-1));h+=`<path d="M271 ${y1} C342 ${y1+42} 443 ${y2-42} 507 ${y2}" fill="none" stroke="#665a57" stroke-width="15" stroke-linecap="round"/><path d="M271 ${y1} C342 ${y1+42} 443 ${y2-42} 507 ${y2}" fill="none" stroke="${palette[c]}" stroke-width="10" stroke-linecap="round"/>`;
+ h+=`<circle cx="269" cy="${y1}" r="18" fill="${palette[c]}" stroke="#66585b" stroke-width="4"/><text x="225" y="${y1+5}" font-size="11" font-weight="bold" fill="#79635b">${toneNames[c]}</text>`;});
+ a.wireOrder.forEach((c,i)=>{let y=178+i*(142/(n-1));h+=port(508,y,`end-${i}`,palette[c],`Move ${toneNames[c]} wire`,`<text x="545" y="${y+5}" font-size="12" fill="#705d58">${wireStart===`end-${i}`?'SELECTED':'SWAP'}</text>`)});
+ h+=`<text x="382" y="350" font-size="15" text-anchor="middle" fill="#806e67">${crosses===0?'Perfect!':'Pick two coloured ends on the right to swap places'}</text>`;return h;
+ }
+ if(t==='connect'){
+ const cols=cableColours(step),sockOrder=[...cols].reverse();h=board('Match the plugs','Connect each wire to the socket of the SAME colour');
+ cols.forEach((c,i)=>{const y=178+i*(142/(n-1));const done=a.doneTargets.includes(c),other=sockOrder.indexOf(c),destY=178+other*(142/(n-1));
+ if(done)h+=`<path d="M275 ${y}Q395 ${y+17} 507 ${destY}" stroke="${palette[c]}" stroke-width="10" fill="none" stroke-linecap="round"/>`;
+ else h+=`<path d="M275 ${y}q33 -16 62 0" stroke="${palette[c]}" stroke-width="10" fill="none" stroke-linecap="round"/>`;
+ h+=port(269,y,`src-${c}`,palette[c],`${toneNames[c]} wire`);
+ h+=`<text x="308" y="${y+5}" font-size="12" fill="#826a63">${toneNames[c]}</text>`;
+ });
+ sockOrder.forEach((c,i)=>{const y=178+i*(142/(n-1));h+=port(507,y,`sock-${c}`,palette[c],`${toneNames[c]} socket`);h+=`<text x="536" y="${y+5}" font-size="12" fill="#826a63">${a.doneTargets.includes(c)?'✓':toneNames[c]}</text>`});
+ h+=`<text x="389" y="353" text-anchor="middle" font-size="14" fill="#806e67">${a.doneTargets.length} of ${cols.length} wires connected</text>`;
+ h+=`<path id="wirePreview" d="" stroke="#e0b54f" stroke-width="9" fill="none" stroke-linecap="round" pointer-events="none"/>`;return h;
+ }
+ if(t==='gearAlign'){
+ const target=[0,2,1],count=n;if(!a.gears||a.gears.length!==count){a.gears=target.slice(0,count).map(v=>(v+1)%4);save()}
+ h=board('Align the gear markers','Rotate each cog until the gold dot meets the notch');
+ for(let i=0;i<count;i++){
+ const x=count===2?320+i*136:284+i*105,y=240,r=count===2?53:42,phase=a.gears[i],desired=target[i],theta=(phase*Math.PI/2)-Math.PI/2,targetAngle=(desired*Math.PI/2)-Math.PI/2;
+ h+=`<g data-target="gear-${i}" class="interactive" tabindex="0" aria-label="Rotate gear ${i+1}"><circle cx="${x}" cy="${y}" r="${r+11}" fill="#e4d4ad" stroke="#877065" stroke-width="5"/>${gear(x,y,r,'#c6a375')}<circle cx="${x+Math.cos(theta)*(r-8)}" cy="${y+Math.sin(theta)*(r-8)}" r="8" fill="#fff6ba" stroke="#866a65" stroke-width="3"/><path d="M${x+Math.cos(targetAngle)*(r+4)} ${y+Math.sin(targetAngle)*(r+4)}l${Math.cos(targetAngle)*13} ${Math.sin(targetAngle)*13}" stroke="#75a18a" stroke-width="8" stroke-linecap="round"/><circle class="hit-circle" cx="${x}" cy="${y}" r="${r+12}"/><text x="${x}" y="${y+88}" font-size="14" fill="#886a62" text-anchor="middle">${phase===desired?'✓ Aligned':'↻ Turn'}</text></g>`;
+ }
+ return h;
+ }
+ if(t==='circuit'){
+ const target=[2,0,1,2].slice(0,n),icons=['◌','↗','✦'];if(!a.circuit||a.circuit.length!==n){a.circuit=target.map(v=>(v+1)%3);save()}
+ h=board('A tiny circuit puzzle','Match each dial to the symbol on the diagram');
+ for(let i=0;i<n;i++){
+ const x=260+i*(260/Math.max(1,n-1)),y=237;
+ h+=`<g data-target="dial-${i}" class="interactive" tabindex="0"><rect x="${x-36}" y="152" width="72" height="166" rx="18" fill="#d4ddc8" stroke="#9aab94" stroke-width="4"/><text x="${x}" y="194" text-anchor="middle" font-size="24" fill="#6e766c">${icons[target[i]]}</text><path d="M${x-27} 206h54" stroke="#a9b9aa" stroke-width="3"/><circle cx="${x}" cy="260" r="30" fill="#bda37b" stroke="#79675c" stroke-width="5"/><text x="${x}" y="268" text-anchor="middle" font-size="27" fill="#fff3d4">${icons[a.circuit[i]]}</text><text x="${x}" y="308" text-anchor="middle" font-size="13" fill="#89706c">${a.circuit[i]===target[i]?'✓ Matched':'↻ Rotate'}</text></g>`;
+ }return h;
+ }
+ if(t==='tighten'){
+ h=board('Secure the casing','Put every screw back where it belongs');
+ h+=`<rect x="266" y="161" width="236" height="156" rx="25" fill="#e2b799" stroke="#825f63" stroke-width="8"/><rect x="285" y="178" width="199" height="121" rx="18" fill="#a7bbb0" stroke="#f1d4af" stroke-width="6"/>`;
+ step.targets.forEach((p,i)=>{const x=290+(i%2)*190,y=180+Math.floor(i/2)*114,done=a.doneTargets.includes(p.id);
+ h+=`<g data-target="${p.id}" class="interactive" tabindex="0"><circle cx="${x}" cy="${y}" r="20" fill="${done?'#8da996':'#f2e0ae'}" stroke="#745d60" stroke-width="5"/><path d="M${x-9} ${y-9}l18 18M${x+9} ${y-9}l-18 18" stroke="#745d60" stroke-width="4"/><circle class="hit-circle" cx="${x}" cy="${y}" r="28"/>${done?`<text x="${x}" y="${y-25}" font-size="17" fill="#678e79">✓</text>`:''}</g>`;
+ });return h;
+ }
+ return '';
+}
+const originalInteractive=interactiveDrawing;
+interactiveDrawing=function(j,a,step){return step&&['lift','returnCase','untangle','connect','gearAlign','circuit','tighten'].includes(step.type)&&a.phase==='repair'?puzzleSvg(step,a):originalInteractive(j,a,step)};
+const originalDrawing=objectDrawing;
+objectDrawing=function(kind,a){const step=a.phase==='repair'?shared[kind][a.step]:null;
+ if(step&&['lift','returnCase','untangle','connect','gearAlign','circuit','tighten'].includes(step.type))return `<rect width="800" height="440" fill="#91ac9e" opacity=".30"/>`;
+ return originalDrawing(kind,a);
+};
+const originalHandle=handleTarget;
+handleTarget=function(id){const a=active(),j=job();if(!a||a.phase!=='repair')return originalHandle(id);
+ const step=shared[j.object][a.step];if(!step)return;
+ const t=step.type;
+ if(t==='lift'&&id==='shell'){sound();toast('Casing lifted. Keep every piece safe.');nextStep();return}
+ if(t==='returnCase'){
+   if(id==='shell'){a.selectedPart=true;save();sound();renderBench();return;}
+   if(id==='caseSlot'){if(!a.selectedPart){toast('Pick the lid out of the tray first.');return}sound('success');nextStep();return}return;
+ }
+ if(t==='tighten'){
+   if(a.doneTargets.includes(id)||!step.targets.some(s=>s.id===id))return;a.doneTargets.push(id);sound();
+   if(a.doneTargets.length===step.targets.length){toast('Every last screw is back in place.');nextStep()}else{save();renderBench()}return;
+ }
+ if(t==='untangle'){
+   if(!id.startsWith('end-'))return;
+   if(wireStart===null){wireStart=id;sound();renderBench();return}
+   if(wireStart===id){wireStart=null;renderBench();return}
+   const i=Number(wireStart.split('-')[1]),k=Number(id.split('-')[1]);wireStart=null;
+   if(!Number.isInteger(i)||!Number.isInteger(k))return;
+   [a.wireOrder[i],a.wireOrder[k]]=[a.wireOrder[k],a.wireOrder[i]];sound();
+   if(a.wireOrder.every((c,i)=>c===cableColours(step)[i])){toast('All the wires are smooth and free!');nextStep();}else{save();renderBench()}return;
+ }
+ if(t==='connect'){
+   if(!id.startsWith('src-')&&!id.startsWith('sock-'))return;
+   const col=id.slice(id.indexOf('-')+1);
+   if(a.doneTargets.includes(col)){toast('That connection is already safely in place.');return;}
+   if(!wireStart){wireStart=id;sound();renderBench();return}
+   if(wireStart===id){wireStart=null;renderBench();return}
+   const startType=wireStart.split('-')[0],endType=id.split('-')[0],startCol=wireStart.slice(wireStart.indexOf('-')+1);wireStart=null;
+   if(startCol!==col||startType===endType){sound('error');a.mistakes=(a.mistakes||0)+1;save();toast('Not quite — try matching the same colours.');renderBench();return}
+   a.doneTargets.push(col);sound('success');if(a.doneTargets.length===cableColours(step).length){spendPart(step);toast('A safe, tidy connection. Lovely work!');nextStep()}else{save();renderBench()}return;
+ }
+ if(t==='gearAlign'){
+   if(!id.startsWith('gear-'))return;const k=Number(id.slice(5));a.gears[k]=(a.gears[k]+1)%4;sound();
+   if(a.gears.every((v,i)=>v===[0,2,1][i])){toast('The tiny gears mesh perfectly.');nextStep()}else{save();renderBench()}return;
+ }
+ if(t==='circuit'){
+   if(!id.startsWith('dial-'))return;const k=Number(id.slice(5));a.circuit[k]=(a.circuit[k]+1)%3;sound();
+   if(a.circuit.every((v,i)=>v===[2,0,1,2][i])){toast('Every contact is in its proper place.');nextStep()}else{save();renderBench()}return;
+ }
+ return originalHandle(id);
+};
+const originalRenderBench=renderBench;
+renderBench=function(){originalRenderBench();const a=active(),j=job(),step=a?.phase==='repair'&&j?shared[j.object][a.step]:null;const isFocus=!!step&&['lift','returnCase','untangle','connect','gearAlign','circuit','tighten'].includes(step.type);$('benchScreen').classList.toggle('puzzle-focus',isFocus);document.body.classList.toggle('repair-immersive',isFocus);if(!step)return;
+ if(['lift','returnCase','untangle','connect','gearAlign','circuit','tighten'].includes(step.type)){
+   $('repairSvg').setAttribute('viewBox','160 55 560 352');
+   const tips={lift:'Drag or tap the cover to move it into the tray',returnCase:'Select or drag the cover back onto the object',untangle:'Swap two loose wire ends to straighten them',connect:'Drag or tap a wire, then tap its matching plug',gearAlign:'Rotate each gear until its dot reaches the notch',circuit:'Match the bottom symbols to the top symbols',tighten:'Secure every screw before testing'};
+   $('floatingTip').textContent=tips[step.type];$('floatingTip').classList.add('show');
+   const progress=step.type==='connect'?`${a.doneTargets.length} / ${cableColours(step).length} plugs`:step.type==='tighten'?`${a.doneTargets.length} / ${step.targets.length} screws`:'';
+   $('toolArea').innerHTML=`<span class="repair-progress">${progress||'✿ Take your time'}</span><button class="tool-chip" data-act="repairHint">Need a hint?</button><button class="tool-chip" data-act="leaveBench">← Shop</button>`;
+ }
+};
+const originalBind=bindSvgEvents;
+bindSvgEvents=function(){originalBind();
+ const a=active(),j=job();if(!a||a.phase!=='repair'||!j)return;const step=shared[j.object][a.step],type=step?.type;
+ if(!['untangle','connect','lift','returnCase'].includes(type))return;
+ const svg=$('repairSvg'),sources=type==='connect'?'[data-target^="src-"]':type==='untangle'?'[data-target^="end-"]':'#shellPiece';
+ svg.querySelectorAll(sources).forEach(el=>{
+   let start=null,moved=false;
+   el.addEventListener('pointerdown',e=>{if(e.button!==0)return;start=svgPoint(e);moved=false;try{el.setPointerCapture(e.pointerId)}catch{};e.preventDefault()});
+   el.addEventListener('pointermove',e=>{if(!start)return;const p=svgPoint(e);moved=Math.hypot(p.x-start.x,p.y-start.y)>14||moved;
+     if(type==='connect'){const preview=svg.querySelector('#wirePreview');if(preview){preview.setAttribute('d',`M${start.x} ${start.y} Q${(start.x+p.x)/2} ${start.y-30} ${p.x} ${p.y}`);preview.setAttribute('stroke',palette[el.dataset.target?.slice(4)]||'#e0b54f')}}
+     if((type==='lift'||type==='returnCase')&&moved)el.setAttribute('transform',`translate(${p.x-start.x} ${p.y-start.y})`);
+   });
+   el.addEventListener('pointerup',e=>{if(!start)return;const p=svgPoint(e),distance=Math.hypot(p.x-start.x,p.y-start.y),id=el.dataset.target;start=null;
+     if(distance<14)return;
+     e.preventDefault();e.stopPropagation();
+     if(type==='lift'){handleTarget('shell');return}
+     if(type==='returnCase'){handleTarget('shell');handleTarget('caseSlot');return}
+     let closest=null,best=65;
+     const targets=type==='connect'?svg.querySelectorAll('[data-target^="sock-"]'):svg.querySelectorAll('[data-target^="end-"]');
+     targets.forEach(t=>{if(t===el)return;const cx=Number(t.querySelector('circle')?.getAttribute('cx')),cy=Number(t.querySelector('circle')?.getAttribute('cy'));const dist=Math.hypot(cx-p.x,cy-p.y);if(dist<best){best=dist;closest=t.dataset.target}});
+     if(closest){handleTarget(id);handleTarget(closest)}else renderBench();
+   });
+   el.addEventListener('pointercancel',()=>{start=null;renderBench()});
+ });
+};
+// Capture the new hints and a way to leave the fullscreen workbench.
+document.addEventListener('click',e=>{const back=e.target.closest('[data-act="leaveBench"]');if(back){e.stopPropagation();document.body.classList.remove('repair-immersive');$('benchScreen').classList.remove('puzzle-focus');shop();return}const btn=e.target.closest('[data-act="repairHint"]');if(!btn)return;e.stopPropagation();const st=shared[job().object][active().step];const hint={untangle:'Choose two ends on the right: swap them until the coloured cables do not cross.',connect:'Yellow to yellow, teal to teal, pink to pink and purple to purple.',lift:'Tap the big cover or slide it towards the parts tray.',returnCase:'Tap the lid in the parts tray, then tap the dotted outline.',gearAlign:'Each cog has a small gold dot. Turn it until the dot meets the green notch.',circuit:'Top symbols are the target. Tap the dials below until they match.',tighten:'Tap all highlighted screw heads, then you can test the repaired object.'};modal(`<div class="modal-emoji">🫖</div><h2>A little workshop hint</h2><p>${hint[st.type]||'Try looking closely at the object.'}</p><p class="note">No timers, no hurry. Every repair is worth doing slowly.</p><button class="pill-btn" data-act="closeModal">Back to the workbench</button>`);},true);
+// A compact top bar keeps the extra fame indicator visible on smaller phones.
+const cosyStyle=document.createElement('style');cosyStyle.textContent=`.fame-note{font-size:10px;color:#7d695e;background:#f2e5cb;border-radius:10px;padding:6px 8px;margin-top:8px;border:1px dashed #c7a688}.repair-progress{font-size:11px;color:#6b8272;font-weight:800}.stat#buzzStat{background:#e8efdf}.stat#buzzStat span{color:#98a780}@media(max-width:950px){.stats{gap:4px}.stat{min-width:65px;padding:4px 6px}.stat b{font-size:14px}.stat small{font-size:9px}.topbar{padding-inline:10px;gap:5px}.brand{gap:3px}.brand strong{font-size:17px}.brand small{font-size:9px}.story-card{max-height:calc(100% - 55px)}.work-bottom{padding:7px;min-height:62px}.work-instruction p{font-size:10px}.tool-chip{padding:5px 7px}}@media(max-height:450px){.fame-note{font-size:9px;padding:3px}.story-card{min-height:0}.stat#buzzStat small{display:none}}`;
+cosyStyle.textContent+=`.repair-immersive .topbar,.repair-immersive .footer{display:none}.puzzle-focus .case-panel{display:none}.puzzle-focus .work-panel{padding:6px 12px;gap:5px}.puzzle-focus .work-top{flex:0 0 33px;padding:0 10px}.puzzle-focus .work-top h2{font-size:19px}.puzzle-focus .work-top .overline{display:none}.puzzle-focus .work-mat{border-width:5px}.puzzle-focus .work-bottom{min-height:54px;padding:5px 10px;gap:6px}.puzzle-focus .work-instruction strong{font-size:14px}.puzzle-focus .work-instruction p{font-size:11px;margin-top:2px}.puzzle-focus .floating-tip{display:none}.puzzle-focus .tool-area{max-width:60%}`;document.head.append(cosyStyle);
+
 shop();
 })();
 

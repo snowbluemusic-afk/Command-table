@@ -33,6 +33,6 @@ jobs:
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: The-Mending-Hour-v0.1.0-APK
+          name: The-Mending-Hour-v0.2.0-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
