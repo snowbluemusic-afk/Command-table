@@ -1,20 +1,17 @@
-# The Mending Hour (Android)
+# The Mending Hour v0.3 (Android)
 
-A cosy offline Android repair-and-story game. Version 0.2.0 expands the first prototype with tactile disassembly and reassembly, returning customers, a word-of-mouth reputation system, and increasingly complex repair puzzles.
+A cosy first-person-inspired repair shop game for Android. This version reorganizes the entire game around a portrait counter view with expressive customers across the desk and a close-up green repair mat, reflecting the player's gameplay reference rather than a side-panel puzzle UI.
 
-## Repair mechanics
-- Inspect objects and diagnose faults
-- Open cases and save the removed covers
-- Unscrew and tighten individual fasteners
-- Replace knobs, batteries, gears and springs
-- Untangle crossed cables, then connect matching coloured wires to the correct sockets (tap or drag)
-- Align watch gears and solve circuit-board symbol puzzles
-- Reassemble covers before a functional test
+## What's new
+- 16 authored customer jobs and continuing orders after the chapter
+- Illustrated first-person shop counter and a visible customer while you repair
+- Diagnose by examining two clues and choosing the fault
+- Disassemble by removing four screws and lifting the case
+- Individually reconnect and untangle 3–5 colour-coded cables, join circuit traces from A to B, select replacement gear/knob/spring parts and align or wind mechanisms
+- Reassemble the cover and screws, then functional-test the device
+- Word-of-mouth reputation, price choice, gifted keepsakes, buyable shop decoration, romances, and refusal/reporting of suspicious property
+- Saves offline locally, with best-effort preservation of previous v0.2 coins, reputation and gifts
+- Cosy illustrated original aesthetic; not a full 3D simulation
 
-## Progression
-- Fourteen authored customer visits, friendship and romance stories, gifts, a suspicious-property choice, and recurring neighbourhood orders thereafter
-- Word-of-mouth reputation based on repair quality and pricing; more elaborate puzzles unlock as fame grows
-- Automatic offline progress saving, no timers, optional puzzle hints
-
-## Build
-Use the GitHub Actions workflow **The Mending Hour - Android APK** on branch `mending-hour-apk` and download its APK artifact. Install `app-debug.apk` from the artifact ZIP.
+## APK build
+Branch: `mending-hour-apk`. Workflow: `The Mending Hour - Android APK`. Download the debug APK artifact, extract `app-debug.apk`, and install it. Upgrades v0.1/v0.2 using the same package identifier.
