@@ -1,0 +1,27 @@
+name: The Mending Hour - v0.6 APK download
+on:
+  push:
+    branches: [mending-hour-apk]
+    paths:
+      - 'downloads/The-Mending-Hour-v0.6.0.apk'
+      - '.github/workflows/mending-hour-v06-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  publish-v06:
+    name: Verify and publish v0.6 APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out v0.6 download
+        uses: actions/checkout@v4
+      - name: Verify exact v0.6 APK
+        run: |
+          echo '5b9e6c1b4309868052c8bc299fd2e952565e45f4b61019af8838df79525b8f2d  downloads/The-Mending-Hour-v0.6.0.apk' | sha256sum -c -
+      - name: Upload The Mending Hour v0.6 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: The-Mending-Hour-v0.6.0-APK
+          path: downloads/The-Mending-Hour-v0.6.0.apk
+          if-no-files-found: error
