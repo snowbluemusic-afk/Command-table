@@ -1,20 +1,21 @@
-# Ward Zero v0.4 — Integrated Hospital & Replay Update
+# Ward Zero v0.5 — Maze & Finale Rework
 
-The approved survival-horror direction is rendered using actual world-space game tiles. Stretched room photographs have been removed.
+A complete playthrough revealed v0.4 could be cleared in about 2 minutes 38 seconds, with health and ammunition left over and very short routes. This release targets those observed weaknesses.
 
-- Department-specific clinical floor textures, procedural rooms, curtains, lighting, signs and bloodstains
-- Collidable multi-tile hospital beds, nurses' desks, surgical tables and CT scanners; player and infected navigate around them
-- Corrected pickup handling: items now trigger reliably; full-health herbs store as med kits; inventory overflow grants an explicit fallback benefit
-- MED touch button and H keyboard hotkey to consume a stored medical kit
-- 11.5-second animated rooftop helicopter rescue cutscene with rotor, spotlights and radio; skip available
-- 12 persistent achievements, including Pacifist (win without killing a zombie), Untouched, Code Blue and Last Flight
-- Local records for best successful escape time, runs, escapes, deepest floor, per-floor splits and achievements
-- In-game run clock and personal-best time
+- Procedural DFS maze generation now preserves branching corridors, side rooms and dead ends; no vertical exit directly above every entrance
+- 400 randomized-map QA runs: average shortest route ~89 tiles (v0.4 ~25), zero unreachable exits or pickups
+- Entrance changes each floor, exit chosen from a remote connected stairwell
+- The infected emerge five seconds after entering; on-floor enemies and pursuit speed have increased, while total wave size still doubles by floor
+- Less frequent ammo, herbs, bombs, map guidance and armour
+- Floors 4, 8, 12 and 16 require a security keycard, located elsewhere in the ward
+- New animated rooftop rescue lasting ~16 seconds: rooftop pursuit, helicopter approach, boarding, close escape, city flyaway and radio messages
+- v0.5 challenging-maze completion personal best is tracked separately; old v0.4 achievements and previous times are retained
+- All game art and music generated within game, offline; no third-party copyrighted game assets
 
-**Testing:** 300 generated floors checked for reachable exits and items; browser smoke tests passed for pickup types, cinema flow, records and achievements.
+## Build
 
-**Build:** GitHub Actions / Build Ward Zero Android APK on branch `ward-zero-apk`; download artifact `ward-zero-debug-apk`. Offline on Android 8+ in landscape.
+Branch `ward-zero-apk`; workflow `Build Ward Zero Android APK`. Build produces `ward-zero-debug-apk` artifact. To compile locally: `cd ward-zero && gradle assembleDebug`.
 
-**Debug APK signing:** GitHub Actions runners may generate different debug signing keys across builds. If Android refuses to install v0.4 over v0.3, uninstall the earlier build first. Uninstalling clears locally stored progress. A stable signing keystore is recommended for future releases.
+## Debug signing note
 
-Original procedural artwork and synthesised audio; no copyrighted Resident Evil game assets.
+Android updates require the same APK signing certificate. GitHub Actions may use an ephemeral debug keystore; if installing over an older debug APK is blocked by a signing mismatch, uninstalling it will erase locally stored data. A stable Android signing key is recommended for future releases.
