@@ -1,61 +1,20 @@
-# Ward Zero v0.3 — Visual environment upgrade
+# Ward Zero v0.4 — Integrated Hospital & Replay Update
 
-This release implements the approved 16-bit survival-horror hospital look across the procedural Android game.
+The approved survival-horror direction is rendered using actual world-space game tiles. Stretched room photographs have been removed.
 
-- 20 floors with distinct department treatments: Emergency, Patient Wards, Radiology, Surgery, Pathology, ICU, Isolation, Service/Morgue, Pharmacy and Rooftop
-- Larger randomly generated rooms and corridor networks with a spacious arrival landing
-- Embedded, offline original concept-art room scenes: nurse stations, curtained beds and waiting areas
-- Clinical tile textures, signage, monitors, equipment, bloodstains, fluorescent glow and different colour palettes
-- Path-blocking medical furniture (beds, surgical tables, CT scanners, medicine carts and more) without breaking access to exits
-- 500 procedural floor connectivity tests passed (25 mazes per floor)
+- Department-specific clinical floor textures, procedural rooms, curtains, lighting, signs and bloodstains
+- Collidable multi-tile hospital beds, nurses' desks, surgical tables and CT scanners; player and infected navigate around them
+- Corrected pickup handling: items now trigger reliably; full-health herbs store as med kits; inventory overflow grants an explicit fallback benefit
+- MED touch button and H keyboard hotkey to consume a stored medical kit
+- 11.5-second animated rooftop helicopter rescue cutscene with rotor, spotlights and radio; skip available
+- 12 persistent achievements, including Pacifist (win without killing a zombie), Untouched, Code Blue and Last Flight
+- Local records for best successful escape time, runs, escapes, deepest floor, per-floor splits and achievements
+- In-game run clock and personal-best time
 
-Game rules remain: 10 HP; five-second breach; waves double from one zombie to 524,288 queued on floor 20; on-floor infected, herbs, limited handgun ammo, maps, bombs, armour and adrenaline; joystick controls; zombie audio and horror music.
+**Testing:** 300 generated floors checked for reachable exits and items; browser smoke tests passed for pickup types, cinema flow, records and achievements.
 
-## APK build
+**Build:** GitHub Actions / Build Ward Zero Android APK on branch `ward-zero-apk`; download artifact `ward-zero-debug-apk`. Offline on Android 8+ in landscape.
 
-The `Build Ward Zero Android APK` GitHub Action on branch `ward-zero-apk` builds an installable, signed debug APK under the `ward-zero-debug-apk` artifact. The APK works offline in landscape.
+**Debug APK signing:** GitHub Actions runners may generate different debug signing keys across builds. If Android refuses to install v0.4 over v0.3, uninstall the earlier build first. Uninstalling clears locally stored progress. A stable signing keystore is recommended for future releases.
 
-## Rights
-
-Hospital scene visuals were adapted from original Ward Zero concept art approved in this conversation. The remaining procedural sprites, textures and synthesised audio are original. No Resident Evil franchise imagery, sounds or music are used.
-
----
-
-# WARD ZERO: LAST FLIGHT
-
-A self-contained, single-player, top-down pixel zombie-survival game set in a procedurally generated hospital. Built as an offline HTML5 Canvas game; bundled into a minimal Android WebView project for an Android APK build.
-
-## Play the game
-
-**Desktop:** Open `index.html` in Chrome or another modern browser. WASD/arrow keys move; Space shoots; M opens the floor map; P/Escape pauses.
-
-**Android:** Open `android/` in Android Studio and run the app, or create a GitHub repository from the **contents** of the `android/` directory and run the included GitHub Actions `Build Ward Zero APK` workflow. The debug APK is in the workflow's `ward-zero-debug-apk` artifact. The app requests **no internet permissions** and launches in landscape orientation. `app-debug.apk` is installable for personal testing.
-
-The included `android/app/src/main/assets/index.html` is a copy of the playable browser game. When updating the game, copy the root `index.html` into that assets folder before building.
-
-## Gameplay
-
-- 20 floors including the helipad, with randomized connected layouts and environmental details on every run.
-- Survive with 10 HP; touching an infected damages 1 HP and grants a brief recovery window.
-- Exactly 5 seconds after entering a floor, infected start emerging from the entrance.
-- The queued stairwell horde doubles per floor (1, 2, 4, …, 524,288 on floor 20). A concurrency cap and timed release keep the game responsive rather than simulating half a million enemies simultaneously.
-- Zombies already roam most floors, plus the growing stairwell wave. Zombies follow a pathfinding distance field.
-- Find a handgun, 9mm ammunition (+6), green herbs (+3 HP up to 10), and maps that display the shortest safe route to the stairs.
-- Escaping a floor preserves HP, ammunition, weapon, time and kill count. A save checkpoint is made at each floor transition; the next run creates fresh maps.
-- Fog of war, blood stains, numbered floors and named hospital departments provide a tense retro-survival ambience.
-- On-screen touchscreen D-pad, fire and map controls; keyboard also supported.
-- Original, royalty-free synthesised chiptune score and chiptune sound effects generated inside the browser using Web Audio; no separate music download is required.
-
-## Free assets and music
-
-The included art is original pixel art generated by the game's Canvas code, and the music is original synthesis generated by JavaScript. There are no proprietary image, audio or Resident Evil assets in the build; it is an original survival-horror setting.
-
-Other verified **CC0** free resources for a future graphics/audio pass:
-- [Kenney — Roguelike/RPG pack](https://kenney.nl/assets/roguelike-rpg-pack) (16×16 pixel art, CC0)
-- [Kenney — 1-Bit Pack](https://kenney.nl/assets/1-bit-pack) (CC0)
-- [Zane Little Music — Haunting Chiptune Loop (Void Estate)](https://opengameart.org/content/haunting-chiptune-loop-void-estate) (CC0)
-
-**Status:** Playable prototype (v0.1), not a fully balanced or production-tested commercial game. Android build files are provided, but an APK was not compiled in this environment.
-
-## v0.2 changes
-Hospital-tile reskin, clinic beds & equipment, circular movement stick, limited ammo & directional aiming, compact health bar, pipe bombs, adrenaline, armour, original tension score, zombie moans and footsteps.
+Original procedural artwork and synthesised audio; no copyrighted Resident Evil game assets.
