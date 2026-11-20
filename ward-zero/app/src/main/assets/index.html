@@ -70,7 +70,7 @@ function achievement(id){if(records.achievements[id])return false;const a=ACHIEV
 function recordView(backTo='menu'){
  const count=Object.keys(records.achievements).length;
  const list=ACHIEVEMENTS.map(a=>`<div class="achievement ${records.achievements[a.id]?'earned':''}"><span class="medal">${a.icon}</span><div><b>${a.name}</b><small>${a.desc}</small></div><span class="mark">${records.achievements[a.id]?'✓':'◯'}</span></div>`).join('');
- setOverlay(`<div class="kicker">ST. DYSMAS / SURVIVOR RECORDS</div><h2 class="big">FIELD <span class="red">RECORDS</span></h2><div class="stats-end"><div>ESCAPES<b>${records.escapes}</b></div><div>BEST ESCAPE<b>${records.bestTime==null?'--:--':timeText(records.bestTime)}</b></div><div>ACHIEVEMENTS<b>${count}/${ACHIEVEMENTS.length}</b></div></div><div class="record-note">RUNS ${records.runs} · DEEPEST FLOOR ${floor2(records.bestFloor)} / 20 · TIMES SAVED LOCALLY</div><div class="achievement-list">${list}</div><button class="primary" id="backRecords">BACK</button>`);
+ setOverlay(`<div class="kicker">ST. DYSMAS / SURVIVOR RECORDS</div><h2 class="big">FIELD <span class="red">RECORDS</span></h2><div class="stats-end"><div>ESCAPES<b>${records.escapes}</b></div><div>BEST ESCAPE<b>${records.challengeBestTime==null?'--:--':timeText(records.challengeBestTime)}</b></div><div>ACHIEVEMENTS<b>${count}/${ACHIEVEMENTS.length}</b></div></div><div class="record-note">RUNS ${records.runs} · DEEPEST FLOOR ${floor2(records.bestFloor)} / 20 · TIMES SAVED LOCALLY</div><div class="achievement-list">${list}</div><button class="primary" id="backRecords">BACK</button>`);
  $('backRecords').onclick=()=>{if(backTo==='paused'){pauseRecordsReturn()}else mainMenu()};
 }
 function pauseRecordsReturn(){mode='playing';pause()}
