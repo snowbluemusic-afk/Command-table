@@ -1,22 +1,19 @@
-# BIOHAZARD: Last Flight — v0.6
+# Biohazard: Last Flight v0.7 — Survivor Update
 
-Original offline Android pixel-art survival horror set across 20 procedural hospital floors.
+The user-supplied reference is used as the visual direction for the main character across the game.
 
-## v0.6 changes
+- Brown knitted beanie with a pale patterned crown and dark hair.
+- Dark hooded winter jacket and dark trousers, with a simple unbranded chest emblem.
+- Updated **in-game 16×16 player sprite** with brown hat and charcoal jacket.
+- New **visible pixel-art character portrait in the menu**, including the mobile landscape layout.
+- Updated **animated helicopter rescue scene** with the matching character clothing and hat.
+- Retains all v0.6 game mechanics: 20 procedural hospital floors, keycard mazes, zombies, adaptive original horror score, achievements and stored run records.
+- Original game artwork; no photograph, third-party logo or Resident Evil assets are bundled.
 
-- Rebranded in-game title and header, Android launcher label, and app icon from Ward Zero to Biohazard.
-- Replaced fast repetitive chiptune with an original adaptive horror score: dissonant drones, broken-piano notes, filtered air hiss, distant metallic scrapes, and heartbeat accents as infected approach.
-- Distinct gunshot, zombie groan, footstep, item and rescue rotor effects remain; music responds to danger.
-- Gameplay, saves, records, achievements, 20-floor difficulty and ending remain as v0.5.
+## Installation and persistence
 
-## Android compatibility
-
-The application ID and legacy local-storage keys are deliberately unchanged so updates can preserve existing best times and achievements when APK signatures match. The build is an unsigned-for-release, debug-signed APK; Android may reject an update over a build signed using a different debug key. Uninstalling removes local saves.
+The app ID `com.wardzero.lastflight` and local save keys are kept unchanged so an in-place update retains records **if signed with the same certificate**. A debug APK with a different signing certificate may require uninstalling the old app, which erases its saved records.
 
 ## Build
 
-Use GitHub Actions **Build Biohazard Android APK** on the \`ward-zero-apk\` branch, which compiles \`ward-zero/app\` and uploads artifact \`biohazard-debug-apk\`.
-
-## Original audio and naming
-
-All music and sound are originally synthesised for this game: **no Resident Evil soundtrack, copyrighted samples, or melodies are used**. Biohazard is also a Resident Evil-related trademark in some markets; use a distinct name before commercial or public distribution.
+GitHub Actions workflow **Build Biohazard Android APK**, branch `ward-zero-apk`. The installable artifact is `biohazard-debug-apk`. Supports offline landscape Android play.
