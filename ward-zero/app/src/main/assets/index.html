@@ -27,6 +27,14 @@
 .skip-cinema{position:absolute;z-index:8;right:14px;bottom:14px;color:#e8d6b8;border:1px solid #8aa29b;background:#101e29e9;padding:9px 13px;font:12px monospace;letter-spacing:1px}
 @media (pointer:coarse){.actions button.medkit{height:35px;width:52px;font-size:10px}.achievement-list{max-height:34vh}.achievement{min-height:37px;padding:5px}.achievement small{font-size:8px}}
 @media (max-height:430px){.achievement-list{max-height:32vh}.record-note{margin:3px 0}.record-note~.achievement-list{margin:5px 0}.modal .stats-end{margin:8px 0}.modal .stats-end b{font-size:18px}}
+
+/* Protagonist portrait is part of the interactive menu, not obscured by the overlay. */
+.survivor-title{display:flex;align-items:center;justify-content:center;gap:16px;margin:0 auto 12px;max-width:500px}
+.survivor-title .big{font-size:clamp(20px,3.4vw,32px);line-height:1.35}
+.survivor-title .subtitle{margin:7px 0 3px;font-size:14px}
+.survivor-portrait{flex:0 0 auto;width:82px;height:99px;image-rendering:pixelated;object-fit:cover;border:2px solid #6f8076;box-shadow:0 0 0 3px #0c1419,0 0 19px #a17a4140}
+.survivor-name{font-size:9px;letter-spacing:2px;color:#ddba88}
+@media(max-height:430px){.survivor-title{gap:9px;margin-bottom:5px}.survivor-portrait{width:48px;height:57px}.survivor-title .big{font-size:19px}.survivor-title .subtitle{font-size:10px;margin:2px 0}.survivor-name{font-size:8px;letter-spacing:0}.modal .kicker{margin-bottom:6px}}
 </style>
 </head>
 <body>
@@ -83,7 +91,22 @@ function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
 function TILE(x,y){return `${x},${y}`}
 const blueprints={
  player:[
-'......KKKK......','.....KSSSSK.....','.....KSSSSK.....','......KSSK......','.....KKBBKK.....','....KBBL LBBK...'.replace(' ',''),'....KBBBBBBK....','....KBBKKBBK....','......KBBK......','......KBBK......','.....KBBBBK.....','.....KB..BK.....','.....KB..BK.....','....KNN..NNK....','....KNN..NNK....','................'],
+'.......WW.......',
+'......WTTW......',
+'.....TTTTTT.....',
+'....TTHSSHTT....',
+'.....TSSSST.....',
+'....JJJJJJJJ....',
+'...JJJJJJJJJJ...',
+'...JJJEJJEJJJ...',
+'....JJJJJJJJ....',
+'....JJJJJJJJ....',
+'.....JNNNNJ.....',
+'.....JNNNNJ.....',
+'.....JN..NJ.....',
+'.....NN..NN.....',
+'.....NN..NN.....',
+'................'],
  zombie:[
 '......KKKK......','.....KGGGGK.....','.....KG R GK.....'.replaceAll(' ',''),'.....KGGGGK.....','......KGGK......','....KRRRRRRK....','...KGRRRRRRGK...','...KGRRRRRRGK...','....KRRKKRRK....','......KRRK......','......KRRK......','.....KRRRRK.....','.....KG..GK.....','.....KG..GK.....','.....KK..KK.....','................'],
  herb:[
@@ -99,7 +122,7 @@ const blueprints={
  keycard:['................','..KKKKKKKKKKKK..','..KYYYYYYYYYYK..','..KYYKKKKKKYYK..','..KYYKKKKKKYYK..','..KYYYYYYYYYYK..','..KGGGGGGGGGGK..','..KGCKCKCKCGGK..','..KGGGGGGGGGGK..','..KYYYYYYYYYYK..','..KYYKKKKKKYYK..','..KYYYYYYYYYYK..','..KKKKKKKKKKKK..','................','................','................'],
  armor:['................','................','......CCCC......','....CCCCCCCC....','...CCGGGGGGCC...','...CGGGGGGGC....','...CGGGGGGGC....','...CGGGGGGGC....','....CGGGGGC.....','....CCGGCC......','.....CCCC.......','......CC........','................','................','................','................']
 };
-const palettes={K:'#172328',S:'#d4ab85',B:'#456c85',L:'#f2cb77',N:'#25333c',G:'#8bb36d',R:'#9f454c',Y:'#edbf62',C:'#b6cabb'};
+const palettes={K:'#172328',S:'#d4ab85',B:'#456c85',L:'#f2cb77',N:'#25333c',G:'#8bb36d',R:'#9f454c',Y:'#edbf62',C:'#b6cabb',T:'#876038',W:'#e5dfd2',H:'#463227',J:'#1f2a31',E:'#bac4c8'};
 function spriteBuild(rows){let c=document.createElement('canvas');c.width=c.height=16;let c2=c.getContext('2d');rows.forEach((line,y)=>[...line].slice(0,16).forEach((ch,x)=>{if(palettes[ch]){c2.fillStyle=palettes[ch];c2.fillRect(x,y,1,1)}}));return c}
 const sprites={};Object.entries(blueprints).forEach(([n,b])=>sprites[n]=spriteBuild(b));
 class Sfx{
@@ -122,7 +145,7 @@ function clearOverlay(){overlay.classList.add('hidden')}
 function mainMenu(){
  area.classList.remove('cinematic');mode='menu';const best=Math.max(+store.getItem(BEST)||1,records.bestFloor||1);$('highScore').textContent=`BEST FLOOR: ${floor2(best)}  ·  BEST ESCAPE: ${records.challengeBestTime==null?'--:--':timeText(records.challengeBestTime)}`;
  $('skipMovie').style.display='none';
- setOverlay(`<div class="kicker">ST. DYSMAS GENERAL HOSPITAL · 03:17 A.M.</div><h1 class="big"><span class="red">BIO</span>HAZARD</h1><div class="subtitle">20 FLOORS. ONE WAY OUT.</div><div class="rule"></div><p class="brief">A quarantine breach has overrun the hospital. Reach the rooftop for the last evacuation. Each run rebuilds the wards, operating theatres and service corridors. Five seconds after you enter, the infected pour into the stairwell. Some floors have sealed exits: search side wards for a security keycard.</p><div class="features"><span><b>20</b> FLOORS</span><span><b>12</b> ACHIEVEMENTS</span><span><b>1</b> LAST FLIGHT</span></div><button class="primary" id="startRun">ENTER THE HOSPITAL</button>${saved?'<button class="secondary" id="resumeRun">RESUME SAVED RUN</button>':''}<button class="secondary" id="viewRecords">RECORDS & ACHIEVEMENTS</button><div class="intro-meta">KEYCARDS · HERBS · AMMO · BOMBS · ARMOUR</div>`);
+ setOverlay(`<div class="kicker">ST. DYSMAS GENERAL HOSPITAL · 03:17 A.M.</div><div class="survivor-title"><img class="survivor-portrait" alt="Survivor in a brown knitted beanie and dark jacket" src="data:image/png;base64,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"><div><h1 class="big"><span class="red">BIO</span>HAZARD</h1><div class="subtitle">20 FLOORS. ONE WAY OUT.</div><div class="survivor-name">THE LAST SURVIVOR</div></div></div><div class="rule"></div><p class="brief">A quarantine breach has overrun the hospital. Reach the rooftop for the last evacuation. Each run rebuilds the wards, operating theatres and service corridors. Five seconds after you enter, the infected pour into the stairwell. Some floors have sealed exits: search side wards for a security keycard.</p><div class="features"><span><b>20</b> FLOORS</span><span><b>12</b> ACHIEVEMENTS</span><span><b>1</b> LAST FLIGHT</span></div><button class="primary" id="startRun">ENTER THE HOSPITAL</button>${saved?'<button class="secondary" id="resumeRun">RESUME SAVED RUN</button>':''}<button class="secondary" id="viewRecords">RECORDS & ACHIEVEMENTS</button><div class="intro-meta">KEYCARDS · HERBS · AMMO · BOMBS · ARMOUR</div>`);
  $('startRun').onclick=()=>start(false);if(saved)$('resumeRun').onclick=()=>start(true);$('viewRecords').onclick=()=>recordView();
 }
 
@@ -525,7 +548,40 @@ function render(){mapBackdrop();if(mode==='rescue'){drawRescueMovie();return}if(
  if(blastWave>0){let radius=(.65-blastWave)*235;ctx.strokeStyle=`rgba(255,190,95,${blastWave})`;ctx.lineWidth=5;ctx.beginPath();ctx.arc(width*.5,height*.66,radius,0,Math.PI*2);ctx.stroke()}if(mapShown)drawMiniMap();else if(game.hasMap)drawCompass();}
 function drawCompass(){const p=game.player,ex=game.map.exit,ang=Math.atan2(ex.y+.5-p.y,ex.x+.5-p.x);ctx.save();ctx.translate(width-40,height*.35);ctx.fillStyle='#0c131aba';ctx.fillRect(-24,-24,48,48);ctx.strokeStyle='#bfa866';ctx.strokeRect(-24,-24,48,48);ctx.rotate(ang+Math.PI/2);ctx.fillStyle='#e5ca85';ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(-7,6);ctx.lineTo(0,3);ctx.lineTo(7,6);ctx.fill();ctx.restore()}
 function drawMiniMap(){let {W,H,walls,exit}=game.map;let s=Math.floor(Math.min(7,(width-32)/W,(height-35)/H)),w=W*s,h=H*s,ox=Math.floor((width-w)/2),oy=Math.floor((height-h)/2);ctx.fillStyle='#071016f0';ctx.fillRect(ox-9,oy-24,w+18,h+33);ctx.strokeStyle='#8fb7a0';ctx.strokeRect(ox-9,oy-24,w+18,h+33);ctx.fillStyle='#c1d9c3';ctx.font='12px monospace';ctx.fillText(`FLOOR ${floor2(game.floor)} // SCHEMATIC`,ox,oy-9);for(let y=0;y<H;y++)for(let x=0;x<W;x++){let explored=game.explored.has(TILE(x,y));ctx.fillStyle=(!explored&&!game.hasMap)?'#060b0e':walls[y][x]?'#4b5f65':'#263b40';ctx.fillRect(ox+x*s,oy+y*s,s,s)}ctx.fillStyle='#ffd77e';ctx.fillRect(ox+exit.x*s,oy+exit.y*s,s,s);ctx.fillStyle='#a6e9cf';ctx.fillRect(ox+Math.floor(game.player.x)*s,oy+Math.floor(game.player.y)*s,s,s)}
-function drawMenuBackdrop(){const t=performance.now()*.001;for(let i=0;i<13;i++){let x=(i*117+44)%width,y=(i*93+21)%height;block(x,y,Math.max(2,width/65),height,'#2130392a')}ctx.fillStyle='#30434c';ctx.fillRect(width*.20,height*.16,width*.60,height*.73);ctx.fillStyle='#151f27';ctx.fillRect(width*.23,height*.20,width*.54,height*.68);for(let r=0;r<7;r++)for(let c=0;c<14;c++){ctx.fillStyle=(r+c)%3===0?'#a35e58':'#334b52';ctx.fillRect(width*.255+c*width*.034,height*.24+r*height*.078,width*.020,height*.039)}ctx.fillStyle='#bcd0b6';ctx.font='bold 20px monospace';ctx.fillText('HOSPITAL',width*.39,height*.15);ctx.fillStyle='#b2474e';ctx.fillRect(width*.49,height*.04,6,35);ctx.fillRect(width*.48,height*.105,26,7);let fog=ctx.createLinearGradient(0,height*.4,0,height);fog.addColorStop(0,'#09111900');fog.addColorStop(1,'#080e13');ctx.fillStyle=fog;ctx.fillRect(0,0,width,height);if(Math.sin(t*.6)>-.8){ctx.fillStyle='#c9d6be';ctx.fillRect(width*.47,height*.78,4,10)}}
+function drawMenuBackdrop(){
+ const t=performance.now()*.001;
+ const c=(x,y,w,h,color)=>{ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))};
+ for(let i=0;i<13;i++){let x=(i*117+44)%width,y=(i*93+21)%height;c(x,0,Math.max(2,width/65),height,'#2130392a')}
+ let wall=ctx.createLinearGradient(0,0,0,height);wall.addColorStop(0,'#1b2730');wall.addColorStop(.55,'#142029');wall.addColorStop(1,'#0b1218');ctx.fillStyle=wall;ctx.fillRect(0,0,width,height);
+ c(width*.18,height*.16,width*.64,height*.72,'#30434c');c(width*.21,height*.19,width*.58,height*.66,'#151f27');
+ for(let r=0;r<7;r++)for(let col=0;col<14;col++){ctx.fillStyle=(r+col)%3===0?'#a35e58':'#334b52';ctx.fillRect(width*.24+col*width*.034,height*.23+r*height*.078,width*.020,height*.039)}
+ c(width*.13,height*.67,width*.27,height*.17,'#18222b');c(width*.16,height*.61,width*.09,height*.23,'#0d161d');
+ c(width*.145,height*.61,width*.012,height*.23,'#c79c5a');c(width*.155,height*.59,width*.06,height*.025,'#d8c8a9');
+ c(width*.49,height*.04,6,35,'#b2474e');c(width*.48,height*.105,26,7,'#b2474e');
+ ctx.fillStyle='#bcd0b6';ctx.font='bold 20px monospace';ctx.fillText('HOSPITAL',width*.39,height*.15);
+ const px=width*.69, py=height*.60, s=Math.min(width,height)/360;
+ ctx.save();ctx.translate(px,py);ctx.scale(s,s);
+ const lamp=ctx.createRadialGradient(-18,-82,8,-18,-82,84);lamp.addColorStop(0,'rgba(255,218,166,0.34)');lamp.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=lamp;ctx.fillRect(-130,-190,250,250);
+ c(-14,-154,28,24,'#f4efe2');
+ c(-36,-146,18,12,'#f4efe2');c(18,-146,18,12,'#f4efe2');
+ c(-46,-122,92,7,'#4d3526');
+ c(-56,-118,112,15,'#94683f');
+ c(-50,-104,100,33,'#94683f');
+ c(-22,-156,44,16,'#f1ebe1');
+ c(-34,-95,68,18,'#4d3424');
+ c(-40,-78,80,38,'#d7b098');
+ c(-10,-66,8,5,'#231713');c(12,-66,8,5,'#231713');
+ c(-36,-39,72,20,'#2c3943');
+ c(-52,-18,104,92,'#1b252d');
+ c(-63,-2,40,72,'#202d36');c(23,-2,40,72,'#202d36');
+ c(-22,64,44,29,'#172027');
+ c(-58,25,42,20,'#141d23');c(16,25,42,20,'#141d23');
+ c(-12,8,24,54,'#1a242b');
+ c(-4,12,8,34,'#b8c2c6');
+ ctx.restore();
+ let fog=ctx.createLinearGradient(0,height*.4,0,height);fog.addColorStop(0,'#09111900');fog.addColorStop(1,'#080e13');ctx.fillStyle=fog;ctx.fillRect(0,0,width,height);
+ if(Math.sin(t*.6)>-.8){ctx.fillStyle='#c9d6be';ctx.fillRect(width*.47,height*.78,4,10)}
+}
 function drawRescueMovie(){
  const t=cinemaTime,w=width,h=height,ss=Math.max(1,Math.min(2,w/640));
  const c=(x,y,ww,hh,color)=>{ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),Math.round(ww),Math.round(hh))};
@@ -550,8 +606,19 @@ function drawRescueMovie(){
  };
  const protagonist=(x,y,s=1,run=true)=>{
   ctx.save();ctx.translate(x,y);ctx.scale(s,s);let bob=run?Math.sin(t*17)*3:0,step=run?Math.sin(t*17)*5:0;
-  c(-5,-21+bob,11,20,'#486c86');c(-4,-30+bob,10,11,'#d9b39a');c(-7,-32+bob,13,4,'#263847');
-  c(-6,-2+bob,5,13+step,'#1b2c3b');c(1,-2+bob,5,13-step,'#1b2c3b');c(5,-16+bob,15,4,'#b9cacc');c(18,-17+bob,8,3,'#303c49');ctx.restore();
+  c(-4,-34+bob,8,8,'#eee7d8');
+  c(-14,-31+bob,28,6,'#563c2d');
+  c(-17,-28+bob,34,16,'#94683f');
+  c(-12,-12+bob,24,10,'#4a3426');
+  c(-12,-11+bob,24,18,'#d7b098');
+  c(-4,-4+bob,7,4,'#231713');c(6,-4+bob,7,4,'#231713');
+  c(-24,6+bob,48,30,'#1a232a');
+  c(-28,0+bob,56,11,'#27343d');
+  c(-32,10+bob,18,24,'#131c22');c(14,10+bob,18,24,'#131c22');
+  c(-7,11+bob,14,26,'#1e2a31');
+  c(-6,14+bob,12,16,'#b7c1c4');
+  c(-17,36+bob,13,17+step,'#1a2228');c(4,36+bob,13,17-step,'#1a2228');
+  ctx.restore();
  };
  const infected=(x,y,s=1)=>{ctx.save();ctx.translate(x,y);ctx.scale(s,s);let bob=Math.sin(t*8+x)*2;
   c(-7,-20+bob,13,17,'#9e4951');c(-5,-29+bob,11,11,'#8eaa7c');c(1,-25+bob,3,2,'#e4d0a9');c(-4,-1+bob,5,12,'#344b3b');c(3,-1+bob,4,12,'#35483a');c(-12,-17+bob,7,4,'#8ba477');ctx.restore()};
