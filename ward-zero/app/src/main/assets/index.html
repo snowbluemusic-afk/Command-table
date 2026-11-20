@@ -49,14 +49,14 @@ const ACHIEVEMENTS=[
  {id:'escape',icon:'H',name:'Last Flight',desc:'Escape from floor 20.'},
  {id:'pacifist',icon:'☮',name:'Pacifist',desc:'Escape without killing any zombies.'},
  {id:'untouched',icon:'◆',name:'Untouched',desc:'Escape without taking damage.'},
- {id:'speed',icon:'⚡',name:'Code Blue',desc:'Escape in under 20 minutes.'},
+ {id:'speed',icon:'⚡',name:'Code Blue',desc:'Escape in under 10 minutes.'},
  {id:'frugal',icon:'●',name:'Cold Barrel',desc:'Escape without firing a single shot.'},
  {id:'medic',icon:'✚',name:'Field Medic',desc:'Collect 10 medical supplies in one run.'},
  {id:'boom',icon:'✹',name:'Crowd Control',desc:'Eliminate 5 zombies with bombs in one run.'},
  {id:'close',icon:'♥',name:'One Heart Left',desc:'Escape with 2 HP or less.'},
  {id:'veteran',icon:'★',name:'Veteran',desc:'Complete three successful escapes.'}
 ];
-function blankRecords(){return {bestFloor:1,bestTime:null,runs:0,escapes:0,achievements:{},floorTimes:{},lastRun:null}}
+function blankRecords(){return {bestFloor:1,bestTime:null,runs:0,escapes:0,achievements:{},floorTimes:{},lastRun:null,challengeBestTime:null,challengeEscapes:0}}
 let records=blankRecords();
 const store={getItem:k=>{try{return window.localStorage.getItem(k)}catch(e){return null}},setItem:(k,v)=>{try{window.localStorage.setItem(k,v)}catch(e){}},removeItem:k=>{try{window.localStorage.removeItem(k)}catch(e){}}};
 const colors={floor:'#18282d',wall:'#334147',blood:'#9a3038',light:'#d2d9bd',accent:'#d4af73'};
@@ -96,6 +96,7 @@ const blueprints={
 '................','...KKKKKKKKK....','..KCCCCCCCCK....','..KCCC K CCK....'.replaceAll(' ',''),'..KCCKKKCCCK....','..KCCCCCCCCK....','..KCKCKKCCCK....','..KCKCCCKCCK....','..KCCCKKCCCK....','..KCCCCCCCCK....','..KCKCCCKCCK....','..KCCCCCCCCK....','...KKKKKKKKK....','................','................','................'],
  bomb:['................','................','......KKKK......','.....KKKKKK.....','....KYYYYYYK....','...KYYYYYYYYK...','...KYYYYYYYYK...','...KYYYYYYYYK...','...KYYYYYYYYK...','....KYYYYYYK....','.....KKKKKK.....','......KKKK......','.......RR.......','......RRRR......','................','................'],
  adrenaline:['................','......CCCC......','.....CCCCCC.....','.....CYYYYC.....','.....CYYYYC.....','.....CCCCCC.....','.....CCGGCC.....','.....CGGGGC.....','.....CGGGGC.....','.....CGGGGC.....','.....CGGGGC.....','.....CCCCCC.....','................','................','................','................'],
+ keycard:['................','..KKKKKKKKKKKK..','..KYYYYYYYYYYK..','..KYYKKKKKKYYK..','..KYYKKKKKKYYK..','..KYYYYYYYYYYK..','..KGGGGGGGGGGK..','..KGCKCKCKCGGK..','..KGGGGGGGGGGK..','..KYYYYYYYYYYK..','..KYYKKKKKKYYK..','..KYYYYYYYYYYK..','..KKKKKKKKKKKK..','................','................','................'],
  armor:['................','................','......CCCC......','....CCCCCCCC....','...CCGGGGGGCC...','...CGGGGGGGC....','...CGGGGGGGC....','...CGGGGGGGC....','....CGGGGGC.....','....CCGGCC......','.....CCCC.......','......CC........','................','................','................','................']
 };
 const palettes={K:'#172328',S:'#d4ab85',B:'#456c85',L:'#f2cb77',N:'#25333c',G:'#8bb36d',R:'#9f454c',Y:'#edbf62',C:'#b6cabb'};
@@ -113,37 +114,50 @@ function notify(t,color='#e6d1a3'){messages.push({t,color,at:performance.now()+2
 function setOverlay(html){modal.innerHTML=html;overlay.classList.remove('hidden')}
 function clearOverlay(){overlay.classList.add('hidden')}
 function mainMenu(){
- area.classList.remove('cinematic');mode='menu';const best=Math.max(+store.getItem(BEST)||1,records.bestFloor||1);$('highScore').textContent=`BEST FLOOR: ${floor2(best)}  ·  BEST ESCAPE: ${records.bestTime===null?'--:--':timeText(records.bestTime)}`;
+ area.classList.remove('cinematic');mode='menu';const best=Math.max(+store.getItem(BEST)||1,records.bestFloor||1);$('highScore').textContent=`BEST FLOOR: ${floor2(best)}  ·  BEST ESCAPE: ${records.challengeBestTime==null?'--:--':timeText(records.challengeBestTime)}`;
  $('skipMovie').style.display='none';
- setOverlay(`<div class="kicker">ST. DYSMAS GENERAL HOSPITAL · 03:17 A.M.</div><h1 class="big">WARD <span class="red">ZERO</span></h1><div class="subtitle">20 FLOORS. ONE WAY OUT.</div><div class="rule"></div><p class="brief">A quarantine breach has overrun the hospital. Reach the rooftop for the last evacuation. Each run rebuilds the wards, operating theatres and service corridors. Five seconds after you enter, the infected pour into the stairwell.</p><div class="features"><span><b>20</b> FLOORS</span><span><b>12</b> ACHIEVEMENTS</span><span><b>1</b> LAST FLIGHT</span></div><button class="primary" id="startRun">ENTER THE HOSPITAL</button>${saved?'<button class="secondary" id="resumeRun">RESUME SAVED RUN</button>':''}<button class="secondary" id="viewRecords">RECORDS & ACHIEVEMENTS</button><div class="intro-meta">HERBS · AMMO · PIPE BOMBS · BODY ARMOUR · MED KITS</div>`);
+ setOverlay(`<div class="kicker">ST. DYSMAS GENERAL HOSPITAL · 03:17 A.M.</div><h1 class="big">WARD <span class="red">ZERO</span></h1><div class="subtitle">20 FLOORS. ONE WAY OUT.</div><div class="rule"></div><p class="brief">A quarantine breach has overrun the hospital. Reach the rooftop for the last evacuation. Each run rebuilds the wards, operating theatres and service corridors. Five seconds after you enter, the infected pour into the stairwell. Some floors have sealed exits: search side wards for a security keycard.</p><div class="features"><span><b>20</b> FLOORS</span><span><b>12</b> ACHIEVEMENTS</span><span><b>1</b> LAST FLIGHT</span></div><button class="primary" id="startRun">ENTER THE HOSPITAL</button>${saved?'<button class="secondary" id="resumeRun">RESUME SAVED RUN</button>':''}<button class="secondary" id="viewRecords">RECORDS & ACHIEVEMENTS</button><div class="intro-meta">KEYCARDS · HERBS · AMMO · BOMBS · ARMOUR</div>`);
  $('startRun').onclick=()=>start(false);if(saved)$('resumeRun').onclick=()=>start(true);$('viewRecords').onclick=()=>recordView();
 }
 
-function createMaze(floor){
- const W=Math.min(37,27+2*Math.floor((floor-1)/5)),H=Math.min(29,21+2*Math.floor((floor-1)/6));
+function createMaze(floor,attempt=0){
+ const W=Math.min(37,29+2*Math.floor((floor-1)/5)),H=Math.min(29,23+2*Math.floor((floor-1)/6));
  const walls=Array.from({length:H},()=>Array(W).fill(1)),rooms=[];
- const entryX=(Math.floor(W/2)|1),stack=[[entryX,H-2]];walls[H-2][entryX]=0;
+ const entryX=2*rnd(1,Math.floor((W-4)/2))+1,stack=[[entryX,H-2]];walls[H-2][entryX]=0;
  while(stack.length){const [x,y]=stack[stack.length-1];const dirs=[[0,-2],[0,2],[-2,0],[2,0]].sort(()=>Math.random()-.5).filter(([dx,dy])=>x+dx>0&&y+dy>0&&x+dx<W-1&&y+dy<H-1&&walls[y+dy][x+dx]);if(dirs.length){const [dx,dy]=dirs[0];walls[y+dy/2][x+dx/2]=0;walls[y+dy][x+dx]=0;stack.push([x+dx,y+dy])}else stack.pop()}
  // A hospital's corridors are open, with shortcuts, cross-wings and treatment bays.
- for(let i=0;i<W*H*.125;i++){const x=rnd(2,W-3),y=rnd(2,H-3);if(walls[y][x]&&((!walls[y][x-1]&&!walls[y][x+1])||(!walls[y-1][x]&&!walls[y+1][x])))walls[y][x]=0}
+ for(let i=0;i<W*H*.006;i++){const x=rnd(2,W-3),y=rnd(2,H-3);if(walls[y][x]&&((!walls[y][x-1]&&!walls[y][x+1])||(!walls[y-1][x]&&!walls[y+1][x])))walls[y][x]=0}
  // Widen selected stretches of corridor without punching through the building perimeter.
- for(let y=2;y<H-2;y++)for(let x=2;x<W-2;x++){if(walls[y][x]||Math.random()>.27)continue;let up=!walls[y-1][x],down=!walls[y+1][x],left=!walls[y][x-1],right=!walls[y][x+1];if(up&&down){let nx=x+(Math.random()<.5?-1:1);if(nx>1&&nx<W-2)walls[y][nx]=0}else if(left&&right){let ny=y+(Math.random()<.5?-1:1);if(ny>1&&ny<H-2)walls[ny][x]=0}}
+ for(let y=2;y<H-2;y++)for(let x=2;x<W-2;x++){if(walls[y][x]||Math.random()>.04)continue;let up=!walls[y-1][x],down=!walls[y+1][x],left=!walls[y][x-1],right=!walls[y][x+1];if(up&&down){let nx=x+(Math.random()<.5?-1:1);if(nx>1&&nx<W-2)walls[y][nx]=0}else if(left&&right){let ny=y+(Math.random()<.5?-1:1);if(ny>1&&ny<H-2)walls[ny][x]=0}}
  // Distinct, larger wards: the same procedural maze gains recognizable rooms.
- const attempts=28+Math.floor(floor/3);
+ const attempts=16+Math.floor(floor/7);
  for(let k=0;k<attempts;k++){
-  const rw=rnd(5,8),rh=rnd(4,6),x=rnd(2,W-rw-3),y=rnd(2,H-rh-3);
+  const rw=rnd(4,6),rh=rnd(3,4),x=rnd(2,W-rw-3),y=rnd(2,H-rh-3);
   if(rooms.some(r=>x<r.x+r.w+1&&x+rw+1>r.x&&y<r.y+r.h+1&&y+rh+1>r.y))continue;
   let open=0;for(let yy=y;yy<y+rh;yy++)for(let xx=x;xx<x+rw;xx++)if(!walls[yy][xx])open++;
-  if(open<2)continue;
+  if(open<2||rooms.length>=3)continue;
   for(let yy=y;yy<y+rh;yy++)for(let xx=x;xx<x+rw;xx++)walls[yy][xx]=0;
   rooms.push({x,y,w:rw,h:rh,type:rnd(0,3)});
  }
  // The lift/stairwell landing is a broad, legible hospital hub rather than a narrow tunnel.
- const hub={x:Math.max(2,entryX-4),y:H-7,w:9,h:5,type:0,landing:true};
+ const hub={x:Math.max(2,Math.min(W-8,entryX-2)),y:H-6,w:5,h:4,type:0,landing:true};
  for(let i=rooms.length-1;i>=0;i--){const r=rooms[i];if(r.x<hub.x+hub.w&&r.x+r.w>hub.x&&r.y<hub.y+hub.h&&r.y+r.h>hub.y)rooms.splice(i,1)}
  for(let y=hub.y;y<hub.y+hub.h;y++)for(let x=hub.x;x<hub.x+hub.w;x++)walls[y][x]=0;
  rooms.push(hub);
- const start={x:entryX,y:H-2},exit={x:entryX,y:1};walls[start.y][start.x]=0;walls[exit.y][exit.x]=0;
+ const start={x:entryX,y:H-2};walls[start.y][start.x]=0;
+ // Pick a remote top-side staircase from the actual walkable graph, not directly above spawn.
+ // Every candidate is tested AFTER corridors, hubs and rooms are carved.
+ const lengthMap=()=>{const dist=new Int16Array(W*H).fill(-1),queue=[start.y*W+start.x];dist[queue[0]]=0;let front=0;while(front<queue.length){let i=queue[front++],x=i%W,y=Math.floor(i/W);for(let [dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){let nx=x+dx,ny=y+dy,k=ny*W+nx;if(nx<1||ny<1||nx>=W-1||ny>=H-1||walls[ny][nx]||dist[k]>=0)continue;dist[k]=dist[i]+1;queue.push(k)}}return dist};
+ const lengths=lengthMap();
+ const top=[];for(let x=1;x<W-1;x++)if(lengths[W+x]>=0){let n=lengths[W+x],spread=Math.abs(x-entryX);top.push({x,y:1,n,score:n+Math.min(12,spread*.9)})}
+ top.sort((a,b)=>b.score-a.score);
+ const far=top.find(a=>a.n>=Math.min(114,64+Math.floor(floor*1.6))&&Math.abs(a.x-entryX)>W*.18);
+ const chosen=far||top[0];
+ if(!chosen)throw Error('maze generator could not find connected exit');
+ const exit={x:chosen.x,y:1};
+ // Enforce meaningful travel length. Regenerate rather than accept open, trivial floors.
+ if(chosen.n<Math.min(106,60+Math.floor(floor*1.5))&&attempt<25)return createMaze(floor,attempt+1);
+ 
  const zone=WINGS[floor-1],propTypes={
   emergency:['triage','bed','gurney','nurse'],radiology:['ct','gurney','lab','bed'],surgery:['surgery','gurney','lab','oxygen'],
   ward:['bed','nurse','oxygen','gurney'],laboratory:['lab','pharmacy','morgue','nurse'],service:['morgue','generator','locker','gurney'],
@@ -199,21 +213,33 @@ function walkable(x,y){return game&&y>=0&&y<game.map.H&&x>=0&&x<game.map.W&&game
 function bfs(sx,sy){let {W,H,walls}=game.map,a=new Int16Array(W*H).fill(-1),q=[sy*W+sx],head=0;a[sy*W+sx]=0;while(head<q.length){let idx=q[head++],x=idx%W,y=Math.floor(idx/W),d=a[idx]+1;for(let [dx,dy] of [[0,1],[1,0],[0,-1],[-1,0]]){let nx=x+dx,ny=y+dy,j=ny*W+nx;if(nx<0||nx>=W||ny<0||ny>=H||walls[ny][nx]||a[j]!==-1)continue;a[j]=d;q.push(j)}}return a}
 function availableSpots(){let {W,H,walls}=game.map,a=[];for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++)if(!walls[y][x])a.push({x,y});return a}
 function setupFloor(floor){let map=createMaze(floor);game.floor=floor;game.map=map;game.player={x:map.start.x+.5,y:map.start.y+.5,dir:{x:0,y:-1},invuln:0,shot:0,walk:0};game.wave=Math.pow(2,floor-1);game.pending=game.wave;game.spawnTime=0;game.elapsed=0;game.zombies=[];game.pickups=[];game.explored=new Set();game.route=[];game.pathTimer=0;game.flow=null;game.routeTimer=0;game.killsFloor=0;game.fog=map.rooms;surfaceCache.clear();game.hasMap=false;game.mapWasOpened=false;breachSound=false;mapShown=false;particles=[];shake=0;flash=0;blastWave=0;groanTimer=2.5;stepSound=0;
- let fromStart=bfs(map.start.x,map.start.y),fromExit=bfs(map.exit.x,map.exit.y),spots=availableSpots().filter(p=>fromStart[p.y*map.W+p.x]>4&&fromExit[p.y*map.W+p.x]>1);
+ let fromStart=bfs(map.start.x,map.start.y),fromExit=bfs(map.exit.x,map.exit.y),spots=availableSpots().filter(p=>fromStart[p.y*map.W+p.x]>5&&fromExit[p.y*map.W+p.x]>2);
+ game.hasKeycard=false;game.exitWarn=0;game.routeLength=fromStart[map.exit.y*map.W+map.exit.x];
  function place(kind,preferred=12){let eligible=spots.filter(p=>Math.abs(p.x-map.exit.x)+Math.abs(p.y-map.exit.y)>2&&game.pickups.every(o=>Math.abs(o.x-p.x)+Math.abs(o.y-p.y)>3));if(!eligible.length)return;eligible.sort((a,b)=>Math.abs(fromStart[a.y*map.W+a.x]-preferred)-Math.abs(fromStart[b.y*map.W+b.x]-preferred));let pick=eligible[Math.min(eligible.length-1,rnd(0,Math.min(5,eligible.length-1)))];game.pickups.push({x:pick.x+.5,y:pick.y+.5,kind,phase:rnum(0,7)})}
- if(!game.gun)place('gun',5);if(game.hp<9||floor%3===0)place('herb',10);if(game.gun||floor>1)place('ammo',15);place('map',8);if(floor===1||Math.random()<.67)place('bomb',18);if(Math.random()<.48)place('adrenaline',22);if(floor%4===0||Math.random()<.22)place('armor',26);if(Math.random()<.28)place(Math.random()<.6?'herb':'ammo',27);
+ if(!game.gun)place('gun',9);
+ if((floor%4===0||game.hp<=4)&&floor>1)place('herb',13);
+ if(floor%3===0||(!game.gun&&floor>1))place('ammo',19);
+ if(floor===1||floor%5===0)place('bomb',26);
+ if(Math.random()<.23)place('map',24);
+ if(Math.random()<.19)place('adrenaline',28);
+ if(floor%6===0)place('armor',27);
+ if(floor%4===0&&floor<20){
+  let branches=spots.filter(p=>fromStart[p.y*map.W+p.x]>12&&fromExit[p.y*map.W+p.x]>10);
+  branches.sort((a,b)=>(fromStart[b.y*map.W+b.x]+fromExit[b.y*map.W+b.x])-(fromStart[a.y*map.W+a.x]+fromExit[a.y*map.W+a.x]));
+  if(branches.length){let chosen=branches[Math.min(3,rnd(0,3))]||branches[0];game.pickups.push({x:chosen.x+.5,y:chosen.y+.5,kind:'keycard',phase:0});game.needsKeycard=true}
+ }else game.needsKeycard=false;
  // Stationary infected are present before the stairwell alarm; capped to preserve space to escape.
- let count=Math.min(10,Math.floor(floor*.57));let possible=spots.filter(p=>fromStart[p.y*map.W+p.x]>9&&fromExit[p.y*map.W+p.x]>4);for(let i=0;i<count&&possible.length;i++){let j=rnd(0,possible.length-1),s=possible.splice(j,1)[0];createZombie(s.x+.5,s.y+.5,false)}
+ let count=Math.min(14,2+Math.floor(floor*.65));let possible=spots.filter(p=>fromStart[p.y*map.W+p.x]>12&&fromExit[p.y*map.W+p.x]>8);for(let i=0;i<count&&possible.length;i++){let j=rnd(0,possible.length-1),s=possible.splice(j,1)[0];createZombie(s.x+.5,s.y+.5,false)}
  reveal();updateHUD();notify(`FLOOR ${floor2(floor)}  /  ${FLOOR_NAMES[floor-1]}`);
- records.bestFloor=Math.max(records.bestFloor,floor);if(floor>=5)achievement('first');if(floor>=10)achievement('halfway');if(floor>=15)achievement('deep');storeRecords();if(floor>1)saveRun();
+ records.bestFloor=Math.max(records.bestFloor,floor);if(floor>=5)achievement('first');if(floor>=10)achievement('halfway');if(floor>=15)achievement('deep');storeRecords();if(game.needsKeycard)notify('SECURITY LOCKDOWN · FIND THE KEYCARD','#efc985');if(floor>1)saveRun();
 }
 function start(resume){area.classList.remove('cinematic');earnedThisRun=[];if(resume&&saved){game={hp:clamp(saved.hp||10,1,10),ammo:saved.ammo||0,bombs:saved.bombs||0,armor:saved.armor||0,boost:0,gun:!!saved.gun,kills:saved.kills||0,time:saved.time||0,medkits:saved.medkits||0,shots:saved.shots||0,damage:saved.damage||0,medic:saved.medic||0,bombKills:saved.bombKills||0};setupFloor(clamp(saved.floor||1,1,20))}else{store.removeItem(SAVE);saved=null;game={hp:10,ammo:0,bombs:0,armor:0,boost:0,gun:false,kills:0,time:0,medkits:0,shots:0,damage:0,medic:0,bombKills:0};records.runs++;storeRecords();setupFloor(1)}mode='playing';clearOverlay();sfx.ensure()}
 function saveRun(){if(!game)return;let obj={hp:game.hp,ammo:game.ammo,bombs:game.bombs,armor:game.armor,gun:game.gun,kills:game.kills,time:game.time,floor:game.floor,medkits:game.medkits,shots:game.shots,damage:game.damage,medic:game.medic,bombKills:game.bombKills};try{store.setItem(SAVE,JSON.stringify(obj));saved=obj}catch(_){}const best=Math.max(game.floor,+store.getItem(BEST)||1);store.setItem(BEST,String(best));$('highScore').textContent=`BEST FLOOR: ${floor2(best)}`}
-function createZombie(x,y,breach){const f=game.floor;game.zombies.push({x,y,hp:1+Math.floor((f-1)/9),speed:(1.5+Math.min(1.18,(f-1)*.055))*rnum(.84,1.13),phase:rnum(0,6),id:Math.random(),breach,hit:0})}
-function reveal(){let p=game.player,rad=7.1;for(let y=Math.floor(p.y-rad);y<=p.y+rad;y++)for(let x=Math.floor(p.x-rad);x<=p.x+rad;x++)if(x>=0&&x<game.map.W&&y>=0&&y<game.map.H&&Math.hypot(x+.5-p.x,y+.5-p.y)<rad)game.explored.add(TILE(x,y))}
+function createZombie(x,y,breach){const f=game.floor;game.zombies.push({x,y,hp:1+Math.floor((f-1)/9),speed:(1.75+Math.min(1.55,(f-1)*.077))*rnum(.87,1.14),phase:rnum(0,6),id:Math.random(),breach,hit:0})}
+function reveal(){let p=game.player,rad=5.5;for(let y=Math.floor(p.y-rad);y<=p.y+rad;y++)for(let x=Math.floor(p.x-rad);x<=p.x+rad;x++)if(x>=0&&x<game.map.W&&y>=0&&y<game.map.H&&Math.hypot(x+.5-p.x,y+.5-p.y)<rad)game.explored.add(TILE(x,y))}
 function routes(){if(!game.hasMap)return;let {W,exit,walls}=game.map,p=game.player,fx=Math.floor(p.x),fy=Math.floor(p.y),distances=bfs(exit.x,exit.y),x=fx,y=fy,steps=0,route=[{x,y}];while((x!==exit.x||y!==exit.y)&&steps++<W*game.map.H){let best=null,bd=distances[y*W+x];for(let [dx,dy] of [[0,-1],[1,0],[0,1],[-1,0]]){let nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W||ny>=game.map.H||walls[ny][nx])continue;let d=distances[ny*W+nx];if(d>=0&&d<bd){best={x:nx,y:ny};bd=d}}if(!best)break;x=best.x;y=best.y;route.push(best)}game.route=route}
 function collision(x,y,rad=.27){for(let j=Math.floor(y-rad);j<=Math.floor(y+rad);j++)for(let i=Math.floor(x-rad);i<=Math.floor(x+rad);i++)if(!walkable(i,j)){let nx=clamp(x,i,i+1),ny=clamp(y,j,j+1);if((x-nx)**2+(y-ny)**2<rad*rad)return true}return false}
-function update(dt){if(mode==='rescue'){cinemaTime+=dt;cinemaRotor+=dt;if(cinemaRotor>.34){cinemaRotor=0;sfx.play('rotor')}if(cinemaTime>11.5)showRunSummary(true);return}if(mode!=='playing')return;anim+=dt;game.elapsed+=dt;game.time+=dt;game.player.shot=Math.max(0,game.player.shot-dt);game.player.invuln=Math.max(0,game.player.invuln-dt);shake=Math.max(0,shake-dt*10);flash=Math.max(0,flash-dt*1.7);let p=game.player;
+function update(dt){if(mode==='rescue'){cinemaTime+=dt;cinemaRotor+=dt;if(cinemaRotor>.34){cinemaRotor=0;sfx.play('rotor')}if(cinemaTime>16.2)showRunSummary(true);return}if(mode!=='playing')return;anim+=dt;game.elapsed+=dt;game.time+=dt;game.player.shot=Math.max(0,game.player.shot-dt);game.player.invuln=Math.max(0,game.player.invuln-dt);shake=Math.max(0,shake-dt*10);flash=Math.max(0,flash-dt*1.7);let p=game.player;
  let dx=(+key.right)-(+key.left)+stickInput.x,dy=(+key.down)-(+key.up)+stickInput.y;if(dx||dy){let mag=Math.hypot(dx,dy);if(mag>1){dx/=mag;dy/=mag}if(mag>.09){p.dir={x:dx/mag,y:dy/mag};p.walk+=dt*12;let step=dt*(game.boost>0?6.3:4.9);if(!collision(p.x+dx*step,p.y))p.x+=dx*step;if(!collision(p.x,p.y+dy*step))p.y+=dy*step;reveal();stepSound-=dt;if(stepSound<=0){sfx.play('step');stepSound=.32/(game.boost>0?1.28:1)}}}let hadBoost=game.boost>0;game.boost=Math.max(0,game.boost-dt);if(hadBoost&&game.boost===0)updateHUD();blastWave=Math.max(0,blastWave-dt);
  if(key.fire)shoot();groanTimer-=dt;if(groanTimer<=0){let nearest=game.zombies.reduce((a,z)=>Math.min(a,dist(z,p)),999);if(nearest<6){sfx.play('groan');groanTimer=rnum(1.8,3.6)}else{groanTimer=rnum(4.5,7);if(game.elapsed>5)sfx.play('groan')}}if(game.elapsed>=5){if(!breachSound){breachSound=true;game.spawnTime=999;sfx.play('breach');notify('STAIRWELL BREACHED — RUN!', '#ff7d79');shake=3}let cap=Math.min(26,3+Math.ceil(game.floor*1.1));game.spawnTime+=dt;let interval=Math.max(.25,.8-game.floor*.027);if(game.pending>0&&game.zombies.length<cap&&game.spawnTime>interval){game.spawnTime=0;game.pending--;createZombie(game.map.start.x+.5,game.map.start.y+.5,true)}}
   // Every pickup can be collected; overflow converts into a small emergency benefit.
@@ -229,15 +255,16 @@ function update(dt){if(mode==='rescue'){cinemaTime+=dt;cinemaRotor+=dt;if(cinema
      tint='#a3f3a4';break;
     }
     case 'ammo': {
-     const prev=game.ammo;game.ammo=Math.min(18,prev+4);
+     const prev=game.ammo;game.ammo=Math.min(12,prev+3);
      if(game.ammo===prev){game.boost=Math.max(game.boost,5);message='AMMO FULL · SPEED BOOST +5S'}
-     else message=`9MM +${game.ammo-prev} · ${game.ammo}/18 ROUNDS`;
+     else message=`9MM +${game.ammo-prev} · ${game.ammo}/12 ROUNDS`;
      tint='#f1cc79';break;
     }
-    case 'gun': {game.gun=true;const prev=game.ammo;game.ammo=Math.min(18,game.ammo+7);message=`HANDGUN · ${game.ammo-prev} ROUNDS`;tint='#f4d68b';break}
+    case 'gun': {game.gun=true;const prev=game.ammo;game.ammo=Math.min(12,game.ammo+6);message=`HANDGUN · ${game.ammo-prev} ROUNDS`;tint='#f4d68b';break}
     case 'map': {game.hasMap=true;routes();message='FLOOR PLAN RECOVERED · EXIT ROUTE REVEALED';tint='#95e5e2';break}
-    case 'bomb': {if(game.bombs<3){game.bombs++;message=`PIPE BOMB COLLECTED · ${game.bombs}/3`}else{game.armor++;message='BOMBS FULL · BONUS ARMOUR'}tint='#f1be83';break}
+    case 'bomb': {if(game.bombs<2){game.bombs++;message=`PIPE BOMB COLLECTED · ${game.bombs}/2`}else{game.armor++;message='BOMBS FULL · BONUS ARMOUR'}tint='#f1be83';break}
     case 'adrenaline': {game.boost=Math.max(game.boost,game.boost+7);message='ADRENALINE +7 SECONDS';tint='#8fe5df';break}
+    case 'keycard': {game.hasKeycard=true;message='SECURITY KEYCARD RECOVERED · STAIRWELL UNLOCKED';tint='#f7c877';break}
     case 'armor': {if(game.armor<3){game.armor++;message=`BODY ARMOUR · ${game.armor}/3 HITS`}else{game.medkits++;message='ARMOUR FULL · BONUS MED KIT'}tint='#96cfeb';break}
    }
    game.pickups.splice(i,1);sfx.play('pick');particlesAt(p.x,p.y,tint,10);notify(message,tint);updateHUD();
@@ -248,7 +275,7 @@ function update(dt){if(mode==='rescue'){cinemaTime+=dt;cinemaRotor+=dt;if(cinema
  for(let i=game.zombies.length-1;i>=0;i--){let z=game.zombies[i];z.phase+=dt*7;z.hit=Math.max(0,z.hit-dt);let cx=Math.floor(z.x),cy=Math.floor(z.y),target=z.target||null;if(dist(z,p)<.7){target={x:p.x,y:p.y};z.target=target}else if(!target||Math.hypot(z.x-target.x,z.y-target.y)<.07){let best=flow?.[cy*W+cx]??999;target=null;for(let [ax,ay]of[[0,-1],[1,0],[0,1],[-1,0]].sort(()=>Math.random()-.5)){let nx=cx+ax,ny=cy+ay;if(nx<0||ny<0||nx>=W||ny>=H||!walkable(nx,ny))continue;let d=flow[ny*W+nx];if(d>=0&&d<best){best=d;target={x:nx+.5,y:ny+.5}}}z.target=target||{x:cx+.5,y:cy+.5};target=z.target}if(target){let md=Math.hypot(target.x-z.x,target.y-z.y);if(md>.001){let step=Math.min(md,z.speed*dt);z.x+=(target.x-z.x)/md*step;z.y+=(target.y-z.y)/md*step}}
  if(dist(z,p)<.54&&p.invuln<=0){if(game.armor>0){game.armor--;p.invuln=1.1;shake=3;sfx.play('shield');notify('ARMOUR ABSORBED THE BITE','#9ce1d7')}else{game.hp--;game.damage++;p.invuln=1.15;flash=.78;shake=7;sfx.play('hurt');notify(`BITTEN  —  ${game.hp}/10 HP`,'#ff9692')}updateHUD();if(game.hp<=0){end(false);return}}}
  for(let i=particles.length-1;i>=0;i--){let a=particles[i];a.x+=a.dx*dt;a.y+=a.dy*dt;a.life-=dt;if(a.life<=0)particles.splice(i,1)}
- if(dist(p,{x:game.map.exit.x+.5,y:game.map.exit.y+.5})<.58){sfx.play('stairs');if(game.floor===20){end(true)}else{records.floorTimes[game.floor]=Math.min(records.floorTimes[game.floor]??Infinity,game.elapsed);storeRecords();game.floor++;setupFloor(game.floor)}return}
+ if(dist(p,{x:game.map.exit.x+.5,y:game.map.exit.y+.5})<.58){if(game.needsKeycard&&!game.hasKeycard){if(game.elapsed>game.exitWarn){notify('STAIRWELL LOCKED · SEARCH THE WARD FOR A KEYCARD','#f4b680');game.exitWarn=game.elapsed+2.5}return}sfx.play('stairs');if(game.floor===20){end(true)}else{records.floorTimes[game.floor]=Math.min(records.floorTimes[game.floor]??Infinity,game.elapsed);storeRecords();game.floor++;setupFloor(game.floor)}return}
  const highest=Math.max(game.floor,+store.getItem(BEST)||1);if(highest>+store.getItem(BEST)||1)store.setItem(BEST,String(highest));updateTimer()}
 function onRunFinished(won){
  store.removeItem(SAVE);saved=null;
@@ -256,10 +283,11 @@ function onRunFinished(won){
  records.bestFloor=Math.max(records.bestFloor,game.floor);records.lastRun=stat;
  earnedThisRun=[];
  if(won){
+  records.challengeEscapes=(records.challengeEscapes||0)+1;records.challengeBestTime=records.challengeBestTime==null?game.time:Math.min(records.challengeBestTime,game.time);
   records.escapes++;if(records.bestTime===null||game.time<records.bestTime)records.bestTime=game.time;
   const grant=id=>{if(achievement(id))earnedThisRun.push(id)};
   grant('escape');if(game.kills===0)grant('pacifist');if(game.damage===0)grant('untouched');
-  if(game.time<1200)grant('speed');if(game.shots===0)grant('frugal');if(game.hp<=2)grant('close');if(records.escapes>=3)grant('veteran');
+  if(game.time<600)grant('speed');if(game.shots===0)grant('frugal');if(game.hp<=2)grant('close');if(records.escapes>=3)grant('veteran');
  }
  store.setItem(BEST,String(records.bestFloor));storeRecords();return stat;
 }
@@ -272,12 +300,12 @@ function showRunSummary(won){
  area.classList.remove('cinematic');$('skipMovie').style.display='none';mode=won?'won':'dead';
  const f=finalStats||{floor:game.floor,time:game.time,kills:game.kills};
  const gain=earnedThisRun.length?`<div class="result-achievements">${earnedThisRun.map(id=>{const a=ACHIEVEMENTS.find(v=>v.id===id);return `<span>★ ${a.name}</span>`}).join('')}</div>`:'';
- setOverlay(`<div class="kicker">${won?'AIR RESCUE / TRANSMISSION RECEIVED':'NO VITAL SIGNS DETECTED'}</div><h1 class="big">${won?'EXTRACTION <span class="red">COMPLETE</span>':'YOU <span class="red">DIED</span>'}</h1><div class="subtitle">${won?'You are safely aboard. St. Dysmas disappears below.':'The hospital claims another patient.'}</div><div class="stats-end"><div>FLOOR<b>${floor2(f.floor)}/20</b></div><div>INFECTED DOWN<b>${f.kills}</b></div><div>RUN TIME<b>${timeText(f.time)}</b></div><div>PERSONAL BEST<b>${records.bestTime===null?'--:--':timeText(records.bestTime)}</b></div></div>${gain}<button class="primary" id="again">${won?'PLAY AGAIN':'TRY AGAIN'}</button><button class="secondary" id="endRecords">RECORDS & ACHIEVEMENTS</button><button class="secondary" id="endMenu">MAIN MENU</button>`);
+ setOverlay(`<div class="kicker">${won?'AIR RESCUE / TRANSMISSION RECEIVED':'NO VITAL SIGNS DETECTED'}</div><h1 class="big">${won?'EXTRACTION <span class="red">COMPLETE</span>':'YOU <span class="red">DIED</span>'}</h1><div class="subtitle">${won?'You are safely aboard. St. Dysmas disappears below.':'The hospital claims another patient.'}</div><div class="stats-end"><div>FLOOR<b>${floor2(f.floor)}/20</b></div><div>INFECTED DOWN<b>${f.kills}</b></div><div>RUN TIME<b>${timeText(f.time)}</b></div><div>PERSONAL BEST<b>${records.challengeBestTime==null?'--:--':timeText(records.challengeBestTime)}</b></div></div>${gain}<button class="primary" id="again">${won?'PLAY AGAIN':'TRY AGAIN'}</button><button class="secondary" id="endRecords">RECORDS & ACHIEVEMENTS</button><button class="secondary" id="endMenu">MAIN MENU</button>`);
  $('again').onclick=()=>start(false);$('endRecords').onclick=()=>recordView();$('endMenu').onclick=()=>mainMenu();
 }
 function pause(){if(mode==='playing'){stickInput={x:0,y:0,active:false};Object.keys(key).forEach(k=>key[k]=false);mode='paused';setOverlay(`<div class="kicker">EMERGENCY PAUSE</div><h1 class="big">STAY <span class="red">ALIVE</span></h1><p class="brief">The stairwell is quiet. For now.</p><div class="rule"></div><button class="primary" id="resume">RESUME RUN</button><button class="secondary" id="leave">RETURN TO MENU</button>`);$('resume').onclick=()=>{mode='playing';clearOverlay();sfx.ensure()};$('leave').onclick=()=>{saveRun();mainMenu()}}else if(mode==='paused'){mode='playing';clearOverlay();sfx.ensure()}}
 function updateHUD(){if(!game)return;$('floorStat').innerHTML=`FLOOR <strong>${floor2(game.floor)}</strong><span style="color:#698586">/20</span>`;$('hpFill').style.width=(game.hp*10)+'%';$('hpNum').textContent=`${game.hp}/10`;$('boostBadge').textContent=(game.armor?'◆'+game.armor:'')+(game.boost>0?' ⚡':'');$('ammoStat').innerHTML=`9MM <strong class="${game.gun&&game.ammo===0?'ammo-alert':''}">${game.gun?game.ammo:'--'}</strong>`;$('bombBtn').innerHTML=`<span>✹</span>BOMB ×${game.bombs||0}`;$('bombBtn').disabled=!game.bombs;$('medkitBtn').textContent=`MED ×${game.medkits||0}`;$('medkitBtn').disabled=!game.medkits;$('location').textContent=`ST. DYSMAS GENERAL / ${WING_NAME[wing()]}`}
-function updateTimer(){if(!game)return;$('runClock').textContent=`RUN ${timeText(game.time)}${records.bestTime!=null?' · PB '+timeText(records.bestTime):''}`;let el=$('timer');if(game.elapsed<5){el.textContent=`BREACH IN ${(5-game.elapsed).toFixed(1)}s`;el.style.color='#e4c990'}else{el.textContent=`HORDE ${game.wave.toLocaleString('en-US')}  /  ACTIVE ${game.zombies.length}`;el.style.color='#f18b82'} }
+function updateTimer(){if(!game)return;$('runClock').textContent=`RUN ${timeText(game.time)}${records.challengeBestTime!=null?' · PB '+timeText(records.challengeBestTime):''}`;let el=$('timer');if(game.elapsed<5){el.textContent=`BREACH IN ${(5-game.elapsed).toFixed(1)}s`;el.style.color='#e4c990'}else{el.textContent=`HORDE ${game.wave.toLocaleString('en-US')}  /  ACTIVE ${game.zombies.length}`;el.style.color='#f18b82'} }
 function particlesAt(x,y,color,num){for(let i=0;i<num;i++)particles.push({x,y,dx:rnum(-2,2),dy:rnum(-2,2),life:rnum(.18,.7),color})}
 function shoot(){if(mode!=='playing'||!game||game.player.shot>0)return;const p=game.player;if(!game.gun||game.ammo<=0){p.shot=.38;sfx.play('dry');if(game.gun)notify('NO 9MM ROUNDS  ·  FIND AMMO','#eeaba0');else notify('FIND A HANDGUN FIRST','#eeaba0');return}p.shot=.33;game.ammo--;game.shots++;sfx.play('shoot');shake=2;let best=null,distBest=5.3;for(let z of game.zombies){let d=dist(z,p),aim=(z.x-p.x)*p.dir.x+(z.y-p.y)*p.dir.y;if(d<distBest&&aim>Math.max(.18,d*.45)&&lineOfSight(p,z)){best=z;distBest=d}}
  let v=best?{x:(best.x-p.x)/distBest,y:(best.y-p.y)/distBest}:p.dir;particlesAt(p.x+v.x*.55,p.y+v.y*.55,'#f5d97e',4);if(best){best.hp--;best.hit=.18;particlesAt(best.x,best.y,'#b74750',7);if(best.hp<=0){game.zombies.splice(game.zombies.indexOf(best),1);game.kills++;game.killsFloor++;particlesAt(best.x,best.y,'#993843',8)}}else{particlesAt(p.x+v.x*2,p.y+v.y*2,'#e1bd71',2)}if(game.ammo===0)notify('OUT OF AMMO','#f3a3a0');updateHUD()}
@@ -469,18 +497,18 @@ function render(){mapBackdrop();if(mode==='rescue'){drawRescueMovie();return}if(
  }
  drawClinicalLights(x0,y0,x1,y1);
  if(zone==='rooftop'&&(game.explored.has(TILE(game.map.exit.x,game.map.exit.y))||game.hasMap))drawHelipadMark();
- const exit=game.map.exit,ex=exit.x*T,ey=exit.y*T; if(game.explored.has(TILE(exit.x,exit.y))||game.hasMap){block(ex+3,ey+3,T-6,T-6,game.floor===20?'#8eb3a6':'#c8b775');block(ex+6,ey+6,T-12,T-12,'#18272b');ctx.fillStyle='#ffe6a9';ctx.font='bold 12px monospace';ctx.fillText(game.floor===20?'H':'↑',ex+8,ey+17);ctx.fillStyle='#f5d899';ctx.font='9px monospace';ctx.fillText(game.floor===20?'H':'EXIT',ex-1,ey-4)}
+ const exit=game.map.exit,ex=exit.x*T,ey=exit.y*T; if(game.explored.has(TILE(exit.x,exit.y))||game.hasMap){block(ex+3,ey+3,T-6,T-6,game.floor===20?'#8eb3a6':'#c8b775');block(ex+6,ey+6,T-12,T-12,'#18272b');ctx.fillStyle='#ffe6a9';ctx.font='bold 12px monospace';ctx.fillText(game.floor===20?'H':'↑',ex+8,ey+17);ctx.fillStyle='#f5d899';ctx.font='9px monospace';ctx.fillText(game.floor===20?'H':(game.needsKeycard&&!game.hasKeycard?'LOCK':'EXIT'),ex-1,ey-4)}
  drawHospitalSigns(x0,y0,x1,y1);
  // Found map guides the player, without solving the maze automatically before pickup.
  if(game.hasMap&&game.route.length){ctx.save();ctx.setLineDash([2,6]);ctx.lineWidth=2.3;ctx.strokeStyle='#e8cb73b0';ctx.beginPath();for(let i=0;i<game.route.length;i++){let a=game.route[i],x=(a.x+.5)*T,y=(a.y+.5)*T;if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke();ctx.restore()}
  for(let pick of game.pickups){
   let tx=Math.floor(pick.x),ty=Math.floor(pick.y);if(!game.explored.has(TILE(tx,ty)))continue;
   let sx=pick.x*T,sy=pick.y*T+Math.sin(anim*3+pick.phase)*2;
-  const tint=pick.kind==='herb'?'#8be6a9':pick.kind==='bomb'?'#edb477':pick.kind==='armor'?'#9bc5e8':'#f3da9f';
+  const tint=pick.kind==='herb'?'#8be6a9':pick.kind==='bomb'?'#edb477':pick.kind==='armor'?'#9bc5e8':pick.kind==='keycard'?'#ffdf83':'#f3da9f';
   const pulse=14+Math.sin(anim*3+pick.phase)*2;
   ctx.save();ctx.strokeStyle=tint;ctx.globalAlpha=.55;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(sx,sy,pulse,0,Math.PI*2);ctx.stroke();ctx.restore();
   block(sx-12,sy+14,24,3,'#06131c55');imageSprite(pick.kind,sx,sy,32);
-  if(Math.hypot(game.player.x-pick.x,game.player.y-pick.y)<2.8){ctx.fillStyle=tint;ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(({herb:'GREEN HERB',ammo:'9MM',gun:'HANDGUN',map:'MAP',bomb:'BOMB',armor:'ARMOUR',adrenaline:'BOOST'})[pick.kind]||'ITEM',sx,sy-24);ctx.textAlign='left'}
+  if(Math.hypot(game.player.x-pick.x,game.player.y-pick.y)<2.8){ctx.fillStyle=tint;ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(({herb:'GREEN HERB',ammo:'9MM',gun:'HANDGUN',map:'MAP',bomb:'BOMB',armor:'ARMOUR',adrenaline:'BOOST',keycard:'ACCESS CARD'})[pick.kind]||'ITEM',sx,sy-24);ctx.textAlign='left'}
  }
  for(let z of game.zombies){if(!game.explored.has(TILE(Math.floor(z.x),Math.floor(z.y))))continue;let x=z.x*T,y=z.y*T;block(x-7,y+7,15,3,'#0206077a');imageSprite('zombie',x,y+Math.sin(z.phase)*1.3,37);if(z.hit>0){block(x-10,y-13,20,23,'#f64e4888')}}
  if(p.invuln<=0||Math.floor(p.invuln*11)%2===0){block(p.x*T-9,p.y*T+8,18,3,'#020405ae');imageSprite('player',p.x*T,p.y*T+Math.sin(p.walk)*.5,39);if(game.gun){ctx.save();ctx.translate(p.x*T,p.y*T);ctx.rotate(Math.atan2(p.dir.y,p.dir.x));block(5,-2,11,3,'#cdd6bd');block(7,-3,5,2,'#1b2224');ctx.restore()}}
@@ -493,33 +521,109 @@ function drawCompass(){const p=game.player,ex=game.map.exit,ang=Math.atan2(ex.y+
 function drawMiniMap(){let {W,H,walls,exit}=game.map;let s=Math.floor(Math.min(7,(width-32)/W,(height-35)/H)),w=W*s,h=H*s,ox=Math.floor((width-w)/2),oy=Math.floor((height-h)/2);ctx.fillStyle='#071016f0';ctx.fillRect(ox-9,oy-24,w+18,h+33);ctx.strokeStyle='#8fb7a0';ctx.strokeRect(ox-9,oy-24,w+18,h+33);ctx.fillStyle='#c1d9c3';ctx.font='12px monospace';ctx.fillText(`FLOOR ${floor2(game.floor)} // SCHEMATIC`,ox,oy-9);for(let y=0;y<H;y++)for(let x=0;x<W;x++){let explored=game.explored.has(TILE(x,y));ctx.fillStyle=(!explored&&!game.hasMap)?'#060b0e':walls[y][x]?'#4b5f65':'#263b40';ctx.fillRect(ox+x*s,oy+y*s,s,s)}ctx.fillStyle='#ffd77e';ctx.fillRect(ox+exit.x*s,oy+exit.y*s,s,s);ctx.fillStyle='#a6e9cf';ctx.fillRect(ox+Math.floor(game.player.x)*s,oy+Math.floor(game.player.y)*s,s,s)}
 function drawMenuBackdrop(){const t=performance.now()*.001;for(let i=0;i<13;i++){let x=(i*117+44)%width,y=(i*93+21)%height;block(x,y,Math.max(2,width/65),height,'#2130392a')}ctx.fillStyle='#30434c';ctx.fillRect(width*.20,height*.16,width*.60,height*.73);ctx.fillStyle='#151f27';ctx.fillRect(width*.23,height*.20,width*.54,height*.68);for(let r=0;r<7;r++)for(let c=0;c<14;c++){ctx.fillStyle=(r+c)%3===0?'#a35e58':'#334b52';ctx.fillRect(width*.255+c*width*.034,height*.24+r*height*.078,width*.020,height*.039)}ctx.fillStyle='#bcd0b6';ctx.font='bold 20px monospace';ctx.fillText('HOSPITAL',width*.39,height*.15);ctx.fillStyle='#b2474e';ctx.fillRect(width*.49,height*.04,6,35);ctx.fillRect(width*.48,height*.105,26,7);let fog=ctx.createLinearGradient(0,height*.4,0,height);fog.addColorStop(0,'#09111900');fog.addColorStop(1,'#080e13');ctx.fillStyle=fog;ctx.fillRect(0,0,width,height);if(Math.sin(t*.6)>-.8){ctx.fillStyle='#c9d6be';ctx.fillRect(width*.47,height*.78,4,10)}}
 function drawRescueMovie(){
- const t=cinemaTime,w=width,h=height;
+ const t=cinemaTime,w=width,h=height,ss=Math.max(1,Math.min(2,w/640));
+ const c=(x,y,ww,hh,color)=>{ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),Math.round(ww),Math.round(hh))};
+ const jitter=Math.sin(t*34)*Math.min(2,1+(t>7&&t<11?2:0));
+ const pulse=Math.sin(t*10)>0;
  ctx.save();ctx.imageSmoothingEnabled=false;
- // A real-time eight-shot pixel-art extraction scene; no static illustration is displayed.
- const sky=ctx.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#050d1b');sky.addColorStop(1,'#284654');ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
- for(let i=0;i<52;i++){const x=(i*137+41)%w,y=(i*61+17)%(h*.54);block(x,y,1+(i%3===0?1:0),1,'#c5ded2'+(i%5===0?'a0':'55'))}
- // Distant evacuated city, red alarm lights and rooftop fire doors.
- for(let i=0;i<25;i++){let bw=28+(i*7)%42,bh=h*(.19+(i*11%15)/60),x=i*(w/23)-15;block(x,h*.76-bh,bw,bh+40,i%2?'#0e2631':'#0b1f29');for(let j=0;j<3;j++)for(let k=0;k<5;k++)if((i+j+k)%3===0)block(x+5+j*9,h*.76-bh+8+k*9,3,5,'#dfb87f49')}
- block(0,h*.77,w,h*.23,'#34444c');for(let x=0;x<w;x+=35){block(x,h*.78,1,h*.22,'#566773');block(x,h*.93,35,1,'#708188')}
- block(0,h*.75,w,9,'#101f2a');for(let x=0;x<w;x+=26)block(x,h*.755,13,4,'#e0b963');
- block(w*.12,h*.61,70,h*.15,'#1b303c');block(w*.12,h*.61,70,7,'#74838a');block(w*.12+13,h*.69,16,20,'#17323e');block(w*.12+33,h*.69,16,20,'#17323e');
- const beacon=(Math.sin(t*8)>0);block(w*.16,h*.58,8,12,beacon?'#fa5a57':'#792e3b');
- // Player reaches helipad. Camera cuts to a side view as the helicopter descends.
- const survivorX=w*(t<2?.18:t<5?.18+(t-2)*.12:.54);const survivorY=h*.71;
- if(t<7){ctx.save();ctx.translate(survivorX,survivorY);const step=Math.floor(t*9)%2;block(-7,-21,14,17,'#567b8f');block(-5,-29,10,10,'#d6b59c');block(-7,-6,5,10,'#263a4b');block(2,-6,5,10,'#263a4b');block(7,-15,10,3,'#d4c0a6');block(-8,-31,14,3,'#171c27');ctx.restore()}
- const approach=clamp(t/3.5,0,1),lift=clamp((t-7)/3,0,1),leaving=clamp((t-8.7)/2.5,0,1);
- const hx=w*(1.25-.72*approach-.65*leaving),hy=h*(.11+.32*approach-.63*lift);const rot=Math.sin(t*32)*5;
- ctx.save();ctx.translate(hx,hy);block(-71,15,135,19,'#1d303a');block(-54,-7,101,29,'#667d7d');block(-39,-4,46,21,'#b7c8c2');block(-32,1,30,13,'#344f63');block(49,-2,90,8,'#75888b');block(112,-16,4,35,'#a6b4ac');block(-28,23,70,3,'#bbcbc7');block(-5,-20,5,19,'#869694');block(-91+rot,-23,185,4,'#d5e1db');block(-7,7,20,21,'#102731');block(-60,7,9,6,'#e7c764');ctx.restore();
- // Sweeping searchlight ties the action into the rooftop environment.
- if(t>1.4&&t<8.2){ctx.save();ctx.globalAlpha=.12;ctx.fillStyle='#e3ecd2';ctx.beginPath();ctx.moveTo(hx-26,hy+30);ctx.lineTo(hx-90,h*.81);ctx.lineTo(hx+10,h*.81);ctx.closePath();ctx.fill();ctx.restore()}
- // Narrative shot cards and radio transmission captions.
- ctx.fillStyle='#030b14e0';ctx.fillRect(0,0,w,47);ctx.fillStyle='#eecc9a';ctx.font=`bold ${Math.max(12,Math.floor(w/58))}px monospace`;ctx.fillText('WARD ZERO // HELIPAD 20 / ST. DYSMAS',20,28);
- ctx.fillStyle='#030b14e8';ctx.fillRect(0,h-42,w,42);ctx.fillStyle='#d8e8d7';ctx.font=`${Math.max(12,Math.floor(w/63))}px monospace`;
- const line=t<2?'RADIO: ECHO FOUR — SURVIVOR AT THE ROOF.':t<4?'PILOT: VISUAL CONTACT. COMING IN HOT.':t<7?'RADIO: GO! GO! GO! LAST FLIGHT!':t<9?'PILOT: WE HAVE THEM. LIFTING OFF.':'DISPATCH: EXTRACTION CONFIRMED. YOU MADE IT.';
- ctx.fillText(line,Math.max(12,w*.04),h-16);
- if(t>8.7){ctx.fillStyle=`rgba(4,10,18,${clamp((t-8.7)/1.5,0,.86)})`;ctx.fillRect(0,47,w,h-90);ctx.fillStyle='#e8cfab';ctx.font=`bold ${Math.max(22,Math.floor(w/23))}px monospace`;ctx.textAlign='center';ctx.fillText('LAST FLIGHT',w/2,h*.48);ctx.font=`${Math.max(13,Math.floor(w/52))}px monospace`;ctx.fillStyle='#95d4c5';ctx.fillText('YOU SURVIVED WARD ZERO',w/2,h*.57);ctx.textAlign='left'}
+ const shot=t<3.4?0:t<6.3?1:t<9.4?2:t<12.5?3:4;
+ const darkSky=()=>{
+  let g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,'#050b15');g.addColorStop(.62,'#142838');g.addColorStop(1,'#293c4b');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+  for(let i=0;i<39;i++){let x=(i*127+9)%w,y=h*.17+(i*67)%(h*.52),bh=h*.15+(i*13)%(h*.29),ww=18+(i*11)%43;
+   c(x,h*.77-bh,ww,bh+22,i%3?'#101e2d':'#142737');for(let row=0;row<4;row++)for(let col=0;col<3;col++)if((i+row*3+col)%4===0)c(x+5+col*10,h*.78-bh+7+row*12,3,5,'#e8c38670')}
+ };
+ const rooftop=(offset=0)=>{
+  c(0,h*.72+offset,w,h*.3,'#24333d');c(0,h*.72+offset,w,9,'#59676a');
+  for(let k=0;k<24;k++){let x=k*w/24;c(x,h*.73+offset,1,h*.27,'#344751');if(k%3===0)c(x,h*.78+offset,8,4,'#e2b369')}
+  c(0,h*.81+offset,w,4,'#d9c47f88');for(let x=0;x<w;x+=50)c(x,h*.90+offset,23,2,'#819092');
+  // Hospital exhaust system, emergency door and alarm beacon.
+  c(w*.12,h*.55+offset,w*.135,h*.18,'#162933');c(w*.12,h*.54+offset,w*.135,6,'#657b7b');
+  c(w*.15,h*.63+offset,w*.057,h*.10,'#0b1928');c(w*.17,h*.63+offset,3,h*.1,'#5e7380');
+  c(w*.205,h*.51+offset,6,12,pulse?'#f06565':'#4a1b29');
+  c(w*.63,h*.75+offset,95,4,'#d8c46c');c(w*.64,h*.77+offset,3,27,'#d8c46c');
+ };
+ const protagonist=(x,y,s=1,run=true)=>{
+  ctx.save();ctx.translate(x,y);ctx.scale(s,s);let bob=run?Math.sin(t*17)*3:0,step=run?Math.sin(t*17)*5:0;
+  c(-5,-21+bob,11,20,'#486c86');c(-4,-30+bob,10,11,'#d9b39a');c(-7,-32+bob,13,4,'#263847');
+  c(-6,-2+bob,5,13+step,'#1b2c3b');c(1,-2+bob,5,13-step,'#1b2c3b');c(5,-16+bob,15,4,'#b9cacc');c(18,-17+bob,8,3,'#303c49');ctx.restore();
+ };
+ const infected=(x,y,s=1)=>{ctx.save();ctx.translate(x,y);ctx.scale(s,s);let bob=Math.sin(t*8+x)*2;
+  c(-7,-20+bob,13,17,'#9e4951');c(-5,-29+bob,11,11,'#8eaa7c');c(1,-25+bob,3,2,'#e4d0a9');c(-4,-1+bob,5,12,'#344b3b');c(3,-1+bob,4,12,'#35483a');c(-12,-17+bob,7,4,'#8ba477');ctx.restore()};
+ const aircraft=(x,y,scale=1,door=0)=>{
+  ctx.save();ctx.translate(x+jitter,y);ctx.scale(scale,scale);
+  c(-75,11,154,17,'#273f48');c(-66,-9,127,31,'#8ca5a3');c(-54,-14,95,34,'#cad7c7');
+  c(-44,-9,53,23,'#324a60');c(-38,-6,24,16,'#5f8194');c(-11,-7,19,15,'#3c6075');
+  c(36,-6,102,8,'#90a6a3');c(129,-21,5,32,'#afbfba');c(128,-24,26,4,'#c2cfbf');
+  c(-39,22,90,4,'#d8d8c8');c(-21,18,5,12,'#a3b2ab');c(27,18,5,12,'#a3b2ab');
+  c(-14,-28,5,16,'#a6bbb6');
+  const rotor=(t*36)%2.3;
+  c(-102+rotor,-32,201,3,'#dae2df');c(-78,-34,155,1,'#a7bfbd80');
+  c(-65,7,9,7,'#efda78');c(39,-3,10,5,'#d94e53');
+  c(14,0,door?27:20,door?26:17,door?'#0c1c29':'#3c5963');
+  if(door)c(14,25,35,3,'#bfd0c1');
+  ctx.restore();
+ };
+ const rain=()=>{ctx.save();ctx.globalAlpha=.21;ctx.strokeStyle='#98bac6';ctx.lineWidth=1;
+  for(let i=0;i<76;i++){let x=((i*123+t*38)% (w+40))-20,y=((i*79+t*128)%(h+25))-20;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-5,y+11);ctx.stroke()}ctx.restore()};
+ const radio=(speaker,words)=>{
+  c(0,0,w,45,'#040b16ef');c(0,h-46,w,46,'#03101aef');c(12,43,Math.max(0,w-24),2,'#7b969b');
+  ctx.font=`bold ${Math.max(13,Math.floor(w/55))}px monospace`;ctx.fillStyle='#e5d4a4';ctx.fillText(`ST. DYSMAS  /  LAST FLIGHT  /  03:17`,17,28);
+  ctx.font=`${Math.max(13,Math.floor(w/52))}px monospace`;ctx.fillStyle='#90d3c7';ctx.fillText(`${speaker}: ${words}`,15,h-18);
+ };
+ darkSky();
+ if(shot===0){
+  rooftop(0);
+  // A tense wide shot: an entire line of infected pours through the stairwell.
+  for(let i=0;i<5;i++)infected(w*.10+i*25+t*8,h*.76+(i%2)*7,.9);
+  const sx=w*.37+t*w*.065;protagonist(Math.min(w*.68,sx),h*.76,1.25);
+  c(w*.74,h*.75,64,4,'#e9c45e');ctx.strokeStyle='#d0bf76';ctx.lineWidth=4;ctx.beginPath();ctx.ellipse(w*.76,h*.82,55,17,0,0,Math.PI*2);ctx.stroke();
+  radio('DISPATCH','ROOFTOP BREACH. EVACUATE NOW!');
+ }else if(shot===1){
+  rooftop(0);
+  // The helicopter roars in through heavy rain, eclipsing the city.
+  const u=clamp((t-3.4)/2.9,0,1);
+  aircraft(w*(1.2-.62*u),h*(.1+.28*u),.65+u*.52,0);
+  protagonist(w*.56,h*.77,1.3,false);
+  for(let i=0;i<5;i++)infected(w*.1+i*36+(t-3.4)*12,h*.8+i%2*10,1);
+  ctx.fillStyle='#f2f0ce17';ctx.beginPath();ctx.moveTo(w*.57,h*.36);ctx.lineTo(w*.3,h*.82);ctx.lineTo(w*.8,h*.82);ctx.fill();
+  radio('PILOT','ECHO FOUR. WE HAVE YOU IN SIGHT.');
+ }else if(shot===2){
+  rooftop(0);
+  let u=clamp((t-6.3)/3.1,0,1);let ax=w*.57,ay=h*.43+u*h*.105;
+  aircraft(ax,ay,1.19,1);
+  protagonist(w*(.24+.44*u),h*.79,1.45,true);
+  for(let i=0;i<7;i++)infected(w*.05+i*36+u*60,h*.82+(i%2)*7,1.1);
+  c(0,h*.72,w,2,'#ced8c170');ctx.fillStyle='#f7f1cf23';ctx.beginPath();ctx.moveTo(ax-50,ay+35);ctx.lineTo(ax-190,h*.90);ctx.lineTo(ax+120,h*.90);ctx.fill();
+  radio('PILOT','MOVE! MOVE! THE DOOR IS OPEN!');
+ }else if(shot===3){
+  rooftop(0);let u=clamp((t-9.4)/3.1,0,1);
+  aircraft(w*.58,h*.49-u*h*.08,1.35,1);
+  // Boarding is visible, not implied by disappearing player text.
+  if(u<.66)protagonist(w*(.50+u*.09),h*(.79-u*.25),1.55-u*.28,true);
+  for(let i=0;i<10;i++)infected(w*.07+i*37+u*46,h*.83+(i%3)*5,1.2);
+  // The last pursuer lunges as the helicopter lifts; cut to urgent cockpit shot.
+  if(u>.58){c(w*.67,h*.63,7,25,'#b4d4c6');c(w*.69,h*.64,5,27,'#d3d5b8')}
+  ctx.fillStyle='#e6f0da14';ctx.fillRect(0,h*.67,w,h*.18);
+  radio('RADIO','CLIMB! THE INFECTED ARE AT THE DOOR!');
+ }else{
+  const u=clamp((t-12.5)/3.7,0,1);
+  // The camera pulls above the city as the hospital drops away below.
+  for(let i=0;i<22;i++){let x=i*(w/21)-14,ht=h*.2+(i*27)%(h*.3);c(x,h*.87-ht+u*60,45,ht+100,i%3?'#12222d':'#152b38')}
+  c(0,h*.83+u*90,w,h*.3,'#1d2c37');
+  c(w*.12,h*.60+u*65,w*.36,h*.21,'#3b5057');c(w*.12,h*.60+u*65,w*.36,8,'#8b9a97');
+  c(w*.285,h*.545+u*65,8,20,pulse?'#ed5e62':'#60262d');
+  for(let i=0;i<9;i++)c(w*.15+i*24,h*.68+u*65,7,12,i%3?'#e6b87c':'#a65e60');
+  aircraft(w*(.48+u*.45),h*(.43-u*.52),1.2-u*.57,0);
+  radio('DISPATCH',u<.5?'CONFIRM PASSENGER ON BOARD.':'EXTRACTION CONFIRMED. YOU SURVIVED.');
+  if(u>.72){ctx.fillStyle=`rgba(2,8,14,${(u-.72)*2.8})`;ctx.fillRect(0,45,w,h-90);ctx.textAlign='center';ctx.font=`bold ${Math.max(22,Math.floor(w/26))}px monospace`;ctx.fillStyle='#e8d4a8';ctx.fillText('LAST FLIGHT',w*.5,h*.51);ctx.textAlign='left'}
+ }
+ rain();
+ // Flickering emergency lights, camera flashes and sharp cuts make the escape legible.
+ if(t<12.5){c(0,h*.70,w,2,pulse?'#b1494255':'#532a2933')}
+ const cutTime=[3.4,6.3,9.4,12.5];if(cutTime.some(k=>Math.abs(t-k)<.08)){ctx.fillStyle='#f2ebe4cc';ctx.fillRect(0,0,w,h)}
  ctx.restore();
 }
+
 function drawHelicopter(){let x=width*.72,y=height*.19;ctx.fillStyle='#3a594f';ctx.fillRect(x-44,y,86,15);ctx.fillStyle='#e2d4a0';ctx.fillRect(x-28,y-9,51,8);ctx.fillStyle='#c7d3d6';ctx.fillRect(x-22,y-20,45,3);ctx.fillRect(x-3,y-28,3,12);ctx.fillRect(x+19,y-9,4,19)}
 function resize(){let rect=canvas.getBoundingClientRect();width=Math.max(1,rect.width);height=Math.max(1,rect.height);dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false}
 function frame(t){let dt=Math.min(.04,(t-last)/1000||.016);last=t;update(dt);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false;render();if(messages.length&&performance.now()>messages[messages.length-1].at){feedEl.classList.remove('show');messages=[]}requestAnimationFrame(frame)}
@@ -535,7 +639,7 @@ if(location.search.includes('wardTest=1')){window.__wardTest={
  win:()=>{if(!game)start(false);game.floor=20;end(true)},
  dead:()=>{if(!game)start(false);end(false)},
  movieTick:s=>{cinemaTime=s;render()},
- map:()=>game?.map?{W:game.map.W,H:game.map.H,walls:game.map.walls,start:game.map.start,exit:game.map.exit,rooms:game.map.rooms,props:game.map.props}:null,
+ map:()=>game?.map?{W:game.map.W,H:game.map.H,walls:game.map.walls,start:game.map.start,exit:game.map.exit,rooms:game.map.rooms,props:game.map.props,routeLength:game.routeLength,needsKeycard:game.needsKeycard}:null,
  moveToExit:()=>{if(!game)start(false);game.player.x=game.map.exit.x+.5;game.player.y=game.map.exit.y+.5;update(.02)}
  }}
 resize();updateHUD();mainMenu();requestAnimationFrame(frame);
