@@ -1,3 +1,26 @@
+# Ward Zero v0.3 — Visual environment upgrade
+
+This release implements the approved 16-bit survival-horror hospital look across the procedural Android game.
+
+- 20 floors with distinct department treatments: Emergency, Patient Wards, Radiology, Surgery, Pathology, ICU, Isolation, Service/Morgue, Pharmacy and Rooftop
+- Larger randomly generated rooms and corridor networks with a spacious arrival landing
+- Embedded, offline original concept-art room scenes: nurse stations, curtained beds and waiting areas
+- Clinical tile textures, signage, monitors, equipment, bloodstains, fluorescent glow and different colour palettes
+- Path-blocking medical furniture (beds, surgical tables, CT scanners, medicine carts and more) without breaking access to exits
+- 500 procedural floor connectivity tests passed (25 mazes per floor)
+
+Game rules remain: 10 HP; five-second breach; waves double from one zombie to 524,288 queued on floor 20; on-floor infected, herbs, limited handgun ammo, maps, bombs, armour and adrenaline; joystick controls; zombie audio and horror music.
+
+## APK build
+
+The `Build Ward Zero Android APK` GitHub Action on branch `ward-zero-apk` builds an installable, signed debug APK under the `ward-zero-debug-apk` artifact. The APK works offline in landscape.
+
+## Rights
+
+Hospital scene visuals were adapted from original Ward Zero concept art approved in this conversation. The remaining procedural sprites, textures and synthesised audio are original. No Resident Evil franchise imagery, sounds or music are used.
+
+---
+
 # WARD ZERO: LAST FLIGHT
 
 A self-contained, single-player, top-down pixel zombie-survival game set in a procedurally generated hospital. Built as an offline HTML5 Canvas game; bundled into a minimal Android WebView project for an Android APK build.
