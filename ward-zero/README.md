@@ -1,26 +1,29 @@
-# BIOHAZARD — Last Flight v0.9 · Hospital Emergency Variety
+# Biohazard: Last Flight v1.0 — Difficulty Modes
 
-## Controls and map pickup
-- Removed the touch Map button, full-screen minimap and M-key map toggle. The control strip has only MED, BOMB and FIRE next to the movement joystick.
-- The floor-plan pickup **still reveals a dotted route** in the live world. It guides to an outstanding floor objective first (keycard, fuse or purge valve), then to the stairwell when the objective is complete.
-- Runs, best times, 12 achievements, original horror music, beanie-wearing survivor and rooftop rescue remain intact.
+## New difficulty modes
 
-## New floor variety
-- **Standard escape:** reach the far stairwell without an extra lock.
-- **Security lockdown:** find a physical keycard before the stairwell opens, on every fourth floor.
-- **Power outage:** hospital lighting and vision radius are reduced until an emergency fuse is recovered.
-- **Quarantine purge:** find and open two separate purge valves to release a sealed airlock.
-- **Code Red surge:** breach starts after **3 seconds**, with more aggressive waves and a higher zombie cap.
-- Objectives rotate between runs, and non-keycard floor types avoid repeating the previous type where possible. All variants preserve the ability to complete the Pacifist achievement.
-- A live, compact HUD objective states what you must do, including valve progress and emergency status.
+Choose **Easy**, **Normal** or **Hard** before starting a new 20-floor escape run. The selection stays visible on the title screen and in the HUD while playing.
 
-## Validation
-- Browser smoke tests: no JavaScript exceptions at 832×384, and no Map button.
-- 60 randomized floor checks across all 20 floors: exits and required pickups reachable.
-- Locked exits confirmed to remain closed until their objective is completed for keycards, fuses and valves; then the player can advance.
-- Map pickup retained and routes toward the nearest pending objective. Original gameplay remains offline.
+| Settings | Easy | Normal | Hard |
+|---|---|---|---|
+| Five-second breach | +3 seconds (8 s; Code Red 6 s) | 5 s (Code Red 3 s) | -1.5 seconds (3.5 s; Code Red 1.5 s) |
+| Zombie movement | 72% of Normal | 100% (v0.9) | 117% |
+| Initial weapon | Handgun + 8 rounds | None | None |
+| Initial supplies | 1 armour + 1 medkit | None | None |
+| Enemy density and pressure | Reduced patrols, lower active cap and slower waves | Unchanged | More patrols, higher cap and faster waves |
+| Supplies | More frequent and more useful | Unchanged | Reduced ammo/healing and fewer maps |
 
-## Android build
-GitHub branch `ward-zero-apk`, workflow **Build Biohazard Android APK**, artifact `biohazard-debug-apk`. Package ID stays `com.wardzero.lastflight` to preserve previous records where Android signing permits an in-place update.
+Everything remains procedurally generated; 20 floors, special objectives, keycards, valves, music, survivor artwork and rescue cinematic remain as in v0.9. There are no invulnerability cheats or skipped floors in Easy mode.
 
-Biohazard is associated with the Resident Evil brand; commercial distribution should use distinctive branding.
+## Records, progress and achievements
+- Separate **personal-best successful escape times**, completed escapes and deepest floors per difficulty.
+- Records and achievements are local to the device and shared across modes; no network permission.
+- v0.9 time records are mapped to **Normal** (current difficulty) and remain intact.
+- A saved v0.9 run resumes as **Normal**, even if a different mode is selected on the title screen. New saves remember their selected difficulty.
+
+## Testing
+- Browser checks at 832×384: all three mode selectors, starter equipment and breach delays, survival and end-of-run records, per-mode isolation and no uncaught JavaScript errors.
+- Legacy save compatibility test with a v0.9 floor-eight run and historic records: retained health, inventory, difficulty and achievements.
+- Modes do not modify the character artwork, hospital tile assets, audio or existing game objectives.
+
+Build from GitHub Actions **Build Biohazard Android APK** on `ward-zero-apk`, artifact `biohazard-debug-apk`. Android app ID remains `com.wardzero.lastflight`. In-place update preserves data only when signed with the same certificate as the installed APK.
